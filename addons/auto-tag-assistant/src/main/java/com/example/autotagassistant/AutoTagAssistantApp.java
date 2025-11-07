@@ -38,7 +38,7 @@ public class AutoTagAssistantApp {
                 .description("Automatically detects and suggests tags for time entries")
                 .baseUrl(baseUrl)
                 .minimalSubscriptionPlan("FREE")
-                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
+                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ", "TAG_WRITE"})
                 .build();
 
         // Add sidebar component to manifest

@@ -8,7 +8,8 @@
   "scopes": [
     "TIME_ENTRY_READ",
     "TIME_ENTRY_WRITE",
-    "TAG_READ"
+    "TAG_READ",
+    "TAG_WRITE"
   ],
   "components": [
     {
