@@ -1,0 +1,12 @@
+// from clockify_build_manifest_webhooks.html.html
+{
+  ...
+  "webhooks": [
+      {
+         "authToken": "{JWT for the webhook}",
+         "path": "{path defined in the manifest}",
+         "webhookType": "ADDON"
+      }
+   ],
+   ...
+}

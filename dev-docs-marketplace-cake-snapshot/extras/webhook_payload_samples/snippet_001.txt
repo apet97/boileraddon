@@ -1,0 +1,51 @@
+// from clockify_build_manifest_structured-settings.html.html
+{
+    "tabs": [
+        {
+            "name": "Tab one title",
+            "id": "tab one id",
+            "groups": [
+                {
+                    "id": "group nested in tab",
+                    "title": "Group title",
+                    "description": "group description",
+                    "header": {
+                        "title": "Header title"
+                    },
+                    "settings": [
+                        {
+                            "id": "Setting id",
+                            "name": "Default setting",
+                            "description": "Description of default setting",
+                            "placeholder": "Default setting here...",
+                            "type": "TXT",
+                            "value": "Value of default setting",
+                            "required": true,
+                            "copyable": true,
+                            "readOnly": false,
+                            "accessLevel": "ADMINS"
+
+                        }
+                    ]
+                }
+            ],
+            "header": {
+                "title": "title header 2"
+            },
+            "settings": [
+                {
+                    "id": "Setting id 2",
+                    "name": "Default setting",
+                    "description": "Description of default setting",
+                    "placeholder": "Default setting here...",
+                    "type": "TXT",
+                    "value": "Value of default setting 2",
+                    "required": true,
+                    "copyable": true,
+                    "readOnly": false,
+                    "accessLevel": "ADMINS"
+                }
+            ]
+        }
+    ]
+}

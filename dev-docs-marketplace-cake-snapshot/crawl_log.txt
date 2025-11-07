@@ -1,0 +1,153 @@
+2025-11-07 17:20:27,390 INFO FETCH START https://dev-docs.marketplace.cake.com/
+2025-11-07 17:20:27,747 INFO FETCH OK https://dev-docs.marketplace.cake.com/ -> html/index.html
+2025-11-07 17:21:02,891 INFO FETCH START https://dev-docs.marketplace.cake.com/
+2025-11-07 17:21:03,038 INFO FETCH OK https://dev-docs.marketplace.cake.com/ -> html/index.html
+2025-11-07 17:21:03,343 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/learn/
+2025-11-07 17:21:04,241 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/learn -> html/clockify_learn.html
+2025-11-07 17:21:04,546 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/
+2025-11-07 17:21:05,222 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build -> html/clockify_build.html
+2025-11-07 17:21:05,525 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/publish/
+2025-11-07 17:21:06,400 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/publish -> html/clockify_publish.html
+2025-11-07 17:24:44,267 INFO Using Playwright-rendered crawling for dynamic links
+2025-11-07 17:24:45,693 INFO FETCH START https://dev-docs.marketplace.cake.com/
+2025-11-07 17:24:47,466 INFO FETCH OK https://dev-docs.marketplace.cake.com/ -> html/index.html
+2025-11-07 17:24:47,493 INFO DISCOVERED https://dev-docs.marketplace.cake.com/ -> https://dev-docs.marketplace.cake.com/index.html
+2025-11-07 17:24:47,493 INFO DISCOVERED https://dev-docs.marketplace.cake.com/ -> https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html
+2025-11-07 17:24:47,493 INFO DISCOVERED https://dev-docs.marketplace.cake.com/ -> https://dev-docs.marketplace.cake.com/clockify/learn/quick-start
+2025-11-07 17:24:47,493 INFO DISCOVERED https://dev-docs.marketplace.cake.com/ -> https://dev-docs.marketplace.cake.com/clockify/build/manifest.html
+2025-11-07 17:24:47,493 INFO DISCOVERED https://dev-docs.marketplace.cake.com/ -> https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines
+2025-11-07 17:24:47,493 INFO DISCOVERED https://dev-docs.marketplace.cake.com/ -> https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines
+2025-11-07 17:24:47,493 INFO DISCOVERED https://dev-docs.marketplace.cake.com/ -> https://dev-docs.marketplace.cake.com/terms
+2025-11-07 17:24:47,493 INFO DISCOVERED https://dev-docs.marketplace.cake.com/ -> https://dev-docs.marketplace.cake.com/privacy
+2025-11-07 17:24:47,700 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/learn/
+2025-11-07 17:24:49,153 INFO FETCH OK https://dev-docs.marketplace.cake.com//clockify/learn -> html/clockify_learn.html
+2025-11-07 17:24:49,387 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/
+2025-11-07 17:24:50,715 INFO FETCH OK https://dev-docs.marketplace.cake.com//clockify/build -> html/clockify_build.html
+2025-11-07 17:24:50,947 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/publish/
+2025-11-07 17:24:52,225 INFO FETCH OK https://dev-docs.marketplace.cake.com//clockify/publish -> html/clockify_publish.html
+2025-11-07 17:24:52,443 INFO FETCH START https://dev-docs.marketplace.cake.com/index.html
+2025-11-07 17:24:53,667 INFO FETCH OK https://dev-docs.marketplace.cake.com/index.html -> html/index.html.html
+2025-11-07 17:24:53,899 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html
+2025-11-07 17:24:55,317 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> html/clockify_learn_introduction.html.html
+2025-11-07 17:24:55,341 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/learn/quick-start.html
+2025-11-07 17:24:55,341 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/build/manifest/lifecycle.html
+2025-11-07 17:24:55,341 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/build/manifest/components.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/build/manifest/webhooks.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/build/manifest/structured-settings.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/build/developer-account.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/build/authentication-and-authorization.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/build/environments-and-regions.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/build/window-events.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/publish/development-checklist.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/publish/private-addon-deployment.html
+2025-11-07 17:24:55,342 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/learn/introduction.html -> https://dev-docs.marketplace.cake.com/clockify/build/manifest/index.html
+2025-11-07 17:24:55,551 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/learn/quick-start
+2025-11-07 17:24:56,823 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/learn/quick-start -> html/clockify_learn_quick-start.html
+2025-11-07 17:24:57,050 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/manifest.html
+2025-11-07 17:24:58,025 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/manifest.html -> html/clockify_build_manifest.html.html
+2025-11-07 17:24:58,259 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines
+2025-11-07 17:24:59,451 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines -> html/clockify_publish_publishing-and-guidelines.html
+2025-11-07 17:24:59,466 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/terms.html
+2025-11-07 17:24:59,467 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/privacy.html
+2025-11-07 17:24:59,467 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/cake-com-marketplace-listing-agreement.html
+2025-11-07 17:24:59,675 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines
+2025-11-07 17:25:00,907 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> html/pumble_publish_publishing-and-guidelines.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/learn/introduction.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/learn/quick-start.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/developer-account.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/manifest.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/interactivity.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/modals-views.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/advanced-concepts.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/pumble-cli.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/triggers-reference.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/interactive-elements-reference.html
+2025-11-07 17:25:00,932 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/api-client.html
+2025-11-07 17:25:00,933 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/build/blocks.html
+2025-11-07 17:25:00,933 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines.html
+2025-11-07 17:25:00,933 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines -> https://dev-docs.marketplace.cake.com/pumble/publish/private-addon-deployment.html
+2025-11-07 17:25:01,141 INFO FETCH START https://dev-docs.marketplace.cake.com/terms
+2025-11-07 17:25:02,204 INFO FETCH OK https://dev-docs.marketplace.cake.com/terms -> html/terms.html
+2025-11-07 17:25:02,215 INFO DISCOVERED https://dev-docs.marketplace.cake.com/terms -> https://dev-docs.marketplace.cake.com
+2025-11-07 17:25:02,421 INFO FETCH START https://dev-docs.marketplace.cake.com/privacy
+2025-11-07 17:25:03,699 INFO FETCH OK https://dev-docs.marketplace.cake.com/privacy -> html/privacy.html
+2025-11-07 17:25:03,723 INFO DISCOVERED https://dev-docs.marketplace.cake.com/privacy -> https://dev-docs.marketplace.cake.com/terms/
+2025-11-07 17:25:03,931 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/learn/quick-start.html
+2025-11-07 17:25:04,913 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/learn/quick-start.html -> html/clockify_learn_quick-start.html.html
+2025-11-07 17:25:05,145 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/manifest/lifecycle.html
+2025-11-07 17:25:06,573 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/manifest/lifecycle.html -> html/clockify_build_manifest_lifecycle.html.html
+2025-11-07 17:25:06,801 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/manifest/components.html
+2025-11-07 17:25:07,858 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/manifest/components.html -> html/clockify_build_manifest_components.html.html
+2025-11-07 17:25:08,094 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/manifest/webhooks.html
+2025-11-07 17:25:09,390 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/manifest/webhooks.html -> html/clockify_build_manifest_webhooks.html.html
+2025-11-07 17:25:09,624 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/manifest/structured-settings.html
+2025-11-07 17:25:10,808 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/manifest/structured-settings.html -> html/clockify_build_manifest_structured-settings.html.html
+2025-11-07 17:25:11,041 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/developer-account.html
+2025-11-07 17:25:12,398 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/developer-account.html -> html/clockify_build_developer-account.html.html
+2025-11-07 17:25:12,423 INFO DISCOVERED https://dev-docs.marketplace.cake.com/clockify/build/developer-account.html -> https://dev-docs.marketplace.cake.com/get-started/vendor-profile/
+2025-11-07 17:25:12,631 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/authentication-and-authorization.html
+2025-11-07 17:25:13,871 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/authentication-and-authorization.html -> html/clockify_build_authentication-and-authorization.html.html
+2025-11-07 17:25:14,104 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/environments-and-regions.html
+2025-11-07 17:25:15,327 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/environments-and-regions.html -> html/clockify_build_environments-and-regions.html.html
+2025-11-07 17:25:15,561 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/window-events.html
+2025-11-07 17:25:16,819 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/window-events.html -> html/clockify_build_window-events.html.html
+2025-11-07 17:25:17,051 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/publish/development-checklist.html
+2025-11-07 17:25:18,268 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/publish/development-checklist.html -> html/clockify_publish_development-checklist.html.html
+2025-11-07 17:25:18,490 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines.html
+2025-11-07 17:25:19,804 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/publish/publishing-and-guidelines.html -> html/clockify_publish_publishing-and-guidelines.html.html
+2025-11-07 17:25:20,038 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/publish/private-addon-deployment.html
+2025-11-07 17:25:21,092 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/publish/private-addon-deployment.html -> html/clockify_publish_private-addon-deployment.html.html
+2025-11-07 17:25:21,321 INFO FETCH START https://dev-docs.marketplace.cake.com/clockify/build/manifest/index.html
+2025-11-07 17:25:22,536 INFO FETCH OK https://dev-docs.marketplace.cake.com/clockify/build/manifest/index.html -> html/clockify_build_manifest_index.html.html
+2025-11-07 17:25:22,769 INFO FETCH START https://dev-docs.marketplace.cake.com/terms.html
+2025-11-07 17:25:23,844 INFO FETCH OK https://dev-docs.marketplace.cake.com/terms.html -> html/terms.html.html
+2025-11-07 17:25:24,074 INFO FETCH START https://dev-docs.marketplace.cake.com/privacy.html
+2025-11-07 17:25:25,527 INFO FETCH OK https://dev-docs.marketplace.cake.com/privacy.html -> html/privacy.html.html
+2025-11-07 17:25:25,760 INFO FETCH START https://dev-docs.marketplace.cake.com/cake-com-marketplace-listing-agreement.html
+2025-11-07 17:25:27,003 INFO FETCH OK https://dev-docs.marketplace.cake.com/cake-com-marketplace-listing-agreement.html -> html/cake-com-marketplace-listing-agreement.html.html
+2025-11-07 17:25:27,230 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/learn/introduction.html
+2025-11-07 17:25:28,294 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/learn/introduction.html -> html/pumble_learn_introduction.html.html
+2025-11-07 17:25:28,517 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/learn/quick-start.html
+2025-11-07 17:25:29,736 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/learn/quick-start.html -> html/pumble_learn_quick-start.html.html
+2025-11-07 17:25:29,751 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/learn/quick-start.html -> https://dev-docs.marketplace.cake.com/pumble/build//manifest.html
+2025-11-07 17:25:29,958 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/developer-account.html
+2025-11-07 17:25:31,172 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/developer-account.html -> html/pumble_build_developer-account.html.html
+2025-11-07 17:25:31,403 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/manifest.html
+2025-11-07 17:25:32,454 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/manifest.html -> html/pumble_build_manifest.html.html
+2025-11-07 17:25:32,466 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/build/manifest.html -> https://dev-docs.marketplace.cake.com/pumble/build//api-client.html
+2025-11-07 17:25:32,466 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/build/manifest.html -> https://dev-docs.marketplace.cake.com/pumble/build//advanced-concepts.html
+2025-11-07 17:25:32,466 INFO DISCOVERED https://dev-docs.marketplace.cake.com/pumble/build/manifest.html -> https://dev-docs.marketplace.cake.com/pumble/build//triggers-reference.html
+2025-11-07 17:25:32,673 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/interactivity.html
+2025-11-07 17:25:33,904 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/interactivity.html -> html/pumble_build_interactivity.html.html
+2025-11-07 17:25:34,134 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/modals-views.html
+2025-11-07 17:25:35,226 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/modals-views.html -> html/pumble_build_modals-views.html.html
+2025-11-07 17:25:35,452 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/advanced-concepts.html
+2025-11-07 17:25:36,509 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/advanced-concepts.html -> html/pumble_build_advanced-concepts.html.html
+2025-11-07 17:25:36,738 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/pumble-cli.html
+2025-11-07 17:25:37,810 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/pumble-cli.html -> html/pumble_build_pumble-cli.html.html
+2025-11-07 17:25:38,035 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/triggers-reference.html
+2025-11-07 17:25:39,264 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/triggers-reference.html -> html/pumble_build_triggers-reference.html.html
+2025-11-07 17:25:39,488 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/interactive-elements-reference.html
+2025-11-07 17:25:40,702 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/interactive-elements-reference.html -> html/pumble_build_interactive-elements-reference.html.html
+2025-11-07 17:25:40,922 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/api-client.html
+2025-11-07 17:25:41,957 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/api-client.html -> html/pumble_build_api-client.html.html
+2025-11-07 17:25:42,186 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build/blocks.html
+2025-11-07 17:25:43,443 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build/blocks.html -> html/pumble_build_blocks.html.html
+2025-11-07 17:25:43,669 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines.html
+2025-11-07 17:25:44,980 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/publish/publishing-and-guidelines.html -> html/pumble_publish_publishing-and-guidelines.html.html
+2025-11-07 17:25:45,212 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/publish/private-addon-deployment.html
+2025-11-07 17:25:46,410 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/publish/private-addon-deployment.html -> html/pumble_publish_private-addon-deployment.html.html
+2025-11-07 17:25:46,642 INFO FETCH START https://dev-docs.marketplace.cake.com
+2025-11-07 17:25:47,767 INFO FETCH START https://dev-docs.marketplace.cake.com/terms/
+2025-11-07 17:25:49,354 INFO FETCH OK https://dev-docs.marketplace.cake.com//terms -> html/terms_2.html
+2025-11-07 17:25:49,586 INFO FETCH START https://dev-docs.marketplace.cake.com/get-started/vendor-profile/
+2025-11-07 17:25:50,832 INFO FETCH OK https://dev-docs.marketplace.cake.com//get-started/vendor-profile -> html/get-started_vendor-profile.html
+2025-11-07 17:25:51,062 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build//manifest.html
+2025-11-07 17:25:52,387 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build//manifest.html -> html/pumble_build__manifest.html.html
+2025-11-07 17:25:52,618 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build//api-client.html
+2025-11-07 17:25:53,659 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build//api-client.html -> html/pumble_build__api-client.html.html
+2025-11-07 17:25:53,891 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build//advanced-concepts.html
+2025-11-07 17:25:54,954 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build//advanced-concepts.html -> html/pumble_build__advanced-concepts.html.html
+2025-11-07 17:25:55,185 INFO FETCH START https://dev-docs.marketplace.cake.com/pumble/build//triggers-reference.html
+2025-11-07 17:25:56,419 INFO FETCH OK https://dev-docs.marketplace.cake.com/pumble/build//triggers-reference.html -> html/pumble_build__triggers-reference.html.html
