@@ -166,27 +166,43 @@ public class WebhookHandlers {
 
         String normalizedDescription = description == null ? "" : description.toLowerCase(Locale.ROOT);
         List<TagSuggestion> suggestions = new ArrayList<>();
+        Set<String> seenSuggestionNames = new LinkedHashSet<>();
 
         if (!normalizedDescription.isEmpty()) {
             if (normalizedDescription.contains("meeting")) {
-                suggestions.add(new TagSuggestion("meeting", "Description contains 'meeting'."));
+                addSuggestion(suggestions, seenSuggestionNames, "meeting", "Description contains 'meeting'.");
             }
             if (normalizedDescription.contains("bug") || normalizedDescription.contains("fix")) {
-                suggestions.add(new TagSuggestion("bugfix", "Description references a bug or fix."));
+                addSuggestion(suggestions, seenSuggestionNames, "bugfix", "Description references a bug or fix.");
             }
             if (normalizedDescription.contains("review")) {
-                suggestions.add(new TagSuggestion("code-review", "Description references a review."));
+                addSuggestion(suggestions, seenSuggestionNames, "code-review", "Description references a review.");
             }
             if (normalizedDescription.contains("client")) {
-                suggestions.add(new TagSuggestion("client-work", "Description references a client."));
+                addSuggestion(suggestions, seenSuggestionNames, "client-work", "Description references a client.");
             }
         }
 
         if (timeEntry != null && timeEntry.has("projectName")) {
             String projectName = timeEntry.get("projectName").asText("").trim();
             if (!projectName.isEmpty()) {
-                suggestions.add(new TagSuggestion(projectName.toLowerCase(Locale.ROOT).replace(' ', '-'), "Derived from project name."));
+                addSlugSuggestion(suggestions, seenSuggestionNames, projectName, "Derived from project name.");
             }
+        }
+
+        if (timeEntry != null) {
+            addSlugSuggestion(suggestions, seenSuggestionNames, extractText(timeEntry.path("project").path("name")),
+                "Derived from project.name.");
+            addSlugSuggestion(suggestions, seenSuggestionNames, extractText(timeEntry.path("project").path("clientName")),
+                "Derived from project.clientName.");
+            addSlugSuggestion(suggestions, seenSuggestionNames, extractText(timeEntry.path("project").path("client").path("name")),
+                "Derived from project.client.name.");
+            addSlugSuggestion(suggestions, seenSuggestionNames, extractText(timeEntry.path("client").path("name")),
+                "Derived from client.name.");
+            addSlugSuggestion(suggestions, seenSuggestionNames, extractText(timeEntry.path("task").path("name")),
+                "Derived from task.name.");
+            addSlugSuggestion(suggestions, seenSuggestionNames, extractText(timeEntry.path("project").path("task").path("name")),
+                "Derived from project.task.name.");
         }
 
         TagSuggestionResult result = new TagSuggestionResult(suggestions);
@@ -201,6 +217,46 @@ public class WebhookHandlers {
         }
 
         return result;
+    }
+
+    private static void addSuggestion(List<TagSuggestion> suggestions, Set<String> seenSuggestionNames, String name, String reason) {
+        String normalized = normalizeTagName(name);
+        if (normalized == null || !seenSuggestionNames.add(normalized)) {
+            return;
+        }
+        suggestions.add(new TagSuggestion(name, reason));
+    }
+
+    private static void addSlugSuggestion(List<TagSuggestion> suggestions, Set<String> seenSuggestionNames, String rawValue, String reason) {
+        String slug = slugify(rawValue);
+        if (slug != null) {
+            addSuggestion(suggestions, seenSuggestionNames, slug, reason);
+        }
+    }
+
+    private static String extractText(JsonNode node) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+        String text = node.asText(null);
+        return text != null ? text.trim() : null;
+    }
+
+    private static String slugify(String rawValue) {
+        if (rawValue == null) {
+            return null;
+        }
+        String trimmed = rawValue.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+
+        String slug = trimmed.toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9]+", "-")
+            .replaceAll("^-+", "")
+            .replaceAll("-+$", "");
+
+        return slug.isEmpty() ? null : slug;
     }
 
     private static TagUpdateResult applySuggestedTags(ClockifyApiClient apiClient, String workspaceId, String timeEntryId, List<String> candidateTagNames) throws Exception {
