@@ -4,6 +4,8 @@ import com.example.autotagassistant.sdk.AddonServlet;
 import com.example.autotagassistant.sdk.ClockifyAddon;
 import com.example.autotagassistant.sdk.ClockifyManifest;
 import com.example.autotagassistant.sdk.EmbeddedServer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
@@ -17,12 +19,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutoTagAssistantAppTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Test
     void manifestEndpointRespondsWhenBaseUrlHasTrailingSlash() throws Exception {
@@ -59,14 +64,112 @@ class AutoTagAssistantAppTest {
         });
 
         String manifestUrl = baseUrl + "manifest.json";
+        String expectedBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+
         try {
-            assertManifestRequestSucceeds(manifestUrl);
+            JsonNode manifestJson = fetchManifest(manifestUrl, null);
+            assertEquals(expectedBaseUrl, manifestJson.get("baseUrl").asText());
+            assertEquals(baseUrl, manifest.getBaseUrl());
         } finally {
             stopServer(server, serverFuture, executor);
         }
     }
 
-    private static void assertManifestRequestSucceeds(String manifestUrl) throws Exception {
+    @Test
+    void manifestEndpointUsesRequestHostWhenConfiguredBaseUrlIsOutdated() throws Exception {
+        int port = findFreePort();
+        String configuredBaseUrl = "https://should-be-overridden.ngrok-free.app/auto-tag-assistant";
+
+        ClockifyManifest manifest = ClockifyManifest
+                .v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Automatically detects and suggests tags for time entries")
+                .baseUrl(configuredBaseUrl)
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
+                .build();
+        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
+
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
+
+        String contextPath = AutoTagAssistantApp.sanitizeContextPath(configuredBaseUrl);
+        assertEquals("/auto-tag-assistant", contextPath);
+
+        AddonServlet servlet = new AddonServlet(addon);
+        EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<?> serverFuture = executor.submit(() -> {
+            try {
+                server.start(port);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        String runtimeBaseUrl = "http://localhost:" + port + "/auto-tag-assistant";
+        String manifestUrl = runtimeBaseUrl + "/manifest.json";
+
+        try {
+            JsonNode manifestJson = fetchManifest(manifestUrl, null);
+            assertEquals(runtimeBaseUrl, manifestJson.get("baseUrl").asText());
+            assertEquals(configuredBaseUrl, manifest.getBaseUrl());
+        } finally {
+            stopServer(server, serverFuture, executor);
+        }
+    }
+
+    @Test
+    void manifestEndpointRespectsForwardedHeaders() throws Exception {
+        int port = findFreePort();
+        String configuredBaseUrl = "http://localhost:" + port + "/auto-tag-assistant";
+
+        ClockifyManifest manifest = ClockifyManifest
+                .v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Automatically detects and suggests tags for time entries")
+                .baseUrl(configuredBaseUrl)
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
+                .build();
+        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
+
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
+
+        String contextPath = AutoTagAssistantApp.sanitizeContextPath(configuredBaseUrl);
+        assertEquals("/auto-tag-assistant", contextPath);
+
+        AddonServlet servlet = new AddonServlet(addon);
+        EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<?> serverFuture = executor.submit(() -> {
+            try {
+                server.start(port);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        String manifestUrl = configuredBaseUrl + "/manifest.json";
+        String forwardedHost = "forwarded.example.ngrok-free.app";
+
+        try {
+            JsonNode manifestJson = fetchManifest(manifestUrl, connection -> {
+                connection.setRequestProperty("Forwarded", "proto=https;host=" + forwardedHost + ";for=203.0.113.1");
+            });
+            assertEquals("https://" + forwardedHost + "/auto-tag-assistant", manifestJson.get("baseUrl").asText());
+            assertEquals(configuredBaseUrl, manifest.getBaseUrl());
+        } finally {
+            stopServer(server, serverFuture, executor);
+        }
+    }
+
+    private static JsonNode fetchManifest(String manifestUrl, Consumer<HttpURLConnection> connectionCustomizer) throws Exception {
         Exception lastException = null;
         for (int attempt = 0; attempt < 30; attempt++) {
             HttpURLConnection connection = null;
@@ -74,14 +177,18 @@ class AutoTagAssistantAppTest {
                 connection = (HttpURLConnection) new URL(manifestUrl).openConnection();
                 connection.setConnectTimeout(1000);
                 connection.setReadTimeout(1000);
+                if (connectionCustomizer != null) {
+                    connectionCustomizer.accept(connection);
+                }
                 int status = connection.getResponseCode();
                 if (status == HttpURLConnection.HTTP_OK) {
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
                         String body = reader.lines().collect(Collectors.joining());
                         assertTrue(!body.isEmpty(), "Manifest body should not be empty");
-                        assertTrue(body.contains("\"auto-tag-assistant\""), "Manifest should include the addon key");
+                        JsonNode json = OBJECT_MAPPER.readTree(body);
+                        assertEquals("auto-tag-assistant", json.get("key").asText());
+                        return json;
                     }
-                    return;
                 }
                 lastException = new IOException("Unexpected status code: " + status);
             } catch (IOException e) {
