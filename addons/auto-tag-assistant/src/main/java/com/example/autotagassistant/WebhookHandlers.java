@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.BufferedReader;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Handles Clockify webhook events for time entries.
@@ -65,15 +67,29 @@ public class WebhookHandlers {
                         ? timeEntry.get("description").asText()
                         : "";
 
-                    // Check if time entry has tags
-                    boolean hasTags = timeEntry.has("tagIds")
-                        && timeEntry.get("tagIds").isArray()
-                        && timeEntry.get("tagIds").size() > 0;
+                    List<String> tagIds = extractTagIds(timeEntry);
+                    List<String> tagNames = extractTagNames(timeEntry);
+                    List<String> formattedTags = extractFormattedTags(timeEntry, tagIds, tagNames);
+
+                    boolean hasTags = !tagIds.isEmpty()
+                        || !tagNames.isEmpty()
+                        || !formattedTags.isEmpty();
 
                     System.out.println("\n📋 Auto-Tag Assistant Analysis:");
                     System.out.println("  Time Entry ID: " + timeEntryId);
                     System.out.println("  Description: " + (description.isEmpty() ? "(empty)" : description));
                     System.out.println("  Has Tags: " + (hasTags ? "Yes ✓" : "No ✗"));
+                    if (hasTags) {
+                        System.out.println("  Tags: " + formatTagSummary(formattedTags, tagNames, tagIds));
+                        if (!tagIds.isEmpty()) {
+                            System.out.println("    IDs: " + String.join(", ", tagIds));
+                        }
+                        if (!tagNames.isEmpty()) {
+                            System.out.println("    Names: " + String.join(", ", tagNames));
+                        }
+                    } else {
+                        System.out.println("  Tags: (none)");
+                    }
 
                     if (!hasTags) {
                         System.out.println("\n⚠️  MISSING TAGS DETECTED!");
@@ -145,7 +161,136 @@ public class WebhookHandlers {
         System.out.println("     5. Handle API errors gracefully");
     }
 
+    private static List<String> extractTagIds(JsonNode timeEntry) {
+        List<String> tagIds = new ArrayList<>();
+
+        if (timeEntry.has("tagIds") && timeEntry.get("tagIds").isArray()) {
+            for (JsonNode tagIdNode : timeEntry.get("tagIds")) {
+                String id = tagIdNode.asText(null);
+                if (id != null && !id.isBlank() && !tagIds.contains(id)) {
+                    tagIds.add(id);
+                }
+            }
+        }
+
+        if (timeEntry.has("tags") && timeEntry.get("tags").isArray()) {
+            for (JsonNode tagNode : timeEntry.get("tags")) {
+                String id = null;
+                if (tagNode.has("id")) {
+                    id = tagNode.get("id").asText();
+                } else if (tagNode.isTextual()) {
+                    // Some payloads may represent tags as strings (names or IDs)
+                    id = tagNode.asText();
+                }
+
+                if (id != null && !id.isBlank() && !tagIds.contains(id)) {
+                    tagIds.add(id);
+                }
+            }
+        }
+
+        return tagIds;
+    }
+
+    private static List<String> extractTagNames(JsonNode timeEntry) {
+        List<String> tagNames = new ArrayList<>();
+
+        if (timeEntry.has("tagNames") && timeEntry.get("tagNames").isArray()) {
+            for (JsonNode tagNameNode : timeEntry.get("tagNames")) {
+                String name = tagNameNode.asText(null);
+                if (name != null && !name.isBlank() && !tagNames.contains(name)) {
+                    tagNames.add(name);
+                }
+            }
+        }
+
+        if (timeEntry.has("tags") && timeEntry.get("tags").isArray()) {
+            for (JsonNode tagNode : timeEntry.get("tags")) {
+                String name = null;
+                if (tagNode.has("name")) {
+                    name = tagNode.get("name").asText();
+                } else if (tagNode.isTextual()) {
+                    // If payload uses simple string tags, treat them as names
+                    name = tagNode.asText();
+                }
+
+                if (name != null && !name.isBlank() && !tagNames.contains(name)) {
+                    tagNames.add(name);
+                }
+            }
+        }
+
+        return tagNames;
+    }
+
+    private static List<String> extractFormattedTags(JsonNode timeEntry, List<String> tagIds, List<String> tagNames) {
+        List<String> formattedTags = new ArrayList<>();
+
+        if (timeEntry.has("tags") && timeEntry.get("tags").isArray()) {
+            for (JsonNode tagNode : timeEntry.get("tags")) {
+                String id = tagNode.has("id") ? tagNode.get("id").asText(null) : null;
+                String name = tagNode.has("name") ? tagNode.get("name").asText(null) : null;
+
+                if (tagNode.isTextual()) {
+                    String value = tagNode.asText();
+                    if (!value.isBlank() && !formattedTags.contains(value)) {
+                        formattedTags.add(value);
+                    }
+                    continue;
+                }
+
+                if (name != null && !name.isBlank() && id != null && !id.isBlank()) {
+                    String combined = name + " (" + id + ")";
+                    if (!formattedTags.contains(combined)) {
+                        formattedTags.add(combined);
+                    }
+                } else if (name != null && !name.isBlank()) {
+                    if (!formattedTags.contains(name)) {
+                        formattedTags.add(name);
+                    }
+                } else if (id != null && !id.isBlank()) {
+                    if (!formattedTags.contains(id)) {
+                        formattedTags.add(id);
+                    }
+                }
+            }
+        }
+
+        if (formattedTags.isEmpty()) {
+            if (!tagNames.isEmpty()) {
+                formattedTags.addAll(tagNames);
+            } else if (!tagIds.isEmpty()) {
+                formattedTags.addAll(tagIds);
+            }
+        }
+
+        return formattedTags;
+    }
+
+    private static String formatTagSummary(List<String> formattedTags, List<String> tagNames, List<String> tagIds) {
+        if (!formattedTags.isEmpty()) {
+            return String.join(", ", formattedTags);
+        }
+        if (!tagNames.isEmpty()) {
+            return String.join(", ", tagNames);
+        }
+        if (!tagIds.isEmpty()) {
+            return String.join(", ", tagIds);
+        }
+        return "(none)";
+    }
+
     private static JsonNode parseRequestBody(HttpServletRequest request) throws Exception {
+        Object cachedJson = request.getAttribute("clockify.jsonBody");
+        if (cachedJson instanceof JsonNode) {
+            return (JsonNode) cachedJson;
+        }
+
+        Object cachedBody = request.getAttribute("clockify.rawBody");
+        if (cachedBody instanceof String) {
+            return objectMapper.readTree((String) cachedBody);
+        }
+
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = request.getReader()) {
             String line;
