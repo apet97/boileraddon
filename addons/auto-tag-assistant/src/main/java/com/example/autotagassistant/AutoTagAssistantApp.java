@@ -65,16 +65,7 @@ public class AutoTagAssistantApp {
 
         // Extract context path from base URL
         // Example: http://localhost:8080/auto-tag-assistant -> /auto-tag-assistant
-        String contextPath = "/";
-        try {
-            java.net.URI uri = new java.net.URI(baseUrl);
-            String path = uri.getPath();
-            if (path != null && !path.isEmpty() && !path.equals("/")) {
-                contextPath = path;
-            }
-        } catch (Exception e) {
-            System.err.println("Warning: Could not parse base URL, using '/' as context path: " + e.getMessage());
-        }
+        String contextPath = sanitizeContextPath(baseUrl);
 
         // Start embedded Jetty server
         AddonServlet servlet = new AddonServlet(addon);
@@ -96,5 +87,22 @@ public class AutoTagAssistantApp {
         System.out.println("=".repeat(80));
 
         server.start(port);
+    }
+
+    static String sanitizeContextPath(String baseUrl) {
+        String contextPath = "/";
+        try {
+            java.net.URI uri = new java.net.URI(baseUrl);
+            String path = uri.getPath();
+            if (path != null && !path.isEmpty()) {
+                String sanitized = path.replaceAll("/+$", "");
+                if (!sanitized.isEmpty()) {
+                    contextPath = sanitized;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: Could not parse base URL, using '/' as context path: " + e.getMessage());
+        }
+        return contextPath;
     }
 }
