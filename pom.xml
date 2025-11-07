@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.clockify.boilerplate</groupId>
+    <artifactId>clockify-addon-boilerplate</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>Clockify Add-on Boilerplate</name>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <modules>
+        <!-- Vendored SDK modules (build locally, no GitHub Packages needed) -->
+        <module>dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/annotation-processor</module>
+        <module>dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/addon-sdk</module>
+
+        <!-- Templates -->
+        <module>templates/java-basic-addon</module>
+
+        <!-- Working add-ons -->
+        <module>addons/auto-tag-assistant</module>
+    </modules>
+
+</project>

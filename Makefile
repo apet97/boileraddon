@@ -1,11 +1,99 @@
-.PHONY: validate build-java run-java
+.PHONY: help setup validate build-sdk build-java build-template build-auto-tag-assistant build run-auto-tag-assistant clean install test
 
+# Default target
+help:
+	@echo "Clockify Add-on Boilerplate - Make targets:"
+	@echo ""
+	@echo "  setup                      - Install dependencies and prepare environment"
+	@echo "  validate                   - Validate all manifest.json files"
+	@echo "  build                      - Build all modules (SDK + templates + addons)"
+	@echo "  build-sdk                  - Build only the vendored SDK modules"
+	@echo "  build-template             - Build only the java-basic-addon template"
+	@echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
+	@echo "  install                    - Install SDK to local Maven repository"
+	@echo "  test                       - Run all tests"
+	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
+	@echo "  clean                      - Clean all build artifacts"
+	@echo ""
+	@echo "Quick start:"
+	@echo "  1. make build              # Build everything"
+	@echo "  2. make run-auto-tag-assistant  # Run the demo addon"
+	@echo "  3. In another terminal: ngrok http 8080"
+	@echo "  4. Update manifest.json baseUrl with ngrok URL"
+	@echo "  5. Install in Clockify using ngrok manifest URL"
+
+# Setup environment
+setup:
+	@echo "Checking Java version..."
+	@java -version
+	@echo "Checking Maven version..."
+	@mvn -version
+	@echo "Setup complete!"
+
+# Validate manifest files
 validate:
-	python3 tools/validate-manifest.py
+	@echo "Validating manifest files..."
+	python3 tools/validate-manifest.py templates/java-basic-addon/manifest.json
+	python3 tools/validate-manifest.py addons/auto-tag-assistant/manifest.json
+	@echo "✓ All manifests valid"
 
-build-java:
-	mvn -q -f templates/java-basic-addon/pom.xml -DskipTests package
+# Build SDK modules only
+build-sdk:
+	@echo "Building vendored SDK modules..."
+	mvn -q -f dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/annotation-processor/pom.xml clean install
+	mvn -q -f dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/addon-sdk/pom.xml clean install
+	@echo "✓ SDK built and installed to local Maven repo"
 
-run-java:
-	ADDON_KEY=example.addon ADDON_BASE_URL=http://localhost:8080 \
-	java -jar templates/java-basic-addon/target/java-basic-addon-0.1.0-jar-with-dependencies.jar
+# Build everything (SDK + templates + addons)
+build: build-sdk
+	@echo "Building all modules..."
+	mvn -q clean package -DskipTests
+	@echo "✓ Build complete!"
+	@echo ""
+	@echo "Built artifacts:"
+	@ls -lh templates/java-basic-addon/target/*jar-with-dependencies.jar 2>/dev/null || true
+	@ls -lh addons/auto-tag-assistant/target/*jar-with-dependencies.jar 2>/dev/null || true
+
+# Build template only
+build-template:
+	@echo "Building java-basic-addon template..."
+	mvn -q -f templates/java-basic-addon/pom.xml clean package -DskipTests
+	@echo "✓ Template built: templates/java-basic-addon/target/java-basic-addon-0.1.0-jar-with-dependencies.jar"
+
+# Build auto-tag-assistant only
+build-auto-tag-assistant:
+	@echo "Building auto-tag-assistant addon..."
+	mvn -q -f addons/auto-tag-assistant/pom.xml clean package -DskipTests
+	@echo "✓ Auto-Tag Assistant built: addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar"
+
+# Install SDK to local Maven repository
+install: build-sdk
+	@echo "✓ SDK installed to ~/.m2/repository/"
+
+# Run tests
+test:
+	@echo "Running tests..."
+	mvn test
+	@echo "✓ Tests passed"
+
+# Run auto-tag-assistant locally
+run-auto-tag-assistant:
+	@echo "Starting Auto-Tag Assistant..."
+	@echo "================================"
+	@echo "Base URL: http://localhost:8080/auto-tag-assistant"
+	@echo "Manifest: http://localhost:8080/auto-tag-assistant/manifest.json"
+	@echo "================================"
+	@echo ""
+	@echo "To expose via ngrok:"
+	@echo "  1. In another terminal: ngrok http 8080"
+	@echo "  2. Update manifest.json baseUrl to: https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant"
+	@echo "  3. Install in Clockify using: https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant/manifest.json"
+	@echo ""
+	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/auto-tag-assistant \
+	java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
+
+# Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	mvn clean
+	@echo "✓ Clean complete"

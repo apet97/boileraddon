@@ -3,6 +3,10 @@
   "key": "auto-tag-assistant",
   "name": "Auto-Tag Assistant",
   "description": "Automatically adds default tags to time entries when required tags are missing. Helps ensure all time entries are properly categorized.",
+  "schemaVersion": "1.3",
+  "key": "auto-tag-assistant",
+  "name": "Auto-Tag Assistant",
+  "description": "Automatically detects and suggests tags for time entries based on project and task context",
   "baseUrl": "http://localhost:8080/auto-tag-assistant",
   "minimalSubscriptionPlan": "FREE",
   "scopes": [
@@ -17,6 +21,13 @@
       "label": "Tag Rules",
       "path": "/settings",
       "accessLevel": "ADMINS"
+    "TAG_READ"
+  ],
+  "components": [
+    {
+      "type": "TIME_ENTRY_SIDEBAR",
+      "path": "/settings",
+      "label": "Auto-Tag Settings"
     }
   ],
   "webhooks": [
@@ -35,6 +46,14 @@
     {
       "event": "NEW_TIME_ENTRY",
       "path": "/webhook"
+      "path": "/webhook",
+      "webhookType": "ADDON",
+      "events": [
+        "NEW_TIMER_STARTED",
+        "TIMER_STOPPED",
+        "TIME_ENTRY_UPDATED",
+        "NEW_TIME_ENTRY"
+      ]
     }
   ],
   "lifecycle": [

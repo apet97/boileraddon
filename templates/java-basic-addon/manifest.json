@@ -1,9 +1,11 @@
 {
-  "$schema": "../dev-docs-marketplace-cake-snapshot/extras/manifest-schema-latest.json",
-  "version": "1.3",
+  "schemaVersion": "1.3",
   "key": "example.addon",
   "name": "Java Basic Addon",
+  "description": "A basic Clockify add-on template",
   "baseUrl": "http://localhost:8080",
+  "minimalSubscriptionPlan": "FREE",
+  "scopes": [],
   "components": [],
   "webhooks": [
     {
