@@ -1,4 +1,4 @@
-package com.example.addon;
+package com.example.autotagassistant;
 
 import addonsdk.shared.RequestHandler;
 import addonsdk.shared.response.HttpResponse;
@@ -8,12 +8,13 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * Serves the add-on manifest at /manifest.json.
+ * Serves the add-on manifest.
  *
- * CRITICAL: This endpoint MUST NOT return "$schema" field.
+ * CRITICAL: The manifest returned here MUST NOT contain "$schema" field.
  * Clockify's /addons endpoint rejects unknown fields like "$schema".
  *
- * The ClockifyManifest class only includes valid runtime fields.
+ * The manifest.json file in the project root can reference "$schema" for IDE validation,
+ * but this endpoint must serve only the runtime manifest fields that Clockify accepts.
  */
 public class ManifestController implements RequestHandler {
     private final ClockifyManifest manifest;
@@ -27,6 +28,7 @@ public class ManifestController implements RequestHandler {
 
     @Override
     public HttpResponse handle(HttpServletRequest request) throws Exception {
+        // Serialize the manifest - the ClockifyManifest class only includes valid runtime fields
         String json = mapper.writeValueAsString(manifest);
         return HttpResponse.ok(json, "application/json");
     }
