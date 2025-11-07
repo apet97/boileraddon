@@ -295,7 +295,7 @@ class AutoTagAssistantAppTest {
     private static String documentedInstalledLifecyclePayload() {
         return OBJECT_MAPPER.createObjectNode()
                 .put("addonId", "auto-tag-assistant")
-                .put("addonToken", "addon-token-example")
+                .put("authToken", "auth-token-example")
                 .put("workspaceId", "workspace-123")
                 .put("workspaceName", "Example Workspace")
                 .put("userId", "user-456")

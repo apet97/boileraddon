@@ -24,7 +24,7 @@ import java.util.List;
  * 2. Check if time entry has tags
  * 3. If missing tags, analyze project/task/description
  * 4. Suggest or auto-apply appropriate tags
- * 5. Use stored addon token to call Clockify API
+ * 5. Use stored auth token to call Clockify API
  */
 public class WebhookHandlers {
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -104,7 +104,7 @@ public class WebhookHandlers {
                         System.out.println("     - Edit WebhookHandlers.java");
                         System.out.println("     - Use ClockifyApiClient.java to call:");
                         System.out.println("       PUT /workspaces/{workspaceId}/time-entries/{timeEntryId}");
-                        System.out.println("     - Include Authorization header with addon token");
+                        System.out.println("     - Include Authorization header with auth token");
                         System.out.println();
 
                         // Simulate tag suggestion logic
@@ -132,7 +132,7 @@ public class WebhookHandlers {
      * 1. Use NLP or keyword matching to analyze description
      * 2. Query workspace tags via Clockify API
      * 3. Find best matching tags
-     * 4. Apply tags via API using stored addon token
+     * 4. Apply tags via API using stored auth token
      */
     private static void suggestTagsForTimeEntry(String workspaceId, String timeEntryId, String description) {
         System.out.println("  🏷️  Suggested Tags (based on description analysis):");
@@ -153,7 +153,7 @@ public class WebhookHandlers {
 
         System.out.println();
         System.out.println("  💡 Implementation Plan:");
-        System.out.println("     1. Retrieve addon token for workspace: " + workspaceId);
+        System.out.println("     1. Retrieve auth token for workspace: " + workspaceId);
         System.out.println("     2. GET /workspaces/{workspaceId}/tags to get available tags");
         System.out.println("     3. Match suggested tags to actual tag IDs");
         System.out.println("     4. PUT /workspaces/{workspaceId}/time-entries/{timeEntryId}");

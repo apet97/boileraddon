@@ -252,19 +252,19 @@ The application automatically extracts the context path from `ADDON_BASE_URL`:
 
 All endpoints are served relative to this context path.
 
-### Store the Addon Token
+### Store the Auth Token
 
-When Clockify installs your add-on, it sends an **INSTALLED** lifecycle event with a workspace-specific token:
+When Clockify installs your add-on, it sends an **INSTALLED** lifecycle event with a workspace-specific auth token:
 
 ```java
 addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> {
     JsonNode payload = parseRequestBody(request);
     String workspaceId = payload.get("workspaceId").asText();
-    String addonToken = payload.get("addonToken").asText();
+    String authToken = payload.get("authToken").asText();
 
     // CRITICAL: Store this token!
     // Use it for ALL Clockify API calls for this workspace
-    tokenStore.save(workspaceId, addonToken);
+    tokenStore.save(workspaceId, authToken);
 
     return HttpResponse.ok("Installed");
 });
@@ -275,7 +275,7 @@ Use this token for API calls:
 ```java
 HttpRequest req = HttpRequest.newBuilder()
     .uri(URI.create("https://api.clockify.me/api/v1/workspaces/" + workspaceId + "/tags"))
-    .header("Authorization", "Bearer " + addonToken)
+    .header("Authorization", "Bearer " + authToken)
     .GET()
     .build();
 ```
@@ -324,7 +324,7 @@ mvn clean package -DskipTests -U
 
 ### "401 Unauthorized" when calling Clockify API
 
-**Cause**: Missing or invalid addon token.
+**Cause**: Missing or invalid auth token.
 
 **Solution**:
 1. Store token from INSTALLED lifecycle event
