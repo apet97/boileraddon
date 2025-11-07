@@ -1,8 +1,8 @@
 package com.example.autotagassistant;
 
-import com.cake.clockify.addonsdk.shared.RequestHandler;
-import com.cake.clockify.addonsdk.shared.response.HttpResponse;
-import javax.servlet.http.HttpServletRequest;
+import com.example.autotagassistant.sdk.RequestHandler;
+import com.example.autotagassistant.sdk.HttpResponse;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Serves the settings/sidebar UI for the Auto-Tag Assistant.

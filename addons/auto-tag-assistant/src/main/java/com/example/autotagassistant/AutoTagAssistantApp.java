@@ -1,9 +1,9 @@
 package com.example.autotagassistant;
 
-import com.cake.clockify.addonsdk.shared.AddonServlet;
-import com.cake.clockify.addonsdk.shared.EmbeddedServer;
-import com.cake.clockify.addonsdk.clockify.ClockifyAddon;
-import com.cake.clockify.addonsdk.clockify.model.ClockifyManifest;
+import com.example.autotagassistant.sdk.AddonServlet;
+import com.example.autotagassistant.sdk.EmbeddedServer;
+import com.example.autotagassistant.sdk.ClockifyAddon;
+import com.example.autotagassistant.sdk.ClockifyManifest;
 
 /**
  * Auto-Tag Assistant Add-on
@@ -58,7 +58,7 @@ public class AutoTagAssistantApp {
 
         // Health check
         addon.registerCustomEndpoint("/health", request ->
-                com.cake.clockify.addonsdk.shared.response.HttpResponse.ok("Auto-Tag Assistant is running"));
+                com.example.autotagassistant.sdk.HttpResponse.ok("Auto-Tag Assistant is running"));
 
         // Start embedded Jetty server
         AddonServlet servlet = new AddonServlet(addon);
