@@ -31,6 +31,7 @@ public class LifecycleHandlers {
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
                 String userId = payload.has("userId") ? payload.get("userId").asText() : "unknown";
                 String authToken = payload.has("authToken") ? payload.get("authToken").asText() : null;
+                String apiBaseUrl = extractApiBaseUrl(payload);
 
                 System.out.println("\n" + "=".repeat(80));
                 System.out.println("LIFECYCLE EVENT: INSTALLED");
@@ -52,9 +53,15 @@ public class LifecycleHandlers {
 
                 if (authToken == null || authToken.isEmpty()) {
                     System.out.println("⚠️  TODO: Missing auth token in payload; verify installation payload structure.");
-                } else {
-                    System.out.println("⚠️  TODO: Store auth token for workspace " + workspaceId);
-                    System.out.println("    Add token storage in LifecycleHandlers.java:register()");
+                }
+
+                if (apiBaseUrl == null || apiBaseUrl.isEmpty()) {
+                    System.out.println("⚠️  TODO: Missing API base URL in payload; verify installation payload structure.");
+                }
+
+                if (!"unknown".equals(workspaceId) && authToken != null && !authToken.isEmpty() && apiBaseUrl != null && !apiBaseUrl.isEmpty()) {
+                    WorkspaceTokenStore.getInstance().save(workspaceId, authToken, apiBaseUrl);
+                    System.out.println("✅ Stored auth token for workspace " + workspaceId);
                 }
                 System.out.println();
 
@@ -97,8 +104,13 @@ public class LifecycleHandlers {
                 // tokenStore.delete(workspaceId);
                 // userSettingsStore.deleteByWorkspace(workspaceId);
 
-                System.out.println("⚠️  TODO: Clean up data for workspace " + workspaceId);
-                System.out.println("    Add cleanup logic in LifecycleHandlers.java:register()");
+                if (!"unknown".equals(workspaceId)) {
+                    WorkspaceTokenStore.getInstance().delete(workspaceId);
+                    System.out.println("✅ Removed stored auth token for workspace " + workspaceId);
+                } else {
+                    System.out.println("⚠️  TODO: Clean up data for workspace " + workspaceId);
+                    System.out.println("    Add cleanup logic in LifecycleHandlers.java:register()");
+                }
                 System.out.println();
 
                 String responseBody = objectMapper.createObjectNode()
@@ -139,5 +151,31 @@ public class LifecycleHandlers {
             }
         }
         return objectMapper.readTree(sb.toString());
+    }
+
+    private static String extractApiBaseUrl(JsonNode payload) {
+        if (payload == null) {
+            return null;
+        }
+
+        String[] possibleFields = {"apiBaseUrl", "apiUrl", "clockifyApiUrl", "clockifyApiBaseUrl"};
+        for (String field : possibleFields) {
+            JsonNode value = payload.get(field);
+            if (value != null && value.isTextual() && !value.asText().isBlank()) {
+                return value.asText();
+            }
+        }
+
+        JsonNode claims = payload.get("claims");
+        if (claims != null && claims.isObject()) {
+            for (String field : possibleFields) {
+                JsonNode value = claims.get(field);
+                if (value != null && value.isTextual() && !value.asText().isBlank()) {
+                    return value.asText();
+                }
+            }
+        }
+
+        return null;
     }
 }

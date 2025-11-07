@@ -4,11 +4,20 @@ import com.example.autotagassistant.sdk.ClockifyAddon;
 import com.example.autotagassistant.sdk.HttpResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.BufferedReader;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Handles Clockify webhook events for time entries.
@@ -91,74 +100,226 @@ public class WebhookHandlers {
                         System.out.println("  Tags: (none)");
                     }
 
+                    HttpResponse response;
+
                     if (!hasTags) {
                         System.out.println("\n⚠️  MISSING TAGS DETECTED!");
-                        System.out.println("  🤖 Auto-tagging logic would run here:");
-                        System.out.println("     1. Analyze description: \"" + description + "\"");
-                        System.out.println("     2. Check project/task context");
-                        System.out.println("     3. Query historical tagging patterns");
-                        System.out.println("     4. Suggest tags: [meeting, client-work, development]");
-                        System.out.println("     5. Apply tags via Clockify API");
-                        System.out.println();
-                        System.out.println("  📝 To implement:");
-                        System.out.println("     - Edit WebhookHandlers.java");
-                        System.out.println("     - Use ClockifyApiClient.java to call:");
-                        System.out.println("       PUT /workspaces/{workspaceId}/time-entries/{timeEntryId}");
-                        System.out.println("     - Include Authorization header with auth token");
-                        System.out.println();
 
-                        // Simulate tag suggestion logic
-                        suggestTagsForTimeEntry(workspaceId, timeEntryId, description);
+                        TagSuggestionResult suggestionResult = suggestTagsForTimeEntry(workspaceId, timeEntryId, description, timeEntry);
+                        List<String> candidateTagNames = suggestionResult.getTagNames();
+
+                        if (candidateTagNames.isEmpty()) {
+                            System.out.println("  ❌ No tag suggestions available for this time entry.");
+                            response = skipResponse("No tag suggestions available for this time entry.");
+                        } else {
+                            Optional<WorkspaceTokenStore.WorkspaceToken> workspaceToken = WorkspaceTokenStore.getInstance().find(workspaceId);
+                            if (workspaceToken.isEmpty()) {
+                                String message = "Missing stored auth token/API base URL for workspace " + workspaceId;
+                                System.err.println("❌ " + message);
+                                response = errorResponse(500, message);
+                            } else {
+                                WorkspaceTokenStore.WorkspaceToken token = workspaceToken.get();
+                                ClockifyApiClient apiClient = new ClockifyApiClient(token.getApiBaseUrl(), token.getAuthToken());
+
+                                try {
+                                    TagUpdateResult updateResult = applySuggestedTags(apiClient, workspaceId, timeEntryId, candidateTagNames);
+
+                                    if (updateResult.getTagIdsByName().isEmpty()) {
+                                        System.out.println("  ℹ️  Suggestions did not resolve to any tags.");
+                                        response = skipResponse("Suggestions did not resolve to any tags.");
+                                    } else {
+                                        logSuccessfulUpdate(timeEntryId, updateResult);
+                                        response = successResponse("Applied tags to time entry " + timeEntryId, updateResult);
+                                    }
+                                } catch (Exception apiError) {
+                                    String message = "Failed to update time entry tags: " + apiError.getMessage();
+                                    System.err.println("❌ " + message);
+                                    apiError.printStackTrace();
+                                    response = errorResponse(500, message);
+                                }
+                            }
+                        }
                     } else {
                         System.out.println("  ✓ Time entry already has tags, no action needed");
+                        response = skipResponse("Time entry already had tags; no changes applied.");
                     }
 
                     System.out.println("=".repeat(80) + "\n");
 
-                    return HttpResponse.ok("Webhook processed");
+                    return response;
 
                 } catch (Exception e) {
                     System.err.println("Error handling webhook: " + e.getMessage());
                     e.printStackTrace();
-                    return HttpResponse.error(500, "Failed to process webhook: " + e.getMessage());
+                    return errorResponse(500, "Failed to process webhook: " + e.getMessage());
                 }
             });
         }
     }
 
     /**
-     * Simulates tag suggestion logic based on time entry description.
-     * In a real implementation, this would:
-     * 1. Use NLP or keyword matching to analyze description
-     * 2. Query workspace tags via Clockify API
-     * 3. Find best matching tags
-     * 4. Apply tags via API using stored auth token
+     * Suggest tag names based on the time entry description and other details.
      */
-    private static void suggestTagsForTimeEntry(String workspaceId, String timeEntryId, String description) {
-        System.out.println("  🏷️  Suggested Tags (based on description analysis):");
+    private static TagSuggestionResult suggestTagsForTimeEntry(String workspaceId, String timeEntryId, String description, JsonNode timeEntry) {
+        System.out.println("  🤖 Auto-tagging analysis for workspace " + workspaceId + ":");
 
-        // Simple keyword-based suggestions (replace with real logic)
-        if (description.toLowerCase().contains("meeting")) {
-            System.out.println("     - 'meeting' (keyword match)");
-        }
-        if (description.toLowerCase().contains("bug") || description.toLowerCase().contains("fix")) {
-            System.out.println("     - 'bugfix' (keyword match)");
-        }
-        if (description.toLowerCase().contains("review")) {
-            System.out.println("     - 'code-review' (keyword match)");
-        }
-        if (description.toLowerCase().contains("client")) {
-            System.out.println("     - 'client-work' (keyword match)");
+        String normalizedDescription = description == null ? "" : description.toLowerCase(Locale.ROOT);
+        List<TagSuggestion> suggestions = new ArrayList<>();
+
+        if (!normalizedDescription.isEmpty()) {
+            if (normalizedDescription.contains("meeting")) {
+                suggestions.add(new TagSuggestion("meeting", "Description contains 'meeting'."));
+            }
+            if (normalizedDescription.contains("bug") || normalizedDescription.contains("fix")) {
+                suggestions.add(new TagSuggestion("bugfix", "Description references a bug or fix."));
+            }
+            if (normalizedDescription.contains("review")) {
+                suggestions.add(new TagSuggestion("code-review", "Description references a review."));
+            }
+            if (normalizedDescription.contains("client")) {
+                suggestions.add(new TagSuggestion("client-work", "Description references a client."));
+            }
         }
 
-        System.out.println();
-        System.out.println("  💡 Implementation Plan:");
-        System.out.println("     1. Retrieve auth token for workspace: " + workspaceId);
-        System.out.println("     2. GET /workspaces/{workspaceId}/tags to get available tags");
-        System.out.println("     3. Match suggested tags to actual tag IDs");
-        System.out.println("     4. PUT /workspaces/{workspaceId}/time-entries/{timeEntryId}");
-        System.out.println("        with body: { \"tagIds\": [\"tag-id-1\", \"tag-id-2\"] }");
-        System.out.println("     5. Handle API errors gracefully");
+        if (timeEntry != null && timeEntry.has("projectName")) {
+            String projectName = timeEntry.get("projectName").asText("").trim();
+            if (!projectName.isEmpty()) {
+                suggestions.add(new TagSuggestion(projectName.toLowerCase(Locale.ROOT).replace(' ', '-'), "Derived from project name."));
+            }
+        }
+
+        TagSuggestionResult result = new TagSuggestionResult(suggestions);
+
+        if (result.getSuggestions().isEmpty()) {
+            System.out.println("  💤 No keyword-based tag suggestions found.");
+        } else {
+            System.out.println("  🏷️  Suggested Tags:");
+            for (TagSuggestion suggestion : result.getSuggestions()) {
+                System.out.println("     - '" + suggestion.getName() + "' (" + suggestion.getReason() + ")");
+            }
+        }
+
+        return result;
+    }
+
+    private static TagUpdateResult applySuggestedTags(ClockifyApiClient apiClient, String workspaceId, String timeEntryId, List<String> candidateTagNames) throws Exception {
+        JsonNode existingTagsNode = apiClient.getTags(workspaceId);
+        Map<String, String> tagsByName = mapTagsByNormalizedName(existingTagsNode);
+        Set<String> seenNames = new LinkedHashSet<>();
+        LinkedHashMap<String, String> resolvedTags = new LinkedHashMap<>();
+        List<String> createdTags = new ArrayList<>();
+
+        for (String candidate : candidateTagNames) {
+            String normalized = normalizeTagName(candidate);
+            if (normalized == null || !seenNames.add(normalized)) {
+                continue;
+            }
+
+            String tagId = tagsByName.get(normalized);
+            if (tagId == null) {
+                JsonNode createdTag = apiClient.createTag(workspaceId, candidate);
+                if (createdTag == null || !createdTag.has("id")) {
+                    throw new IllegalStateException("Clockify API did not return a tag ID for '" + candidate + "'.");
+                }
+                tagId = createdTag.get("id").asText();
+                tagsByName.put(normalized, tagId);
+                createdTags.add(candidate);
+                System.out.println("  ➕ Created tag '" + candidate + "' with ID " + tagId);
+            }
+
+            if (tagId != null && !tagId.isBlank()) {
+                resolvedTags.put(candidate, tagId);
+            }
+        }
+
+        if (resolvedTags.isEmpty()) {
+            return new TagUpdateResult(resolvedTags, createdTags, null);
+        }
+
+        String[] tagIds = resolvedTags.values().toArray(new String[0]);
+        JsonNode updatedEntry = apiClient.updateTimeEntryTags(workspaceId, timeEntryId, tagIds);
+
+        return new TagUpdateResult(resolvedTags, createdTags, updatedEntry);
+    }
+
+    private static Map<String, String> mapTagsByNormalizedName(JsonNode tagsNode) {
+        Map<String, String> tags = new LinkedHashMap<>();
+        if (tagsNode != null && tagsNode.isArray()) {
+            for (JsonNode tag : tagsNode) {
+                if (tag != null && tag.has("name") && tag.has("id")) {
+                    String normalized = normalizeTagName(tag.get("name").asText());
+                    String id = tag.get("id").asText();
+                    if (normalized != null && id != null && !normalized.isEmpty() && !id.isEmpty() && !tags.containsKey(normalized)) {
+                        tags.put(normalized, id);
+                    }
+                }
+            }
+        }
+        return tags;
+    }
+
+    private static String normalizeTagName(String name) {
+        if (name == null) {
+            return null;
+        }
+        String trimmed = name.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return trimmed.toLowerCase(Locale.ROOT);
+    }
+
+    private static void logSuccessfulUpdate(String timeEntryId, TagUpdateResult updateResult) {
+        Map<String, String> appliedMap = updateResult.getTagIdsByName();
+        List<String> appliedNames = new ArrayList<>(appliedMap.keySet());
+        List<String> appliedIds = new ArrayList<>(appliedMap.values());
+
+        System.out.println("  ✅ Applied tags to time entry " + timeEntryId + ": " + String.join(", ", appliedNames));
+        System.out.println("  ✅ Tag IDs: " + String.join(", ", appliedIds));
+
+        if (!updateResult.getCreatedTagNames().isEmpty()) {
+            System.out.println("  🆕 Created tags during update: " + String.join(", ", updateResult.getCreatedTagNames()));
+        }
+    }
+
+    private static HttpResponse successResponse(String message, TagUpdateResult result) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("status", "success");
+        body.put("message", message);
+
+        ArrayNode appliedArray = body.putArray("appliedTags");
+        for (Map.Entry<String, String> entry : result.getTagIdsByName().entrySet()) {
+            ObjectNode tagNode = appliedArray.addObject();
+            tagNode.put("name", entry.getKey());
+            tagNode.put("id", entry.getValue());
+        }
+
+        if (!result.getCreatedTagNames().isEmpty()) {
+            ArrayNode createdArray = body.putArray("createdTags");
+            for (String name : result.getCreatedTagNames()) {
+                createdArray.add(name);
+            }
+        }
+
+        if (result.getUpdatedEntry() != null) {
+            body.set("timeEntry", result.getUpdatedEntry());
+        }
+
+        return HttpResponse.ok(body.toString(), "application/json");
+    }
+
+    private static HttpResponse skipResponse(String message) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("status", "skipped");
+        body.put("message", message);
+        return HttpResponse.ok(body.toString(), "application/json");
+    }
+
+    private static HttpResponse errorResponse(int statusCode, String message) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("status", "error");
+        body.put("message", message);
+        return HttpResponse.error(statusCode, body.toString(), "application/json");
     }
 
     private static List<String> extractTagIds(JsonNode timeEntry) {
@@ -299,5 +460,78 @@ public class WebhookHandlers {
             }
         }
         return objectMapper.readTree(sb.toString());
+    }
+
+    private static final class TagSuggestionResult {
+        private final List<TagSuggestion> suggestions;
+        private final List<String> tagNames;
+
+        private TagSuggestionResult(List<TagSuggestion> suggestions) {
+            if (suggestions == null) {
+                suggestions = Collections.emptyList();
+            }
+            this.suggestions = Collections.unmodifiableList(new ArrayList<>(suggestions));
+
+            Set<String> uniqueNames = new LinkedHashSet<>();
+            for (TagSuggestion suggestion : this.suggestions) {
+                if (suggestion != null) {
+                    String name = suggestion.getName();
+                    if (name != null && !name.isBlank()) {
+                        uniqueNames.add(name);
+                    }
+                }
+            }
+            this.tagNames = Collections.unmodifiableList(new ArrayList<>(uniqueNames));
+        }
+
+        public List<TagSuggestion> getSuggestions() {
+            return suggestions;
+        }
+
+        public List<String> getTagNames() {
+            return tagNames;
+        }
+    }
+
+    private static final class TagSuggestion {
+        private final String name;
+        private final String reason;
+
+        private TagSuggestion(String name, String reason) {
+            this.name = name;
+            this.reason = reason != null ? reason : "";
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getReason() {
+            return reason;
+        }
+    }
+
+    private static final class TagUpdateResult {
+        private final LinkedHashMap<String, String> tagIdsByName;
+        private final List<String> createdTagNames;
+        private final JsonNode updatedEntry;
+
+        private TagUpdateResult(LinkedHashMap<String, String> tagIdsByName, List<String> createdTagNames, JsonNode updatedEntry) {
+            this.tagIdsByName = new LinkedHashMap<>(tagIdsByName);
+            this.createdTagNames = Collections.unmodifiableList(new ArrayList<>(createdTagNames));
+            this.updatedEntry = updatedEntry;
+        }
+
+        public Map<String, String> getTagIdsByName() {
+            return Collections.unmodifiableMap(new LinkedHashMap<>(tagIdsByName));
+        }
+
+        public List<String> getCreatedTagNames() {
+            return createdTagNames;
+        }
+
+        public JsonNode getUpdatedEntry() {
+            return updatedEntry;
+        }
     }
 }
