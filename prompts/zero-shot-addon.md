@@ -177,8 +177,8 @@ addon.onLifecycleInstalled(request -> {
     String workspaceId = request.getResourceId();
     JsonObject payload = request.getPayload();
 
-    // CRITICAL: Extract and store addon token
-    String addonToken = payload.get("addonToken").getAsString();
+    // CRITICAL: Extract and store auth token
+    String authToken = payload.get("authToken").getAsString();
 
     // TODO: Store token in database keyed by workspaceId
     // You MUST use this token for ALL Clockify API calls
@@ -207,7 +207,7 @@ addon.onWebhook(request -> {
     JsonObject payload = request.getPayload();
 
     // TODO: Process event based on eventType
-    // Use stored addon token to make Clockify API calls
+    // Use stored auth token to make Clockify API calls
 
     return HttpResponse.ok("Processed");
 });
@@ -217,7 +217,7 @@ addon.onWebhook(request -> {
 
 ```java
 // Retrieve stored token for workspace
-String addonToken = tokenStore.get(workspaceId);
+String authToken = tokenStore.get(workspaceId);
 String baseUrl = "https://api.clockify.me/api/v1";
 
 // Create HTTP client
@@ -226,7 +226,7 @@ HttpClient client = HttpClient.newHttpClient();
 // Make API call
 HttpRequest req = HttpRequest.newBuilder()
     .uri(URI.create(baseUrl + "/workspaces/" + workspaceId + "/tags"))
-    .header("Authorization", "Bearer " + addonToken)
+    .header("Authorization", "Bearer " + authToken)
     .GET()
     .build();
 
@@ -296,7 +296,7 @@ addon.registerCustomEndpoint("/settings", request -> {
 5. ❌ **NEVER** hardcode access tokens or secrets
 6. ❌ **NEVER** modify files under `dev-docs-marketplace-cake-snapshot/`
 7. ❌ **NEVER** assume GitHub Packages access - SDK is vendored locally
-8. ❌ **NEVER** skip storing the addon token from INSTALLED event
+8. ❌ **NEVER** skip storing the auth token from INSTALLED event
 9. ❌ **NEVER** use wrong header - always `Authorization: Bearer {token}`
 10. ❌ **NEVER** exceed rate limits (50 req/s per addon per workspace)
 

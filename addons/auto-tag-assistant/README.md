@@ -16,7 +16,7 @@ When a user starts or stops a time entry:
 4. **Auto-Tagging**: The add-on would add a default tag (e.g., "Untagged")
 
 > **Note**: The current implementation logs tag detection. To enable full auto-tagging, you need to:
-> - Store the addon token from the `INSTALLED` lifecycle event in a database
+> - Store the auth token from the `INSTALLED` lifecycle event in a database
 > - Use `ClockifyClient` methods to fetch workspace tags
 > - Update time entries via the Clockify API
 
@@ -108,7 +108,7 @@ addons/auto-tag-assistant/
 ## How Clockify Calls This Add-on
 
 1. **Manifest Discovery**: Clockify fetches `{baseUrl}/manifest.json`
-2. **Installation**: Admin installs add-on → POST to `{baseUrl}/lifecycle/installed` (INSTALLED event with addon token)
+2. **Installation**: Admin installs add-on → POST to `{baseUrl}/lifecycle/installed` (INSTALLED event with auth token)
    and `{baseUrl}/lifecycle/deleted` when uninstalled
 3. **Sidebar**: User opens time entry → GET `{baseUrl}/settings` (loaded as iframe)
 4. **Webhooks**: Time entry event occurs → POST to `{baseUrl}/webhook` with event payload
@@ -211,7 +211,7 @@ Restart the addon with the new base URL.
 
 1. **Check Installation**:
    - Look for lifecycle logs showing INSTALLED event
-   - Verify addon token received
+   - Verify auth token received
 
 2. **Start a Timer** (without tags):
    - Check webhook logs
@@ -253,7 +253,7 @@ Store installation data for each workspace:
 ```sql
 CREATE TABLE installations (
   workspace_id VARCHAR PRIMARY KEY,
-  addon_token TEXT NOT NULL,
+  auth_token TEXT NOT NULL,
   api_url VARCHAR NOT NULL,
   webhook_token TEXT NOT NULL,
   settings JSONB,
@@ -269,7 +269,7 @@ Update `WebhookHandlers.java` line 102-115 to:
 if (tagIds.isEmpty()) {
     // Retrieve stored token for this workspace
     Installation install = db.getInstallation(workspaceId);
-    ClockifyClient client = new ClockifyClient(install.apiUrl, install.addonToken);
+    ClockifyClient client = new ClockifyClient(install.apiUrl, install.authToken);
 
     // Get or create default tag
     List<Tag> tags = parseTagList(client.listTags(workspaceId).body());
@@ -336,7 +336,7 @@ addons/auto-tag-assistant/
 2. Verify webhook events registered in developer portal
 3. Check Clockify webhook logs in add-on settings
 
-### Add-on Token Missing
+### Auth Token Missing
 
 - Token is provided in `INSTALLED` lifecycle event
 - Must be stored and retrieved for each API call
@@ -433,14 +433,14 @@ Copy the `https://` URL.
 
 Currently, the add-on **logs** what it would do. To implement real tagging:
 
-### 1. Store Addon Token
+### 1. Store Auth Token
 
 Edit `LifecycleHandlers.java:22`:
 
 ```java
 // Extract and store the token
-String addonToken = payload.get("addonToken").getAsString();
-// Store in database: tokenStore.save(workspaceId, addonToken);
+String authToken = payload.get("authToken").getAsString();
+// Store in database: tokenStore.save(workspaceId, authToken);
 ```
 
 ### 2. Implement Tagging Logic
@@ -449,11 +449,11 @@ Edit `WebhookHandlers.java:80`:
 
 ```java
 // Retrieve stored token
-String addonToken = tokenStore.get(workspaceId);
+String authToken = tokenStore.get(workspaceId);
 String baseUrl = "https://api.clockify.me/api/v1"; // or from token claims
 
 // Create API client
-ClockifyApiClient client = new ClockifyApiClient(baseUrl, addonToken);
+ClockifyApiClient client = new ClockifyApiClient(baseUrl, authToken);
 
 // Get available tags
 JsonNode tags = client.getTags(workspaceId);
@@ -523,12 +523,12 @@ mvn clean install
 
 ### "401 Unauthorized" when calling Clockify API
 
-**Cause**: Invalid or missing addon token.
+**Cause**: Invalid or missing auth token.
 
 **Solution**:
 1. Ensure you stored the token from INSTALLED event
 2. Use correct token for the workspace
-3. Check token hasn't expired (shouldn't for addon tokens)
+3. Check token hasn't expired (shouldn't for auth tokens)
 
 ## Next Steps
 

@@ -6,7 +6,7 @@ import java.net.URI;
 /**
  * Simple Clockify API client.
  *
- * Use the addon token received in the INSTALLED lifecycle event.
+ * Use the auth token received in the INSTALLED lifecycle event.
  * Store it per workspace and use it for all API calls to that workspace.
  *
  * See: dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json for full API reference.
@@ -14,17 +14,17 @@ import java.net.URI;
 public class ClockifyClient {
     private final HttpClient http = HttpClient.newHttpClient();
     private final String apiBase; // e.g., https://api.clockify.me/api/v1
-    private final String addonToken;
+    private final String authToken;
 
-    public ClockifyClient(String apiBase, String addonToken) {
+    public ClockifyClient(String apiBase, String authToken) {
         this.apiBase = apiBase.endsWith("/") ? apiBase.substring(0, apiBase.length()-1) : apiBase;
-        this.addonToken = addonToken;
+        this.authToken = authToken;
     }
 
     public HttpResponse<String> getWorkspace(String workspaceId) throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(apiBase + "/workspaces/" + workspaceId))
-                .header("Authorization", "Bearer " + addonToken)
+                .header("Authorization", "Bearer " + authToken)
                 .GET()
                 .build();
         return http.send(req, HttpResponse.BodyHandlers.ofString());
@@ -33,7 +33,7 @@ public class ClockifyClient {
     public HttpResponse<String> listProjects(String workspaceId) throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(apiBase + "/workspaces/" + workspaceId + "/projects"))
-                .header("Authorization", "Bearer " + addonToken)
+                .header("Authorization", "Bearer " + authToken)
                 .GET()
                 .build();
         return http.send(req, HttpResponse.BodyHandlers.ofString());
@@ -42,7 +42,7 @@ public class ClockifyClient {
     public HttpResponse<String> listUsers(String workspaceId) throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(apiBase + "/workspaces/" + workspaceId + "/users"))
-                .header("Authorization", "Bearer " + addonToken)
+                .header("Authorization", "Bearer " + authToken)
                 .GET()
                 .build();
         return http.send(req, HttpResponse.BodyHandlers.ofString());

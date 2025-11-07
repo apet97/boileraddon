@@ -13,9 +13,9 @@ import java.time.Duration;
  * Helper client for making Clockify API calls.
  *
  * IMPORTANT:
- * - Use the addon token received in the INSTALLED lifecycle event
+ * - Use the auth token received in the INSTALLED lifecycle event
  * - Token is workspace-specific - store it keyed by workspaceId
- * - Include token in Authorization header: "Bearer {addonToken}"
+ * - Include token in Authorization header: "Bearer {authToken}"
  * - Respect rate limits: 50 requests/second per addon per workspace
  * - Base URL comes from token claims (different for prod/staging/dev)
  *
@@ -31,15 +31,15 @@ public class ClockifyApiClient {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String baseUrl;
-    private final String addonToken;
+    private final String authToken;
 
     /**
      * @param baseUrl The Clockify API base URL (from token claims, e.g., https://api.clockify.me/api/v1)
-     * @param addonToken The workspace-specific addon token from INSTALLED event
+     * @param authToken The workspace-specific auth token from INSTALLED event
      */
-    public ClockifyApiClient(String baseUrl, String addonToken) {
+    public ClockifyApiClient(String baseUrl, String authToken) {
         this.baseUrl = baseUrl;
-        this.addonToken = addonToken;
+        this.authToken = authToken;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -57,7 +57,7 @@ public class ClockifyApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + addonToken)
+                .header("Authorization", "Bearer " + authToken)
                 .header("Accept", "application/json")
                 .GET()
                 .build();
@@ -83,7 +83,7 @@ public class ClockifyApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + addonToken)
+                .header("Authorization", "Bearer " + authToken)
                 .header("Accept", "application/json")
                 .GET()
                 .build();
@@ -132,7 +132,7 @@ public class ClockifyApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + addonToken)
+                .header("Authorization", "Bearer " + authToken)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .PUT(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -164,7 +164,7 @@ public class ClockifyApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + addonToken)
+                .header("Authorization", "Bearer " + authToken)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))

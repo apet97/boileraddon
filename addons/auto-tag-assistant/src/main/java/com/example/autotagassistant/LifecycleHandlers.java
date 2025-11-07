@@ -13,7 +13,7 @@ import java.io.BufferedReader;
  *
  * INSTALLED event:
  * - Sent when workspace admin installs the add-on
- * - Payload includes workspace-specific addon token
+ * - Payload includes workspace-specific auth token
  * - CRITICAL: Store this token securely - it's needed for all Clockify API calls
  *
  * DELETED event:
@@ -30,6 +30,7 @@ public class LifecycleHandlers {
                 JsonNode payload = parseRequestBody(request);
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
                 String userId = payload.has("userId") ? payload.get("userId").asText() : "unknown";
+                String authToken = payload.has("authToken") ? payload.get("authToken").asText() : null;
 
                 System.out.println("\n" + "=".repeat(80));
                 System.out.println("LIFECYCLE EVENT: INSTALLED");
@@ -37,19 +38,24 @@ public class LifecycleHandlers {
                 System.out.println("Workspace ID: " + workspaceId);
                 System.out.println("User ID: " + userId);
                 System.out.println("Payload: " + payload.toPrettyString());
+                System.out.println("Auth token provided: " + (authToken != null && !authToken.isEmpty()));
                 System.out.println("=".repeat(80));
 
                 // IMPORTANT: In a real implementation, you MUST:
-                // 1. Extract the addon token from the payload
+                // 1. Extract the auth token from the payload
                 // 2. Store it securely (database, vault) keyed by workspaceId
                 // 3. Use this token for all subsequent Clockify API calls for this workspace
                 //
                 // Example:
-                // String addonToken = payload.get("addonToken").asText();
-                // tokenStore.save(workspaceId, addonToken);
+                // String authToken = payload.get("authToken").asText();
+                // tokenStore.save(workspaceId, authToken);
 
-                System.out.println("⚠️  TODO: Store addon token for workspace " + workspaceId);
-                System.out.println("    Add token storage in LifecycleHandlers.java:register()");
+                if (authToken == null || authToken.isEmpty()) {
+                    System.out.println("⚠️  TODO: Missing auth token in payload; verify installation payload structure.");
+                } else {
+                    System.out.println("⚠️  TODO: Store auth token for workspace " + workspaceId);
+                    System.out.println("    Add token storage in LifecycleHandlers.java:register()");
+                }
                 System.out.println();
 
                 String responseBody = objectMapper.createObjectNode()
@@ -83,7 +89,7 @@ public class LifecycleHandlers {
                 System.out.println("=".repeat(80));
 
                 // IMPORTANT: In a real implementation:
-                // 1. Remove stored addon token for this workspace
+                // 1. Remove stored auth token for this workspace
                 // 2. Clean up any workspace-specific data
                 // 3. Cancel any scheduled jobs for this workspace
                 //
