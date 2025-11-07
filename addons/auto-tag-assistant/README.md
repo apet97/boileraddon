@@ -108,7 +108,8 @@ addons/auto-tag-assistant/
 ## How Clockify Calls This Add-on
 
 1. **Manifest Discovery**: Clockify fetches `{baseUrl}/manifest.json`
-2. **Installation**: Admin installs add-on → POST to `{baseUrl}/lifecycle` (INSTALLED event with addon token)
+2. **Installation**: Admin installs add-on → POST to `{baseUrl}/lifecycle/installed` (INSTALLED event with addon token)
+   and `{baseUrl}/lifecycle/deleted` when uninstalled
 3. **Sidebar**: User opens time entry → GET `{baseUrl}/settings` (loaded as iframe)
 4. **Webhooks**: Time entry event occurs → POST to `{baseUrl}/webhook` with event payload
 
@@ -146,7 +147,8 @@ java -jar target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
 The addon will start on port 8080 with these endpoints:
 
 - `GET /health` - Health check
-- `POST /lifecycle` - Installation/deletion events
+- `POST /lifecycle/installed` - Installation event
+- `POST /lifecycle/deleted` - Uninstallation event
 - `POST /webhook` - Time entry events
 - `GET /settings` - Configuration UI
 - `GET /manifest.json` - Addon manifest
@@ -194,7 +196,9 @@ Restart the addon with the new base URL.
    - **Key**: `auto-tag-assistant`
    - **Name**: Auto-Tag Assistant
    - **Base URL**: Your ngrok URL
-   - **Lifecycle endpoint**: `/lifecycle`
+   - **Lifecycle endpoints**:
+     - `INSTALLED` → `/lifecycle/installed`
+     - `DELETED` → `/lifecycle/deleted`
    - **Webhooks**:
      - `NEW_TIMER_STARTED` → `/webhook`
      - `TIMER_STOPPED` → `/webhook`
@@ -485,7 +489,8 @@ All endpoints are prefixed with `/auto-tag-assistant`:
 |--------|------|-------------|
 | GET | `/manifest.json` | Runtime manifest (no $schema) |
 | GET | `/settings` | Sidebar UI (iframe) |
-| POST | `/lifecycle` | INSTALLED/DELETED events |
+| POST | `/lifecycle/installed` | INSTALLED event |
+| POST | `/lifecycle/deleted` | DELETED event |
 | POST | `/webhook` | Time entry webhooks |
 | GET | `/health` | Health check |
 

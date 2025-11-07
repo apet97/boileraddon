@@ -163,7 +163,8 @@ Context Path: /auto-tag-assistant
 Endpoints:
   Manifest:  http://localhost:8080/auto-tag-assistant/manifest.json
   Settings:  http://localhost:8080/auto-tag-assistant/settings
-  Lifecycle: http://localhost:8080/auto-tag-assistant/lifecycle
+  Lifecycle (installed): http://localhost:8080/auto-tag-assistant/lifecycle/installed
+  Lifecycle (deleted):   http://localhost:8080/auto-tag-assistant/lifecycle/deleted
   Webhook:   http://localhost:8080/auto-tag-assistant/webhook
   Health:    http://localhost:8080/auto-tag-assistant/health
 ================================================================================
@@ -236,8 +237,8 @@ The runtime manifest served at `/manifest.json` is generated programmatically an
     {"event": "TIME_ENTRY_UPDATED", "path": "/webhook"}
   ],
   "lifecycle": [
-    {"type": "INSTALLED", "path": "/lifecycle"},
-    {"type": "DELETED", "path": "/lifecycle"}
+    {"type": "INSTALLED", "path": "/lifecycle/installed"},
+    {"type": "DELETED", "path": "/lifecycle/deleted"}
   ]
 }
 ```
@@ -256,7 +257,7 @@ All endpoints are served relative to this context path.
 When Clockify installs your add-on, it sends an **INSTALLED** lifecycle event with a workspace-specific token:
 
 ```java
-addon.registerLifecycleHandler("INSTALLED", request -> {
+addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> {
     JsonNode payload = parseRequestBody(request);
     String workspaceId = payload.get("workspaceId").asText();
     String addonToken = payload.get("addonToken").asText();
