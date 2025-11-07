@@ -42,13 +42,14 @@ public class WebhookHandlers {
             addon.registerWebhookHandler(event, request -> {
                 try {
                     JsonNode payload = parseRequestBody(request);
-                    String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
+                    String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
+                    String workspaceDisplayId = workspaceId != null ? workspaceId : "unknown";
                     String eventType = payload.has("event") ? payload.get("event").asText() : event;
 
                     System.out.println("\n" + "=".repeat(80));
                     System.out.println("WEBHOOK EVENT: " + eventType);
                     System.out.println("=".repeat(80));
-                    System.out.println("Workspace ID: " + workspaceId);
+                    System.out.println("Workspace ID: " + workspaceDisplayId);
                     System.out.println("Event Type: " + eventType);
                     System.out.println("Payload:");
                     System.out.println(payload.toPrettyString());
@@ -91,6 +92,10 @@ public class WebhookHandlers {
                         System.out.println("  Tags: (none)");
                     }
 
+                    TokenStore.WorkspaceToken workspaceToken = workspaceId != null
+                        ? TokenStore.get(workspaceId).orElse(null)
+                        : null;
+
                     if (!hasTags) {
                         System.out.println("\n⚠️  MISSING TAGS DETECTED!");
                         System.out.println("  🤖 Auto-tagging logic would run here:");
@@ -108,7 +113,7 @@ public class WebhookHandlers {
                         System.out.println();
 
                         // Simulate tag suggestion logic
-                        suggestTagsForTimeEntry(workspaceId, timeEntryId, description);
+                        suggestTagsForTimeEntry(workspaceDisplayId, timeEntryId, description, workspaceToken);
                     } else {
                         System.out.println("  ✓ Time entry already has tags, no action needed");
                     }
@@ -134,7 +139,12 @@ public class WebhookHandlers {
      * 3. Find best matching tags
      * 4. Apply tags via API using stored auth token
      */
-    private static void suggestTagsForTimeEntry(String workspaceId, String timeEntryId, String description) {
+    private static void suggestTagsForTimeEntry(
+        String workspaceId,
+        String timeEntryId,
+        String description,
+        TokenStore.WorkspaceToken workspaceToken
+    ) {
         System.out.println("  🏷️  Suggested Tags (based on description analysis):");
 
         // Simple keyword-based suggestions (replace with real logic)
@@ -153,7 +163,17 @@ public class WebhookHandlers {
 
         System.out.println();
         System.out.println("  💡 Implementation Plan:");
-        System.out.println("     1. Retrieve auth token for workspace: " + workspaceId);
+        if (workspaceToken == null) {
+            System.out.println("     1. Retrieve auth token for workspace: " + workspaceId + " (not found - ensure INSTALLED lifecycle stored it)");
+        } else {
+            System.out.println("     1. Retrieved auth token for workspace: " + workspaceId);
+            System.out.println("        API Base URL: " + workspaceToken.apiBaseUrl());
+            ClockifyApiClient apiClient = new ClockifyApiClient(
+                workspaceToken.apiBaseUrl(),
+                workspaceToken.authToken()
+            );
+            System.out.println("        Clockify API client configured: " + apiClient.getClass().getSimpleName());
+        }
         System.out.println("     2. GET /workspaces/{workspaceId}/tags to get available tags");
         System.out.println("     3. Match suggested tags to actual tag IDs");
         System.out.println("     4. PUT /workspaces/{workspaceId}/time-entries/{timeEntryId}");
