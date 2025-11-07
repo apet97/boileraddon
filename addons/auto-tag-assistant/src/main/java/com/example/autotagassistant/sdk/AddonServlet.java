@@ -141,14 +141,32 @@ public class AddonServlet extends HttpServlet {
             return HttpResponse.error(400, errorBody, "application/json");
         }
 
-        if (json == null) {
-            return HttpResponse.error(400, "Missing request body");
+        String event = null;
+        String headerEventType = req.getHeader("clockify-webhook-event-type");
+        if (headerEventType != null) {
+            headerEventType = headerEventType.trim();
+            if (!headerEventType.isEmpty()) {
+                event = headerEventType;
+            }
         }
 
-        String event = json.has("event") ? json.get("event").asText(null) : null;
+        if (event == null) {
+            if (json == null) {
+                return HttpResponse.error(400, "Missing request body");
+            }
+            if (json.has("event")) {
+                event = json.get("event").asText(null);
+                if (event != null) {
+                    event = event.trim();
+                    if (event.isEmpty()) {
+                        event = null;
+                    }
+                }
+            }
+        }
 
-        if (event == null || event.isBlank()) {
-            return HttpResponse.error(400, "Missing 'event' field in request");
+        if (event == null) {
+            return HttpResponse.error(400, "Missing webhook event type");
         }
 
         RequestHandler handler = addon.getWebhookHandlers().get(event);
