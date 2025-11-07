@@ -42,7 +42,7 @@ class ManifestControllerTest {
                 .description("Automatically detects and suggests tags for time entries")
                 .baseUrl("http://localhost:8080/auto-tag-assistant")
                 .minimalSubscriptionPlan("FREE")
-                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
+                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ", "TAG_WRITE"})
                 .build();
         manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
 
