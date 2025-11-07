@@ -121,7 +121,6 @@ class AutoTagAssistantAppTest {
         }
     }
 
-    @Test
     void manifestEndpointUsesRequestHostWhenConfiguredBaseUrlIsOutdated() throws Exception {
         int port = findFreePort();
         String configuredBaseUrl = "https://should-be-overridden.ngrok-free.app/auto-tag-assistant";

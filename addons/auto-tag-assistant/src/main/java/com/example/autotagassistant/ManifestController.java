@@ -45,23 +45,43 @@ public class ManifestController implements RequestHandler {
         Optional<String> forwardedProto = forwardedHeaderValue(request, "proto");
         Optional<String> forwardedHost = forwardedHeaderValue(request, "host");
         Optional<String> forwardedPort = forwardedHeaderValue(request, "port");
+        Optional<String> hostHeader = firstHeaderValue(request, "Host");
 
-        boolean hostFromForwardedHeader = forwardedHost.isPresent();
+        boolean hostFromForwardedHeader = false;
+        boolean hostFromDirectHostHeader = false;
 
         String scheme = forwardedProto
                 .or(() -> firstHeaderValue(request, "X-Forwarded-Proto"))
                 .orElseGet(() -> Optional.ofNullable(request.getScheme()).orElse("http"));
 
-        String host = forwardedHost
-                .or(() -> firstHeaderValue(request, "X-Forwarded-Host"))
-                .orElse(request.getServerName());
+        String host = null;
+        if (forwardedHost.isPresent()) {
+            host = forwardedHost.get();
+            hostFromForwardedHeader = true;
+        } else {
+            Optional<String> xForwardedHost = firstHeaderValue(request, "X-Forwarded-Host");
+            if (xForwardedHost.isPresent()) {
+                host = xForwardedHost.get();
+                hostFromForwardedHeader = true;
+            } else if (hostHeader.isPresent()) {
+                host = hostHeader.get();
+                hostFromDirectHostHeader = true;
+            } else {
+                host = request.getServerName();
+            }
+        }
 
         String port = forwardedPort.orElse(null);
         if (port == null) {
             port = firstHeaderValue(request, "X-Forwarded-Port").orElse(null);
         }
         if (port == null && !hostFromForwardedHeader) {
-            port = derivePort(host, scheme, request.getServerPort());
+            boolean hostAppearsLocal = hostFromDirectHostHeader
+                    ? isLocalAddress(extractHostname(hostHeader.orElse(host)))
+                    : isLocalAddress(extractHostname(host));
+            if (hostAppearsLocal) {
+                port = derivePort(scheme, request.getServerPort());
+            }
         }
 
         if (host != null && !host.isBlank()) {
@@ -126,11 +146,7 @@ public class ManifestController implements RequestHandler {
         return Optional.empty();
     }
 
-    private String derivePort(String host, String scheme, int serverPort) {
-        if (host != null && host.contains(":")) {
-            return null;
-        }
-
+    private String derivePort(String scheme, int serverPort) {
         if (serverPort <= 0) {
             return null;
         }
@@ -145,5 +161,41 @@ public class ManifestController implements RequestHandler {
     private boolean isStandardPort(int port, String scheme) {
         String normalizedScheme = scheme == null ? "" : scheme.toLowerCase(Locale.ROOT);
         return (port == 80 && "http".equals(normalizedScheme)) || (port == 443 && "https".equals(normalizedScheme));
+    }
+
+    private String extractHostname(String host) {
+        if (host == null) {
+            return null;
+        }
+        String trimmed = host.trim();
+        if (trimmed.isEmpty()) {
+            return trimmed;
+        }
+        if (trimmed.startsWith("[") && trimmed.contains("]")) {
+            int closing = trimmed.indexOf(']');
+            if (closing >= 0) {
+                return trimmed.substring(0, closing + 1);
+            }
+        }
+        int colonIndex = trimmed.indexOf(':');
+        if (colonIndex >= 0) {
+            return trimmed.substring(0, colonIndex);
+        }
+        return trimmed;
+    }
+
+    private boolean isLocalAddress(String host) {
+        if (host == null || host.isBlank()) {
+            return false;
+        }
+        String normalized = host.trim();
+        if (normalized.startsWith("[") && normalized.endsWith("]")) {
+            normalized = normalized.substring(1, normalized.length() - 1);
+        }
+        normalized = normalized.toLowerCase(Locale.ROOT);
+        return "localhost".equals(normalized)
+                || "0.0.0.0".equals(normalized)
+                || normalized.equals("::1")
+                || normalized.startsWith("127.");
     }
 }
