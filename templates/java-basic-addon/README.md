@@ -27,3 +27,33 @@ export ADDON_BASE_URL=https://<your-ngrok-domain>
 - Webhook: points to `/webhook`.
 - Health: `GET /health`.
 
+
+## Zero to Installed (Hello World)
+
+```bash
+# 1) Clone
+git clone https://github.com/apet97/boileraddon.git
+cd boileraddon
+
+# 2) Validate manifest (optional)
+make validate
+
+# 3) Build
+make build-java
+
+# 4) Run
+make run-java
+# Server listens on :8080
+
+# 5) Expose via ngrok (in another terminal)
+ngrok http 8080
+# export ADDON_BASE_URL to the ngrok URL, rebuild/run if needed
+
+# 6) Create addon in dev Marketplace UI
+# - Use templates/java-basic-addon/manifest.json
+# - Lifecycle -> /lifecycle, Webhook -> /webhook, Health -> /health
+
+# 7) Trigger and confirm
+# - Reinstall addon to see lifecycle
+# - Hit /health and observe OK
+```

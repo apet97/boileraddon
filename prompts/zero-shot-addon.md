@@ -18,3 +18,13 @@ When implementing:
 - Resolve environment base URLs and claims from the token as described in the docs bundle.
 - For any Clockify API calls, consult the OpenAPI file for paths, parameters, and models.
 - Provide a short "how to run" with Maven build + ngrok exposure.
+
+## Never do this
+- Do not call undocumented endpoints.
+- Do not hardcode access tokens or secrets.
+- Do not bypass manifest schema validation.
+- Do not modify files under `dev-docs-marketplace-cake-snapshot/`.
+- Do not invent fields or events not present in schemas.
+
+## Environment contract
+See `extras/environments.md` and resolve base URLs from token claims instead of hardcoding.
