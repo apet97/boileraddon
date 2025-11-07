@@ -97,6 +97,16 @@ public class LifecycleHandlers {
     }
 
     private static JsonNode parseRequestBody(HttpServletRequest request) throws Exception {
+        Object cachedJson = request.getAttribute("clockify.jsonBody");
+        if (cachedJson instanceof JsonNode) {
+            return (JsonNode) cachedJson;
+        }
+
+        Object cachedBody = request.getAttribute("clockify.rawBody");
+        if (cachedBody instanceof String) {
+            return objectMapper.readTree((String) cachedBody);
+        }
+
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = request.getReader()) {
             String line;

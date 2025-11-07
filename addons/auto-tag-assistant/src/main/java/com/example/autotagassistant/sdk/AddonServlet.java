@@ -62,6 +62,8 @@ public class AddonServlet extends HttpServlet {
     private HttpResponse handleLifecycle(HttpServletRequest req) throws Exception {
         String body = req.getReader().lines().collect(Collectors.joining());
         JsonNode json = objectMapper.readTree(body);
+        req.setAttribute("clockify.rawBody", body);
+        req.setAttribute("clockify.jsonBody", json);
         String lifecycleType = json.has("lifecycle") ? json.get("lifecycle").asText() : null;
 
         if (lifecycleType == null) {
@@ -80,6 +82,8 @@ public class AddonServlet extends HttpServlet {
     private HttpResponse handleWebhook(HttpServletRequest req) throws Exception {
         String body = req.getReader().lines().collect(Collectors.joining());
         JsonNode json = objectMapper.readTree(body);
+        req.setAttribute("clockify.rawBody", body);
+        req.setAttribute("clockify.jsonBody", json);
         String event = json.has("event") ? json.get("event").asText() : null;
 
         if (event == null) {
