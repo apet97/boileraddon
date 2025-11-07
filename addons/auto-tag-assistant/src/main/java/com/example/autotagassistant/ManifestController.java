@@ -1,11 +1,11 @@
 package com.example.autotagassistant;
 
-import addonsdk.shared.RequestHandler;
-import addonsdk.shared.response.HttpResponse;
+import com.cake.clockify.addonsdk.shared.RequestHandler;
+import com.cake.clockify.addonsdk.shared.response.HttpResponse;
 import com.cake.clockify.addonsdk.clockify.model.ClockifyManifest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequest;
 
 /**
  * Serves the add-on manifest.

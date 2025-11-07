@@ -84,12 +84,12 @@ public class WebhookHandlers {
 
                 System.out.println("=".repeat(80) + "\n");
 
-                return addonsdk.shared.response.HttpResponse.ok("Webhook processed");
+                return com.cake.clockify.addonsdk.shared.response.HttpResponse.ok("Webhook processed");
 
             } catch (Exception e) {
                 System.err.println("Error handling webhook: " + e.getMessage());
                 e.printStackTrace();
-                return addonsdk.shared.response.HttpResponse.internalServerError(
+                return com.cake.clockify.addonsdk.shared.response.HttpResponse.internalServerError(
                     "Failed to process webhook: " + e.getMessage()
                 );
             }

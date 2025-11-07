@@ -45,12 +45,12 @@ public class LifecycleHandlers {
                 System.out.println("    Add token storage in LifecycleHandlers.java:register()");
                 System.out.println();
 
-                return addonsdk.shared.response.HttpResponse.ok("Add-on installed successfully");
+                return com.cake.clockify.addonsdk.shared.response.HttpResponse.ok("Add-on installed successfully");
 
             } catch (Exception e) {
                 System.err.println("Error handling INSTALLED event: " + e.getMessage());
                 e.printStackTrace();
-                return addonsdk.shared.response.HttpResponse.internalServerError(
+                return com.cake.clockify.addonsdk.shared.response.HttpResponse.internalServerError(
                     "Failed to process installation: " + e.getMessage()
                 );
             }
@@ -80,12 +80,12 @@ public class LifecycleHandlers {
                 System.out.println("    Add cleanup logic in LifecycleHandlers.java:register()");
                 System.out.println();
 
-                return addonsdk.shared.response.HttpResponse.ok("Add-on uninstalled successfully");
+                return com.cake.clockify.addonsdk.shared.response.HttpResponse.ok("Add-on uninstalled successfully");
 
             } catch (Exception e) {
                 System.err.println("Error handling DELETED event: " + e.getMessage());
                 e.printStackTrace();
-                return addonsdk.shared.response.HttpResponse.internalServerError(
+                return com.cake.clockify.addonsdk.shared.response.HttpResponse.internalServerError(
                     "Failed to process uninstallation: " + e.getMessage()
                 );
             }
