@@ -35,16 +35,7 @@ class AutoTagAssistantAppTest {
         int port = findFreePort();
         String baseUrl = "http://localhost:" + port + "/auto-tag-assistant/";
 
-        ClockifyManifest manifest = ClockifyManifest
-                .v1_3Builder()
-                .key("auto-tag-assistant")
-                .name("Auto-Tag Assistant")
-                .description("Automatically detects and suggests tags for time entries")
-                .baseUrl(baseUrl)
-                .minimalSubscriptionPlan("FREE")
-                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
-                .build();
-        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
+        ClockifyManifest manifest = createManifest(baseUrl);
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
@@ -79,16 +70,7 @@ class AutoTagAssistantAppTest {
         int port = findFreePort();
         String configuredBaseUrl = "https://should-be-overridden.ngrok-free.app/auto-tag-assistant";
 
-        ClockifyManifest manifest = ClockifyManifest
-                .v1_3Builder()
-                .key("auto-tag-assistant")
-                .name("Auto-Tag Assistant")
-                .description("Automatically detects and suggests tags for time entries")
-                .baseUrl(configuredBaseUrl)
-                .minimalSubscriptionPlan("FREE")
-                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
-                .build();
-        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
+        ClockifyManifest manifest = createManifest(configuredBaseUrl);
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
@@ -123,16 +105,7 @@ class AutoTagAssistantAppTest {
         int port = findFreePort();
         String baseUrl = "http://localhost:" + port + "/auto-tag-assistant";
 
-        ClockifyManifest manifest = ClockifyManifest
-                .v1_3Builder()
-                .key("auto-tag-assistant")
-                .name("Auto-Tag Assistant")
-                .description("Automatically detects and suggests tags for time entries")
-                .baseUrl(baseUrl)
-                .minimalSubscriptionPlan("FREE")
-                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
-                .build();
-        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
+        ClockifyManifest manifest = createManifest(baseUrl);
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
@@ -170,16 +143,7 @@ class AutoTagAssistantAppTest {
         int port = findFreePort();
         String baseUrl = "http://localhost:" + port + "/auto-tag-assistant";
 
-        ClockifyManifest manifest = ClockifyManifest
-                .v1_3Builder()
-                .key("auto-tag-assistant")
-                .name("Auto-Tag Assistant")
-                .description("Automatically detects and suggests tags for time entries")
-                .baseUrl(baseUrl)
-                .minimalSubscriptionPlan("FREE")
-                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
-                .build();
-        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
+        ClockifyManifest manifest = createManifest(baseUrl);
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
@@ -302,6 +266,20 @@ class AutoTagAssistantAppTest {
                 .put("userEmail", "admin@example.com")
                 .put("timestamp", "2024-01-01T12:00:00Z")
                 .toString();
+    }
+
+    private static ClockifyManifest createManifest(String baseUrl) {
+        ClockifyManifest manifest = ClockifyManifest
+                .v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Automatically detects and suggests tags for time entries")
+                .baseUrl(baseUrl)
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
+                .build();
+        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
+        return manifest;
     }
 
     private static void stopServer(EmbeddedServer server, Future<?> serverFuture, ExecutorService executor) throws Exception {
