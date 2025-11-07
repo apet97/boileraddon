@@ -1,6 +1,9 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <parent>
     <groupId>com.clockify.boilerplate</groupId>
     <artifactId>clockify-addon-boilerplate</artifactId>
@@ -8,9 +11,9 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>java-basic-addon</artifactId>
+  <artifactId>auto-tag-assistant</artifactId>
   <version>0.1.0</version>
-  <name>java-basic-addon</name>
+  <name>auto-tag-assistant</name>
 
   <dependencies>
     <!-- Use local vendored SDK - no GitHub Packages needed -->
@@ -56,7 +59,7 @@
         <configuration>
           <archive>
             <manifest>
-              <mainClass>com.example.addon.AddonApplication</mainClass>
+              <mainClass>com.example.autotagassistant.AutoTagAssistantApp</mainClass>
             </manifest>
           </archive>
           <descriptorRefs>

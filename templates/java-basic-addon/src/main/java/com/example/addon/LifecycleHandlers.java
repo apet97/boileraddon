@@ -2,12 +2,32 @@ package com.example.addon;
 
 import com.cake.clockify.addonsdk.clockify.ClockifyAddon;
 
+/**
+ * Handles add-on lifecycle events: INSTALLED and DELETED.
+ *
+ * IMPORTANT: Store the addon token from INSTALLED event - it's needed for all Clockify API calls.
+ */
 public class LifecycleHandlers {
     public static void register(ClockifyAddon addon) {
-        // Example lifecycle endpoints; adapt to your manifest lifecycle config
-        addon.registerCustomEndpoint("/lifecycle", request -> {
-            // Parse JSON body and handle INSTALLED/DELETED/SETTINGS_UPDATED as per docs
-            return addonsdk.shared.response.HttpResponse.ok("lifecycle received");
+        // Handle INSTALLED event
+        addon.onLifecycleInstalled(request -> {
+            String workspaceId = request.getResourceId();
+            System.out.println("Add-on installed in workspace: " + workspaceId);
+
+            // TODO: Store addon token from request.getPayload().get("addonToken")
+            // for making Clockify API calls for this workspace
+
+            return addonsdk.shared.response.HttpResponse.ok("Installed");
+        });
+
+        // Handle DELETED event
+        addon.onLifecycleDeleted(request -> {
+            String workspaceId = request.getResourceId();
+            System.out.println("Add-on deleted from workspace: " + workspaceId);
+
+            // TODO: Clean up any stored data for this workspace
+
+            return addonsdk.shared.response.HttpResponse.ok("Deleted");
         });
     }
 }
