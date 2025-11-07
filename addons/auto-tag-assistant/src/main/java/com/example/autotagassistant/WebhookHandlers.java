@@ -51,13 +51,14 @@ public class WebhookHandlers {
             addon.registerWebhookHandler(event, request -> {
                 try {
                     JsonNode payload = parseRequestBody(request);
-                    String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
+                    String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
+                    String workspaceDisplayId = workspaceId != null ? workspaceId : "unknown";
                     String eventType = payload.has("event") ? payload.get("event").asText() : event;
 
                     System.out.println("\n" + "=".repeat(80));
                     System.out.println("WEBHOOK EVENT: " + eventType);
                     System.out.println("=".repeat(80));
-                    System.out.println("Workspace ID: " + workspaceId);
+                    System.out.println("Workspace ID: " + workspaceDisplayId);
                     System.out.println("Event Type: " + eventType);
                     System.out.println("Payload:");
                     System.out.println(payload.toPrettyString());
@@ -112,14 +113,14 @@ public class WebhookHandlers {
                             System.out.println("  ❌ No tag suggestions available for this time entry.");
                             response = skipResponse("No tag suggestions available for this time entry.");
                         } else {
-                            Optional<WorkspaceTokenStore.WorkspaceToken> workspaceToken = WorkspaceTokenStore.getInstance().find(workspaceId);
+                            Optional<TokenStore.WorkspaceToken> workspaceToken = TokenStore.get(workspaceId);
                             if (workspaceToken.isEmpty()) {
                                 String message = "Missing stored auth token/API base URL for workspace " + workspaceId;
                                 System.err.println("❌ " + message);
                                 response = errorResponse(500, message);
                             } else {
-                                WorkspaceTokenStore.WorkspaceToken token = workspaceToken.get();
-                                ClockifyApiClient apiClient = new ClockifyApiClient(token.getApiBaseUrl(), token.getAuthToken());
+                                TokenStore.WorkspaceToken token = workspaceToken.get();
+                                ClockifyApiClient apiClient = new ClockifyApiClient(token.apiBaseUrl(), token.authToken());
 
                                 try {
                                     TagUpdateResult updateResult = applySuggestedTags(apiClient, workspaceId, timeEntryId, candidateTagNames);
