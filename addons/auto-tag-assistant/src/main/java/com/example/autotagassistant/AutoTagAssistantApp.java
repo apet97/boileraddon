@@ -41,6 +41,9 @@ public class AutoTagAssistantApp {
                 .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
                 .build();
 
+        // Add sidebar component to manifest
+        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
+
         ClockifyAddon addon = new ClockifyAddon(manifest);
 
         // Register endpoints
@@ -60,15 +63,29 @@ public class AutoTagAssistantApp {
         addon.registerCustomEndpoint("/health", request ->
                 com.example.autotagassistant.sdk.HttpResponse.ok("Auto-Tag Assistant is running"));
 
+        // Extract context path from base URL
+        // Example: http://localhost:8080/auto-tag-assistant -> /auto-tag-assistant
+        String contextPath = "/";
+        try {
+            java.net.URI uri = new java.net.URI(baseUrl);
+            String path = uri.getPath();
+            if (path != null && !path.isEmpty() && !path.equals("/")) {
+                contextPath = path;
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: Could not parse base URL, using '/' as context path: " + e.getMessage());
+        }
+
         // Start embedded Jetty server
         AddonServlet servlet = new AddonServlet(addon);
-        EmbeddedServer server = new EmbeddedServer(servlet);
+        EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
 
         System.out.println("=".repeat(80));
         System.out.println("Auto-Tag Assistant Add-on Starting");
         System.out.println("=".repeat(80));
         System.out.println("Base URL: " + baseUrl);
         System.out.println("Port: " + port);
+        System.out.println("Context Path: " + contextPath);
         System.out.println();
         System.out.println("Endpoints:");
         System.out.println("  Manifest:  " + baseUrl + "/manifest.json");
