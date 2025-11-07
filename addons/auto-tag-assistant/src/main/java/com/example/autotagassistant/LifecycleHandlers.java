@@ -28,17 +28,20 @@ public class LifecycleHandlers {
         addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> {
             try {
                 JsonNode payload = parseRequestBody(request);
-                String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
-                String userId = payload.has("userId") ? payload.get("userId").asText() : "unknown";
-                String authToken = payload.has("authToken") ? payload.get("authToken").asText() : null;
+                String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
+                String workspaceDisplayId = workspaceId != null ? workspaceId : "unknown";
+                String userId = payload.has("userId") ? payload.get("userId").asText("unknown") : "unknown";
+                String authToken = payload.has("authToken") ? payload.get("authToken").asText(null) : null;
+                String apiUrl = payload.has("apiUrl") ? payload.get("apiUrl").asText(null) : null;
 
                 System.out.println("\n" + "=".repeat(80));
                 System.out.println("LIFECYCLE EVENT: INSTALLED");
                 System.out.println("=".repeat(80));
-                System.out.println("Workspace ID: " + workspaceId);
+                System.out.println("Workspace ID: " + workspaceDisplayId);
                 System.out.println("User ID: " + userId);
                 System.out.println("Payload: " + payload.toPrettyString());
                 System.out.println("Auth token provided: " + (authToken != null && !authToken.isEmpty()));
+                System.out.println("API base URL provided: " + (apiUrl != null && !apiUrl.isEmpty()));
                 System.out.println("=".repeat(80));
 
                 // IMPORTANT: In a real implementation, you MUST:
@@ -52,9 +55,11 @@ public class LifecycleHandlers {
 
                 if (authToken == null || authToken.isEmpty()) {
                     System.out.println("⚠️  TODO: Missing auth token in payload; verify installation payload structure.");
+                } else if (workspaceId == null || workspaceId.isEmpty()) {
+                    System.out.println("⚠️  Unable to store auth token because workspaceId is missing.");
                 } else {
-                    System.out.println("⚠️  TODO: Store auth token for workspace " + workspaceId);
-                    System.out.println("    Add token storage in LifecycleHandlers.java:register()");
+                    TokenStore.save(workspaceId, authToken, apiUrl);
+                    System.out.println("✅ Stored auth token for workspace " + workspaceId);
                 }
                 System.out.println();
 
@@ -80,12 +85,13 @@ public class LifecycleHandlers {
         addon.registerLifecycleHandler("DELETED", "/lifecycle/deleted", request -> {
             try {
                 JsonNode payload = parseRequestBody(request);
-                String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
+                String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
+                String workspaceDisplayId = workspaceId != null ? workspaceId : "unknown";
 
                 System.out.println("\n" + "=".repeat(80));
                 System.out.println("LIFECYCLE EVENT: DELETED");
                 System.out.println("=".repeat(80));
-                System.out.println("Workspace ID: " + workspaceId);
+                System.out.println("Workspace ID: " + workspaceDisplayId);
                 System.out.println("=".repeat(80));
 
                 // IMPORTANT: In a real implementation:
@@ -97,8 +103,16 @@ public class LifecycleHandlers {
                 // tokenStore.delete(workspaceId);
                 // userSettingsStore.deleteByWorkspace(workspaceId);
 
-                System.out.println("⚠️  TODO: Clean up data for workspace " + workspaceId);
-                System.out.println("    Add cleanup logic in LifecycleHandlers.java:register()");
+                if (workspaceId == null || workspaceId.isEmpty()) {
+                    System.out.println("⚠️  Unable to remove auth token because workspaceId is missing.");
+                } else {
+                    boolean removed = TokenStore.delete(workspaceId);
+                    if (removed) {
+                        System.out.println("✅ Removed stored auth token for workspace " + workspaceId);
+                    } else {
+                        System.out.println("ℹ️  No stored auth token found for workspace " + workspaceId);
+                    }
+                }
                 System.out.println();
 
                 String responseBody = objectMapper.createObjectNode()
