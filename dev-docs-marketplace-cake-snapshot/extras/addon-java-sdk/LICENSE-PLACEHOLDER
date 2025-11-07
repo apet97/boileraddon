@@ -1,1 +1,2 @@
-(Upstream LICENSE not found during clone; please ensure licensing is respected.)
+This directory contains a vendored copy of code from https://github.com/clockify/addon-java-sdk.
+It is provided for reference/tooling only. Consumers should obtain the official SDK, license, and updates from the upstream repository and abide by its license terms.

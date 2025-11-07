@@ -1,0 +1,26 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install jsonschema pyjwt
+      - name: Validate manifest
+        run: |
+          python tools/validate-manifest.py
+      - name: Build Java template (optional)
+        if: ${{ false }} # flip to true if GitHub Packages auth is configured
+        run: |
+          sudo apt-get update && sudo apt-get install -y maven
+          mvn -q -f templates/java-basic-addon/pom.xml -DskipTests package

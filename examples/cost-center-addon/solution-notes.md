@@ -1,0 +1,3 @@
+- Manifest: structured settings for a list of cost centers; project-level component to view/edit.
+- Backend: enforce on project create/update; optionally update existing time entries.
+- UI: simple select using UI Kit patterns inside iframe; pull choices from settings.

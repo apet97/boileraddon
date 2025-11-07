@@ -1,0 +1,4 @@
+- Manifest: settings for Jira base URL, email/user, API token; a sidebar component on project view.
+- Backend: listen to project create/update events; map project IDs; use installation token for server-to-server actions.
+- Security: never expose Jira token to frontend; store encrypted.
+- Error handling: retries on transient failures; surface errors via toast messages.

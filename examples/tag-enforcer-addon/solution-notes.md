@@ -1,0 +1,4 @@
+- Manifest: add a settings panel with a multi-select for allowed tags and an optional default tag; add a component in the time-entry context.
+- Backend: subscribe to relevant webhooks (time entry created/updated if available) or intercept via UI flow; call Clockify APIs to validate/update tags.
+- Token usage: verify JWT with `clockify-public-key.pem`; use user token for user-facing operations.
+- Rate limits: batch updates where possible; backoff on 429.
