@@ -42,13 +42,27 @@ public class ManifestController implements RequestHandler {
     }
 
     private String detectBaseUrl(HttpServletRequest request) {
-        String scheme = firstHeaderValue(request, "X-Forwarded-Proto")
+        Optional<String> forwardedProto = forwardedHeaderValue(request, "proto");
+        Optional<String> forwardedHost = forwardedHeaderValue(request, "host");
+        Optional<String> forwardedPort = forwardedHeaderValue(request, "port");
+
+        boolean hostFromForwardedHeader = forwardedHost.isPresent();
+
+        String scheme = forwardedProto
+                .or(() -> firstHeaderValue(request, "X-Forwarded-Proto"))
                 .orElseGet(() -> Optional.ofNullable(request.getScheme()).orElse("http"));
 
-        String host = firstHeaderValue(request, "X-Forwarded-Host")
+        String host = forwardedHost
+                .or(() -> firstHeaderValue(request, "X-Forwarded-Host"))
                 .orElse(request.getServerName());
 
-        String port = firstHeaderValue(request, "X-Forwarded-Port").orElse(derivePort(host, scheme, request.getServerPort()));
+        String port = forwardedPort.orElse(null);
+        if (port == null) {
+            port = firstHeaderValue(request, "X-Forwarded-Port").orElse(null);
+        }
+        if (port == null && !hostFromForwardedHeader) {
+            port = derivePort(host, scheme, request.getServerPort());
+        }
 
         if (host != null && !host.isBlank()) {
             host = host.trim();
@@ -80,6 +94,36 @@ public class ManifestController implements RequestHandler {
         String value = commaIndex >= 0 ? raw.substring(0, commaIndex) : raw;
         value = value == null ? null : value.trim();
         return (value == null || value.isEmpty()) ? Optional.empty() : Optional.of(value);
+    }
+
+    private Optional<String> forwardedHeaderValue(HttpServletRequest request, String parameterName) {
+        String raw = request.getHeader("Forwarded");
+        if (raw == null || raw.isBlank()) {
+            return Optional.empty();
+        }
+        int commaIndex = raw.indexOf(',');
+        String firstSegment = commaIndex >= 0 ? raw.substring(0, commaIndex) : raw;
+        String[] pairs = firstSegment.split(";");
+        String targetKey = parameterName == null ? "" : parameterName.trim().toLowerCase(Locale.ROOT);
+        for (String pair : pairs) {
+            if (pair == null || pair.isBlank()) {
+                continue;
+            }
+            int equalsIndex = pair.indexOf('=');
+            if (equalsIndex < 0) {
+                continue;
+            }
+            String key = pair.substring(0, equalsIndex).trim().toLowerCase(Locale.ROOT);
+            if (!key.equals(targetKey)) {
+                continue;
+            }
+            String value = pair.substring(equalsIndex + 1).trim();
+            if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+                value = value.substring(1, value.length() - 1);
+            }
+            return value.isEmpty() ? Optional.empty() : Optional.of(value);
+        }
+        return Optional.empty();
     }
 
     private String derivePort(String host, String scheme, int serverPort) {
