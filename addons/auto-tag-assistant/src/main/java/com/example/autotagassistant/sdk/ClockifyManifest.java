@@ -21,10 +21,8 @@ public class ClockifyManifest {
     private String name;
     private String description;
 
-    @JsonProperty("base_url")
     private String baseUrl;
 
-    @JsonProperty("minimal_subscription_plan")
     private String minimalSubscriptionPlan;
 
     private String[] scopes;
