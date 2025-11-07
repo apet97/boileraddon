@@ -38,11 +38,11 @@
   ],
   "lifecycle": [
     {
-      "path": "/lifecycle",
+      "path": "/lifecycle/installed",
       "type": "INSTALLED"
     },
     {
-      "path": "/lifecycle",
+      "path": "/lifecycle/deleted",
       "type": "DELETED"
     }
   ]

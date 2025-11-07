@@ -12,7 +12,7 @@ import com.example.autotagassistant.sdk.ClockifyManifest;
  *
  * How Clockify calls this addon:
  * 1. Manifest URL: Clockify fetches {baseUrl}/manifest.json to discover endpoints
- * 2. Lifecycle INSTALLED: POST to {baseUrl}/lifecycle with workspace token
+ * 2. Lifecycle INSTALLED: POST to {baseUrl}/lifecycle/installed with workspace token
  * 3. Sidebar component: GET to {baseUrl}/settings renders iframe in time entry sidebar
  * 4. Webhooks: POST to {baseUrl}/webhook when time entry events occur
  *
@@ -53,7 +53,7 @@ public class AutoTagAssistantApp {
         // GET /auto-tag-assistant/settings - Sidebar iframe for time entry
         addon.registerCustomEndpoint("/settings", new SettingsController());
 
-        // POST /auto-tag-assistant/lifecycle - Handle INSTALLED and DELETED events
+        // POST /auto-tag-assistant/lifecycle/installed & /lifecycle/deleted - Lifecycle events
         LifecycleHandlers.register(addon);
 
         // POST /auto-tag-assistant/webhook - Handle time entry events
@@ -81,7 +81,8 @@ public class AutoTagAssistantApp {
         System.out.println("Endpoints:");
         System.out.println("  Manifest:  " + baseUrl + "/manifest.json");
         System.out.println("  Settings:  " + baseUrl + "/settings");
-        System.out.println("  Lifecycle: " + baseUrl + "/lifecycle");
+        System.out.println("  Lifecycle: " + baseUrl + "/lifecycle/installed");
+        System.out.println("              " + baseUrl + "/lifecycle/deleted");
         System.out.println("  Webhook:   " + baseUrl + "/webhook");
         System.out.println("  Health:    " + baseUrl + "/health");
         System.out.println("=".repeat(80));

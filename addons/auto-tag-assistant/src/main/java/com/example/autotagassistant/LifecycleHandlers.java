@@ -25,7 +25,7 @@ public class LifecycleHandlers {
 
     public static void register(ClockifyAddon addon) {
         // Handle INSTALLED event
-        addon.registerLifecycleHandler("INSTALLED", request -> {
+        addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> {
             try {
                 JsonNode payload = parseRequestBody(request);
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
@@ -71,7 +71,7 @@ public class LifecycleHandlers {
         });
 
         // Handle DELETED event
-        addon.registerLifecycleHandler("DELETED", request -> {
+        addon.registerLifecycleHandler("DELETED", "/lifecycle/deleted", request -> {
             try {
                 JsonNode payload = parseRequestBody(request);
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";

@@ -44,35 +44,74 @@ public class AddonServlet extends HttpServlet {
     }
 
     private HttpResponse handleRequest(HttpServletRequest req, String path) throws Exception {
-        // Check custom endpoints first
-        if (addon.getEndpoints().containsKey(path)) {
-            return addon.getEndpoints().get(path).handle(req);
+        RequestHandler customHandler = addon.getEndpoints().get(path);
+        if (customHandler != null) {
+            return customHandler.handle(req);
         }
 
-        // Handle /lifecycle endpoint
-        if ("/lifecycle".equals(path) && "POST".equals(req.getMethod())) {
-            return handleLifecycle(req);
+        if ("POST".equalsIgnoreCase(req.getMethod())) {
+            if ("/webhook".equals(path)) {
+                return handleWebhook(req);
+            }
+
+            HttpResponse lifecycleResponse = tryHandleLifecycle(req, path);
+            if (lifecycleResponse != null) {
+                return lifecycleResponse;
+            }
         }
 
-        // Handle /webhook endpoint
-        if ("/webhook".equals(path) && "POST".equals(req.getMethod())) {
-            return handleWebhook(req);
-        }
-
-        // Not found
         return HttpResponse.error(404, "Endpoint not found: " + path);
     }
 
-    private HttpResponse handleLifecycle(HttpServletRequest req) throws Exception {
-        String body = req.getReader().lines().collect(Collectors.joining());
-        JsonNode json = objectMapper.readTree(body);
-        req.setAttribute("clockify.rawBody", body);
-        req.setAttribute("clockify.jsonBody", json);
-        String lifecycleType = json.has("lifecycle") ? json.get("lifecycle").asText() : null;
+    private HttpResponse tryHandleLifecycle(HttpServletRequest req, String path) throws Exception {
+        RequestHandler handlerByPath = addon.getLifecycleHandlersByPath().get(path);
+        if (handlerByPath != null) {
+            JsonNode json;
+            try {
+                json = readAndCacheJsonBody(req);
+            } catch (IOException e) {
+                String errorBody = objectMapper.createObjectNode()
+                        .put("message", "Invalid JSON payload")
+                        .put("details", e.getMessage())
+                        .toString();
+                return HttpResponse.error(400, errorBody, "application/json");
+            }
+            if (json == null) {
+                String errorBody = objectMapper.createObjectNode()
+                        .put("message", "Lifecycle payload is required")
+                        .toString();
+                return HttpResponse.error(400, errorBody, "application/json");
+            }
+            return handlerByPath.handle(req);
+        }
 
-        if (lifecycleType == null) {
+        if (!"/lifecycle".equals(path)) {
+            return null;
+        }
+
+        JsonNode json;
+        try {
+            json = readAndCacheJsonBody(req);
+        } catch (IOException e) {
             String errorBody = objectMapper.createObjectNode()
-                    .put("message", "Missing 'lifecycle' field in request")
+                    .put("message", "Invalid JSON payload")
+                    .put("details", e.getMessage())
+                    .toString();
+            return HttpResponse.error(400, errorBody, "application/json");
+        }
+
+        if (json == null) {
+            String errorBody = objectMapper.createObjectNode()
+                    .put("message", "Lifecycle payload is required")
+                    .toString();
+            return HttpResponse.error(400, errorBody, "application/json");
+        }
+
+        String lifecycleType = extractLifecycleType(json);
+
+        if (lifecycleType == null || lifecycleType.isBlank()) {
+            String errorBody = objectMapper.createObjectNode()
+                    .put("message", "Missing lifecycle identifier in request")
                     .toString();
             return HttpResponse.error(400, errorBody, "application/json");
         }
@@ -91,13 +130,24 @@ public class AddonServlet extends HttpServlet {
     }
 
     private HttpResponse handleWebhook(HttpServletRequest req) throws Exception {
-        String body = req.getReader().lines().collect(Collectors.joining());
-        JsonNode json = objectMapper.readTree(body);
-        req.setAttribute("clockify.rawBody", body);
-        req.setAttribute("clockify.jsonBody", json);
-        String event = json.has("event") ? json.get("event").asText() : null;
+        JsonNode json;
+        try {
+            json = readAndCacheJsonBody(req);
+        } catch (IOException e) {
+            String errorBody = objectMapper.createObjectNode()
+                    .put("message", "Invalid JSON payload")
+                    .put("details", e.getMessage())
+                    .toString();
+            return HttpResponse.error(400, errorBody, "application/json");
+        }
 
-        if (event == null) {
+        if (json == null) {
+            return HttpResponse.error(400, "Missing request body");
+        }
+
+        String event = json.has("event") ? json.get("event").asText(null) : null;
+
+        if (event == null || event.isBlank()) {
             return HttpResponse.error(400, "Missing 'event' field in request");
         }
 
@@ -108,6 +158,51 @@ public class AddonServlet extends HttpServlet {
 
         logger.warn("No handler registered for webhook event: {}", event);
         return HttpResponse.ok("Webhook event received but not handled: " + event);
+    }
+
+    private JsonNode readAndCacheJsonBody(HttpServletRequest req) throws IOException {
+        Object cachedJson = req.getAttribute("clockify.jsonBody");
+        if (cachedJson instanceof JsonNode) {
+            return (JsonNode) cachedJson;
+        }
+
+        Object cachedBody = req.getAttribute("clockify.rawBody");
+        if (cachedBody instanceof String) {
+            String bodyString = (String) cachedBody;
+            if (bodyString.isBlank()) {
+                return null;
+            }
+            JsonNode jsonNode = objectMapper.readTree(bodyString);
+            req.setAttribute("clockify.jsonBody", jsonNode);
+            return jsonNode;
+        }
+
+        String body = req.getReader().lines().collect(Collectors.joining());
+        req.setAttribute("clockify.rawBody", body);
+
+        if (body.isBlank()) {
+            return null;
+        }
+
+        JsonNode json = objectMapper.readTree(body);
+        req.setAttribute("clockify.jsonBody", json);
+        return json;
+    }
+
+    private String extractLifecycleType(JsonNode json) {
+        if (json == null) {
+            return null;
+        }
+
+        if (json.hasNonNull("lifecycle")) {
+            return json.get("lifecycle").asText();
+        }
+
+        if (json.hasNonNull("type")) {
+            return json.get("type").asText();
+        }
+
+        return null;
     }
 
     private void sendResponse(HttpServletResponse resp, HttpResponse response) throws IOException {
