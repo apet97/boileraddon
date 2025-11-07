@@ -26,6 +26,10 @@ public class HttpResponse {
         return new HttpResponse(statusCode, message, "text/plain");
     }
 
+    public static HttpResponse error(int statusCode, String message, String contentType) {
+        return new HttpResponse(statusCode, message, contentType);
+    }
+
     public int getStatusCode() {
         return statusCode;
     }

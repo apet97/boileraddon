@@ -52,12 +52,21 @@ public class LifecycleHandlers {
                 System.out.println("    Add token storage in LifecycleHandlers.java:register()");
                 System.out.println();
 
-                return HttpResponse.ok("Add-on installed successfully");
+                String responseBody = objectMapper.createObjectNode()
+                        .put("status", "installed")
+                        .put("message", "Add-on installed successfully")
+                        .toString();
+
+                return HttpResponse.ok(responseBody, "application/json");
 
             } catch (Exception e) {
                 System.err.println("Error handling INSTALLED event: " + e.getMessage());
                 e.printStackTrace();
-                return HttpResponse.error(500, "Failed to process installation: " + e.getMessage());
+                String errorBody = objectMapper.createObjectNode()
+                        .put("message", "Failed to process installation")
+                        .put("details", e.getMessage())
+                        .toString();
+                return HttpResponse.error(500, errorBody, "application/json");
             }
         });
 
@@ -86,12 +95,21 @@ public class LifecycleHandlers {
                 System.out.println("    Add cleanup logic in LifecycleHandlers.java:register()");
                 System.out.println();
 
-                return HttpResponse.ok("Add-on uninstalled successfully");
+                String responseBody = objectMapper.createObjectNode()
+                        .put("status", "uninstalled")
+                        .put("message", "Add-on uninstalled successfully")
+                        .toString();
+
+                return HttpResponse.ok(responseBody, "application/json");
 
             } catch (Exception e) {
                 System.err.println("Error handling DELETED event: " + e.getMessage());
                 e.printStackTrace();
-                return HttpResponse.error(500, "Failed to process uninstallation: " + e.getMessage());
+                String errorBody = objectMapper.createObjectNode()
+                        .put("message", "Failed to process uninstallation")
+                        .put("details", e.getMessage())
+                        .toString();
+                return HttpResponse.error(500, errorBody, "application/json");
             }
         });
     }
