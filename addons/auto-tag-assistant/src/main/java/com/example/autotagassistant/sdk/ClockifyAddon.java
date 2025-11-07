@@ -11,6 +11,8 @@ public class ClockifyAddon {
     private final ClockifyManifest manifest;
     private final Map<String, RequestHandler> endpoints = new HashMap<>();
     private final Map<String, RequestHandler> lifecycleHandlers = new HashMap<>();
+    private final Map<String, RequestHandler> lifecycleHandlersByPath = new HashMap<>();
+    private final Map<String, String> lifecyclePathsByType = new HashMap<>();
     private final Map<String, RequestHandler> webhookHandlers = new HashMap<>();
 
     public ClockifyAddon(ClockifyManifest manifest) {
@@ -32,11 +34,29 @@ public class ClockifyAddon {
      * Register a lifecycle handler (INSTALLED, DELETED)
      */
     public void registerLifecycleHandler(String lifecycleType, RequestHandler handler) {
+        registerLifecycleHandler(lifecycleType, null, handler);
+    }
+
+    public void registerLifecycleHandler(String lifecycleType, String path, RequestHandler handler) {
+        String normalizedPath = normalizeLifecyclePath(lifecycleType, path);
+
         lifecycleHandlers.put(lifecycleType, handler);
 
-        // Auto-register in manifest if not already present
-        if (manifest.getLifecycle().stream().noneMatch(l -> l.getType().equals(lifecycleType))) {
-            manifest.getLifecycle().add(new ClockifyManifest.LifecycleEndpoint(lifecycleType, "/lifecycle"));
+        String previousPath = lifecyclePathsByType.put(lifecycleType, normalizedPath);
+        if (previousPath != null && !previousPath.equals(normalizedPath)) {
+            lifecycleHandlersByPath.remove(previousPath);
+        }
+        lifecycleHandlersByPath.put(normalizedPath, handler);
+
+        ClockifyManifest.LifecycleEndpoint endpoint = manifest.getLifecycle().stream()
+                .filter(l -> l.getType().equals(lifecycleType))
+                .findFirst()
+                .orElse(null);
+
+        if (endpoint == null) {
+            manifest.getLifecycle().add(new ClockifyManifest.LifecycleEndpoint(lifecycleType, normalizedPath));
+        } else {
+            endpoint.setPath(normalizedPath);
         }
     }
 
@@ -66,10 +86,25 @@ public class ClockifyAddon {
         return lifecycleHandlers;
     }
 
+    public Map<String, RequestHandler> getLifecycleHandlersByPath() {
+        return lifecycleHandlersByPath;
+    }
+
     /**
      * Get webhook handlers
      */
     public Map<String, RequestHandler> getWebhookHandlers() {
         return webhookHandlers;
+    }
+
+    private String normalizeLifecyclePath(String lifecycleType, String path) {
+        String normalizedPath = path != null ? path.trim() : "";
+        if (normalizedPath.isEmpty()) {
+            normalizedPath = "/lifecycle/" + lifecycleType.toLowerCase();
+        }
+        if (!normalizedPath.startsWith("/")) {
+            normalizedPath = "/" + normalizedPath;
+        }
+        return normalizedPath;
     }
 }
