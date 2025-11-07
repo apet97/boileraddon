@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,6 +69,53 @@ class AutoTagAssistantAppTest {
 
         try {
             assertManifestRequestSucceeds(manifestUrl, expectedBaseUrl);
+        } finally {
+            stopServer(server, serverFuture, executor);
+        }
+    }
+
+    @Test
+    void manifestEndpointHonorsForwardedHeader() throws Exception {
+        int port = findFreePort();
+        String baseUrl = "http://localhost:" + port + "/auto-tag-assistant";
+
+        ClockifyManifest manifest = ClockifyManifest
+                .v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Automatically detects and suggests tags for time entries")
+                .baseUrl(baseUrl)
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"})
+                .build();
+        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
+
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
+
+        String contextPath = AutoTagAssistantApp.sanitizeContextPath(baseUrl);
+        assertEquals("/auto-tag-assistant", contextPath);
+
+        AddonServlet servlet = new AddonServlet(addon);
+        EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<?> serverFuture = executor.submit(() -> {
+            try {
+                server.start(port);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        String manifestUrl = baseUrl + "/manifest.json";
+        String forwardedHost = "example.ngrok-free.app";
+        String expectedBaseUrl = "https://" + forwardedHost + contextPath;
+
+        try {
+            assertManifestRequestSucceeds(manifestUrl, expectedBaseUrl, connection -> {
+                connection.setRequestProperty("Forwarded", "proto=https;host=" + forwardedHost);
+            });
         } finally {
             stopServer(server, serverFuture, executor);
         }
@@ -162,6 +210,10 @@ class AutoTagAssistantAppTest {
     }
 
     private static void assertManifestRequestSucceeds(String manifestUrl, String expectedBaseUrl) throws Exception {
+        assertManifestRequestSucceeds(manifestUrl, expectedBaseUrl, connection -> { });
+    }
+
+    private static void assertManifestRequestSucceeds(String manifestUrl, String expectedBaseUrl, Consumer<HttpURLConnection> requestCustomizer) throws Exception {
         Exception lastException = null;
         for (int attempt = 0; attempt < 30; attempt++) {
             HttpURLConnection connection = null;
@@ -169,6 +221,7 @@ class AutoTagAssistantAppTest {
                 connection = (HttpURLConnection) new URL(manifestUrl).openConnection();
                 connection.setConnectTimeout(1000);
                 connection.setReadTimeout(1000);
+                requestCustomizer.accept(connection);
                 int status = connection.getResponseCode();
                 if (status == HttpURLConnection.HTTP_OK) {
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
