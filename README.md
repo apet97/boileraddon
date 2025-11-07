@@ -24,6 +24,10 @@ Then in another terminal:
 ngrok http 8080
 ```
 
+**⚠️ Do _not_ run `ngrok http 80` — the add-on binds to port 8080, so ngrok must forward `8080`.**
+
+**Manifest URL reminder:** Clockify needs `https://<your-ngrok-domain>/auto-tag-assistant/manifest.json` (note the `/auto-tag-assistant/manifest.json` path).
+
 🎉 You now have a working, installable Clockify add-on!
 
 **Install in Clockify:**
