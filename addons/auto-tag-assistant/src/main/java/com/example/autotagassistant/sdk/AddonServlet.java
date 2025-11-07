@@ -35,7 +35,11 @@ public class AddonServlet extends HttpServlet {
             sendResponse(resp, response);
         } catch (Exception e) {
             logger.error("Error handling request: {} {}", method, path, e);
-            sendResponse(resp, HttpResponse.error(500, "Internal server error: " + e.getMessage()));
+            String errorBody = objectMapper.createObjectNode()
+                    .put("message", "Internal server error")
+                    .put("details", e.getMessage())
+                    .toString();
+            sendResponse(resp, HttpResponse.error(500, errorBody, "application/json"));
         }
     }
 
@@ -65,7 +69,10 @@ public class AddonServlet extends HttpServlet {
         String lifecycleType = json.has("lifecycle") ? json.get("lifecycle").asText() : null;
 
         if (lifecycleType == null) {
-            return HttpResponse.error(400, "Missing 'lifecycle' field in request");
+            String errorBody = objectMapper.createObjectNode()
+                    .put("message", "Missing 'lifecycle' field in request")
+                    .toString();
+            return HttpResponse.error(400, errorBody, "application/json");
         }
 
         RequestHandler handler = addon.getLifecycleHandlers().get(lifecycleType);
@@ -74,7 +81,11 @@ public class AddonServlet extends HttpServlet {
         }
 
         logger.warn("No handler registered for lifecycle: {}", lifecycleType);
-        return HttpResponse.ok("Lifecycle event received but not handled: " + lifecycleType);
+        String responseBody = objectMapper.createObjectNode()
+                .put("status", "ignored")
+                .put("message", "Lifecycle event received but not handled: " + lifecycleType)
+                .toString();
+        return HttpResponse.ok(responseBody, "application/json");
     }
 
     private HttpResponse handleWebhook(HttpServletRequest req) throws Exception {
