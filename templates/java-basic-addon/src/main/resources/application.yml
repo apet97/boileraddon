@@ -1,0 +1,4 @@
+# Example configuration via environment variables
+# ADDON_BASE_URL: public base URL of your addon (e.g., from ngrok)
+# ADDON_KEY: add-on manifest key
+# PORT: port to run the embedded server (default 8080)

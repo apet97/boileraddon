@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/clockify-webhooks.json",
+  "title": "Clockify Webhook Payloads (ADDON)",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/definitions/addonWebhook" }
+  ],
+  "definitions": {
+    "addonWebhook": {
+      "type": "object",
+      "properties": {
+        "authToken": { "type": "string" },
+        "path": { "type": "string" },
+        "webhookType": { "type": "string", "enum": ["ADDON"] }
+      },
+      "required": ["authToken", "path", "webhookType"],
+      "additionalProperties": true,
+      "examples": [
+        {
+          "authToken": "<JWT>",
+          "path": "/webhook",
+          "webhookType": "ADDON"
+        }
+      ]
+    }
+  }
+}

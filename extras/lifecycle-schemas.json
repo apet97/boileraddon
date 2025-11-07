@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/clockify-lifecycle.json",
+  "title": "Clockify Lifecycle Events",
+  "type": "object",
+  "properties": {
+    "type": { "type": "string", "enum": ["INSTALLED", "DELETED", "SETTINGS_UPDATED"] },
+    "path": { "type": "string" },
+    "authToken": { "type": "string" }
+  },
+  "required": ["type", "path"],
+  "additionalProperties": true,
+  "examples": [
+    { "type": "INSTALLED", "path": "/lifecycle", "authToken": "<JWT>" },
+    { "type": "DELETED", "path": "/lifecycle" }
+  ]
+}
