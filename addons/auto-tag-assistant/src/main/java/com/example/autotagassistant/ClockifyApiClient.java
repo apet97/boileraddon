@@ -108,15 +108,27 @@ public class ClockifyApiClient {
     public JsonNode updateTimeEntryTags(String workspaceId, String timeEntryId, String[] tagIds) throws Exception {
         String url = String.format("%s/workspaces/%s/time-entries/%s", baseUrl, workspaceId, timeEntryId);
 
-        // Build request body - must include all fields from the existing time entry
-        // For simplicity, we'll just send tagIds, but in production you should:
-        // 1. GET the current time entry
-        // 2. Modify the tagIds field
-        // 3. PUT the complete updated object
-        String requestBody = objectMapper.writeValueAsString(
-            objectMapper.createObjectNode()
-                .putPOJO("tagIds", tagIds)
-        );
+        JsonNode existingEntry = getTimeEntry(workspaceId, timeEntryId);
+        if (!(existingEntry instanceof com.fasterxml.jackson.databind.node.ObjectNode)) {
+            throw new RuntimeException("Time entry payload must be an object to update tagIds");
+        }
+
+        com.fasterxml.jackson.databind.node.ObjectNode existingObject = (com.fasterxml.jackson.databind.node.ObjectNode) existingEntry;
+        com.fasterxml.jackson.databind.node.ObjectNode requestNode = existingObject.deepCopy();
+
+        if (!requestNode.has("start") && existingObject.has("timeInterval")) {
+            JsonNode timeInterval = existingObject.get("timeInterval");
+            if (timeInterval != null && timeInterval.has("start")) {
+                requestNode.set("start", timeInterval.get("start"));
+            }
+            if (timeInterval != null && timeInterval.has("end")) {
+                requestNode.set("end", timeInterval.get("end"));
+            }
+        }
+
+        requestNode.set("tagIds", objectMapper.valueToTree(tagIds));
+
+        String requestBody = objectMapper.writeValueAsString(requestNode);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
