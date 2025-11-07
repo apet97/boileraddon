@@ -28,3 +28,13 @@ When implementing:
 
 ## Environment contract
 See `extras/environments.md` and resolve base URLs from token claims instead of hardcoding.
+
+## Scaffolding
+When creating a new add-on, start from:
+`scripts/new-addon.sh my-addon` (then adjust settings, handlers, and manifest).
+
+## Normalize Requests
+Before generating code, normalize the user request into `examples/spec-template.md` format and include it alongside the code changes.
+
+## Versions
+Use versions declared in `extras/versions.md`. Do not upgrade or change unless explicitly requested.
