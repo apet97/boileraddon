@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Tag Assistant - Settings</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f6f8;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 32px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .setting-info {
+            flex: 1;
+        }
+
+        .setting-label {
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+
+        .setting-description {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            background: #e5e7eb;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle.active {
+            background: #03a9f4;
+        }
+
+        .toggle-handle {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .toggle.active .toggle-handle {
+            transform: translateX(24px);
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #03a9f4;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #e0f7fa;
+            color: #006064;
+            border-radius: 16px;
+            font-size: 14px;
+        }
+
+        .tag-remove {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .button {
+            background: #03a9f4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .button:hover {
+            background: #0288d1;
+        }
+
+        .button.secondary {
+            background: #f3f4f6;
+            color: #1a1a1a;
+        }
+
+        .button.secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .info-box {
+            background: #fffbeb;
+            border: 1px solid #fbbf24;
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 24px;
+        }
+
+        .info-box strong {
+            color: #92400e;
+        }
+
+        .info-box p {
+            color: #78350f;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function SettingsApp() {
+            const [enabled, setEnabled] = useState(true);
+            const [defaultTagName, setDefaultTagName] = useState('Untagged');
+            const [requiredTags, setRequiredTags] = useState(['Billable', 'Client']);
+            const [newTagInput, setNewTagInput] = useState('');
+
+            const handleAddTag = () => {
+                if (newTagInput.trim() && !requiredTags.includes(newTagInput.trim())) {
+                    setRequiredTags([...requiredTags, newTagInput.trim()]);
+                    setNewTagInput('');
+                }
+            };
+
+            const handleRemoveTag = (tagToRemove) => {
+                setRequiredTags(requiredTags.filter(tag => tag !== tagToRemove));
+            };
+
+            const handleSave = () => {
+                // In production, save settings via API
+                const settings = {
+                    enabled,
+                    defaultTagName,
+                    requiredTags
+                };
+                console.log('Saving settings:', settings);
+                alert('Settings saved! (In production, this would call the addon API)');
+            };
+
+            return (
+                <div className="container">
+                    <h1>Auto-Tag Assistant Settings</h1>
+                    <p className="subtitle">
+                        Configure how the addon automatically manages tags on your time entries.
+                    </p>
+
+                    <div className="section">
+                        <h2>General Settings</h2>
+
+                        <div className="setting-row">
+                            <div className="setting-info">
+                                <div className="setting-label">Enable Auto-Tagging</div>
+                                <div className="setting-description">
+                                    Automatically add tags to time entries when required tags are missing
+                                </div>
+                            </div>
+                            <div
+                                className={`toggle ${enabled ? 'active' : ''}`}
+                                onClick={() => setEnabled(!enabled)}
+                            >
+                                <div className="toggle-handle"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {enabled && (
+                        <>
+                            <div className="section">
+                                <h2>Default Tag</h2>
+                                <div className="input-group">
+                                    <label>Tag Name</label>
+                                    <input
+                                        type="text"
+                                        value={defaultTagName}
+                                        onChange={(e) => setDefaultTagName(e.target.value)}
+                                        placeholder="Enter default tag name"
+                                    />
+                                </div>
+                                <p className="setting-description">
+                                    This tag will be added to time entries that have no tags
+                                </p>
+                            </div>
+
+                            <div className="section">
+                                <h2>Required Tags</h2>
+                                <p className="setting-description">
+                                    Time entries must have at least one of these tags
+                                </p>
+
+                                <div className="input-group" style={{marginTop: '16px'}}>
+                                    <label>Add Required Tag</label>
+                                    <div style={{display: 'flex', gap: '8px'}}>
+                                        <input
+                                            type="text"
+                                            value={newTagInput}
+                                            onChange={(e) => setNewTagInput(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                                            placeholder="e.g., Billable"
+                                        />
+                                        <button className="button" onClick={handleAddTag}>
+                                            Add
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="tag-list">
+                                    {requiredTags.map(tag => (
+                                        <div key={tag} className="tag">
+                                            {tag}
+                                            <span
+                                                className="tag-remove"
+                                                onClick={() => handleRemoveTag(tag)}
+                                            >
+                                                ×
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    <div style={{display: 'flex', gap: '12px', marginTop: '32px'}}>
+                        <button className="button" onClick={handleSave}>
+                            Save Settings
+                        </button>
+                        <button className="button secondary">
+                            Cancel
+                        </button>
+                    </div>
+
+                    <div className="info-box">
+                        <strong>How it works:</strong>
+                        <p>
+                            When you start or stop a timer, the Auto-Tag Assistant checks if your time entry
+                            has at least one of the required tags. If no tags are present, it automatically
+                            adds the default tag. This helps ensure all time entries are properly categorized
+                            without manual intervention.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<SettingsApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>

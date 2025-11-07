@@ -1,0 +1,50 @@
+{
+  "$schema": "../../dev-docs-marketplace-cake-snapshot/extras/manifest-schema-latest.json",
+  "key": "auto-tag-assistant",
+  "name": "Auto-Tag Assistant",
+  "description": "Automatically adds default tags to time entries when required tags are missing. Helps ensure all time entries are properly categorized.",
+  "baseUrl": "http://localhost:8080/auto-tag-assistant",
+  "minimalSubscriptionPlan": "FREE",
+  "scopes": [
+    "TIME_ENTRY_READ",
+    "TIME_ENTRY_WRITE",
+    "TAG_READ",
+    "TAG_WRITE"
+  ],
+  "components": [
+    {
+      "type": "sidebar",
+      "label": "Tag Rules",
+      "path": "/settings",
+      "accessLevel": "ADMINS"
+    }
+  ],
+  "webhooks": [
+    {
+      "event": "NEW_TIMER_STARTED",
+      "path": "/webhook"
+    },
+    {
+      "event": "TIMER_STOPPED",
+      "path": "/webhook"
+    },
+    {
+      "event": "TIME_ENTRY_UPDATED",
+      "path": "/webhook"
+    },
+    {
+      "event": "NEW_TIME_ENTRY",
+      "path": "/webhook"
+    }
+  ],
+  "lifecycle": [
+    {
+      "path": "/lifecycle",
+      "type": "INSTALLED"
+    },
+    {
+      "path": "/lifecycle",
+      "type": "DELETED"
+    }
+  ]
+}
