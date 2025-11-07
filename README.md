@@ -1,6 +1,6 @@
 # Clockify Add-on Boilerplate
 
-A clean, self-contained boilerplate for building Clockify add-ons with **ZERO external authentication required**. The Clockify add-on SDK is vendored locally - no GitHub Packages token needed.
+A clean, **truly self-contained** boilerplate for building Clockify add-ons with **ZERO external authentication required**. Uses a minimal inline SDK with **Maven Central dependencies ONLY** - no GitHub Packages, no private artifacts, no hidden prerequisites.
 
 ## Quick Start (ONE Command)
 
@@ -25,11 +25,13 @@ ngrok http 8080
 
 - ✅ **Working Example**: `addons/auto-tag-assistant/` - A complete auto-tagging add-on
 - ✅ **Clean Template**: `templates/java-basic-addon/` - Minimal starter template
-- ✅ **Vendored SDK**: `dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/` - No GitHub Packages auth needed
+- ✅ **Inline SDK**: Minimal SDK directly in auto-tag-assistant - no external dependencies
+- ✅ **Maven Central Only**: All dependencies from public Maven Central (Jackson, Jetty, SLF4J)
 - ✅ **Complete Docs**: Full Clockify Marketplace developer documentation snapshot
 - ✅ **Build Automation**: Makefile with all common tasks
 - ✅ **Scaffolding Script**: Create new add-ons with one command
 - ✅ **Validation Tools**: Manifest validation against official schema
+- ✅ **Build Verification**: Complete dependency verification guide ([BUILD_VERIFICATION.md](BUILD_VERIFICATION.md))
 
 ## Project Structure
 
@@ -42,9 +44,18 @@ boileraddon/
 ├── addons/
 │   └── auto-tag-assistant/                    # Working example add-on
 │       ├── manifest.json                      # Runtime manifest (no $schema!)
-│       ├── pom.xml
+│       ├── pom.xml                            # Maven Central dependencies only
 │       ├── README.md                          # Detailed implementation guide
-│       └── src/main/java/...
+│       └── src/main/java/
+│           └── com/example/autotagassistant/
+│               ├── sdk/                       # Inline minimal SDK
+│               │   ├── ClockifyAddon.java
+│               │   ├── ClockifyManifest.java
+│               │   ├── AddonServlet.java
+│               │   ├── EmbeddedServer.java
+│               │   ├── RequestHandler.java
+│               │   └── HttpResponse.java
+│               └── ...                        # App code
 │
 ├── templates/
 │   └── java-basic-addon/                      # Starter template
@@ -56,7 +67,7 @@ boileraddon/
 │   ├── cake_marketplace_dev_docs.md           # Combined docs
 │   ├── html/                                  # 48 HTML pages
 │   └── extras/
-│       ├── addon-java-sdk/                    # Vendored SDK (local build)
+│       ├── addon-java-sdk/                    # Reference SDK (not used in build)
 │       ├── manifest-schema-latest.json        # Schema for authoring
 │       ├── clockify-openapi.json              # API spec
 │       └── webhook-schemas.json               # Event schemas
@@ -73,30 +84,77 @@ boileraddon/
 
 ## Prerequisites
 
+**Required:**
 - **Java 17+** - Verify: `java -version`
 - **Maven 3.6+** - Verify: `mvn -version`
-- **ngrok** (for local testing) - Install: https://ngrok.com/download
-- **Python 3** (optional, for manifest validation)
+- **Internet connection** (first build only, to download from Maven Central)
+
+**Optional:**
+- **ngrok** (for local testing with Clockify) - Install: https://ngrok.com/download
+- **Python 3** (for manifest validation)
+
+**NOT Required:**
+- ❌ GitHub Packages authentication
+- ❌ Private artifact repositories
+- ❌ External SDK installation
+
+## Architecture: Inline SDK
+
+This boilerplate uses a **minimal inline SDK** approach instead of external dependencies:
+
+### Why Inline SDK?
+
+**Before (External SDK Problems):**
+- Required `com.cake.clockify:addon-sdk` from GitHub Packages
+- Complex annotation processing at build time
+- Circular dependencies between SDK modules
+- Hidden authentication requirements
+
+**Now (Inline SDK Benefits):**
+- ✅ All SDK code directly in `src/main/java/.../sdk/`
+- ✅ No annotation processing complexity
+- ✅ Simple, readable, customizable
+- ✅ Maven Central dependencies only
+- ✅ Works offline after first build
+
+### SDK Components
+
+The inline SDK provides everything needed for Clockify add-ons:
+
+```
+src/main/java/com/example/autotagassistant/sdk/
+├── ClockifyAddon.java          # Main addon coordinator
+├── ClockifyManifest.java       # Manifest model with builder
+├── AddonServlet.java           # HTTP servlet for routing
+├── EmbeddedServer.java         # Jetty server wrapper
+├── RequestHandler.java         # Request handler interface
+└── HttpResponse.java           # Response helper
+```
+
+**Dependencies (all from Maven Central):**
+- Jackson 2.17.1 (JSON processing)
+- Jetty 11.0.20 (HTTP server)
+- Jakarta Servlet 5.0.0 (Servlet API)
+- SLF4J 2.0.13 (Logging)
+
+See [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md) for complete dependency list and verification steps.
 
 ## Building
 
-### Build Everything (SDK + All Add-ons)
+### Build Everything
 
 ```bash
 make build
 ```
 
-This:
-1. Builds the vendored SDK modules (annotation-processor + addon-sdk)
-2. Installs them to your local Maven repository
-3. Builds all templates and add-ons
+This builds all modules using **Maven Central dependencies only**. No SDK installation needed!
+
+**First build:** Maven downloads dependencies from Maven Central (~50MB)
+**Subsequent builds:** Uses cached dependencies (fast)
 
 ### Build Individual Modules
 
 ```bash
-# SDK only
-make build-sdk
-
 # Just the template
 make build-template
 

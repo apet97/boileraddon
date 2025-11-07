@@ -17,10 +17,6 @@
     </properties>
 
     <modules>
-        <!-- Vendored SDK modules (build locally, no GitHub Packages needed) -->
-        <module>dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/annotation-processor</module>
-        <module>dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/addon-sdk</module>
-
         <!-- Templates -->
         <module>templates/java-basic-addon</module>
 

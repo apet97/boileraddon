@@ -1,7 +1,12 @@
 package com.example.autotagassistant;
 
-import com.cake.clockify.addonsdk.clockify.ClockifyAddon;
-import com.google.gson.JsonObject;
+import com.example.autotagassistant.sdk.ClockifyAddon;
+import com.example.autotagassistant.sdk.HttpResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+
+import java.io.BufferedReader;
 
 /**
  * Handles Clockify webhook events for time entries.
@@ -20,80 +25,89 @@ import com.google.gson.JsonObject;
  * 5. Use stored addon token to call Clockify API
  */
 public class WebhookHandlers {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static void register(ClockifyAddon addon) {
-        // Handle all time entry webhook events
-        addon.onWebhook(request -> {
-            try {
-                String workspaceId = request.getResourceId();
-                String eventType = request.getWebhookEvent();
-                JsonObject payload = request.getPayload();
+        // Register handlers for all time entry events
+        String[] events = {
+            "NEW_TIMER_STARTED",
+            "TIMER_STOPPED",
+            "NEW_TIME_ENTRY",
+            "TIME_ENTRY_UPDATED"
+        };
 
-                System.out.println("\n" + "=".repeat(80));
-                System.out.println("WEBHOOK EVENT: " + eventType);
-                System.out.println("=".repeat(80));
-                System.out.println("Workspace ID: " + workspaceId);
-                System.out.println("Event Type: " + eventType);
-                System.out.println("Payload:");
-                System.out.println(payload.toString());
-                System.out.println("=".repeat(80));
+        for (String event : events) {
+            addon.registerWebhookHandler(event, request -> {
+                try {
+                    JsonNode payload = parseRequestBody(request);
+                    String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
+                    String eventType = payload.has("event") ? payload.get("event").asText() : event;
 
-                // Extract time entry information from payload
-                JsonObject timeEntry = payload.has("timeEntry")
-                    ? payload.getAsJsonObject("timeEntry")
-                    : payload;
+                    System.out.println("\n" + "=".repeat(80));
+                    System.out.println("WEBHOOK EVENT: " + eventType);
+                    System.out.println("=".repeat(80));
+                    System.out.println("Workspace ID: " + workspaceId);
+                    System.out.println("Event Type: " + eventType);
+                    System.out.println("Payload:");
+                    System.out.println(payload.toPrettyString());
+                    System.out.println("=".repeat(80));
 
-                String timeEntryId = timeEntry.has("id")
-                    ? timeEntry.get("id").getAsString()
-                    : "unknown";
+                    // Extract time entry information from payload
+                    JsonNode timeEntry = payload.has("timeEntry")
+                        ? payload.get("timeEntry")
+                        : payload;
 
-                String description = timeEntry.has("description")
-                    ? timeEntry.get("description").getAsString()
-                    : "";
+                    String timeEntryId = timeEntry.has("id")
+                        ? timeEntry.get("id").asText()
+                        : "unknown";
 
-                // Check if time entry has tags
-                boolean hasTags = timeEntry.has("tagIds")
-                    && timeEntry.getAsJsonArray("tagIds").size() > 0;
+                    String description = timeEntry.has("description")
+                        ? timeEntry.get("description").asText()
+                        : "";
 
-                System.out.println("\n📋 Auto-Tag Assistant Analysis:");
-                System.out.println("  Time Entry ID: " + timeEntryId);
-                System.out.println("  Description: " + (description.isEmpty() ? "(empty)" : description));
-                System.out.println("  Has Tags: " + (hasTags ? "Yes ✓" : "No ✗"));
+                    // Check if time entry has tags
+                    boolean hasTags = timeEntry.has("tagIds")
+                        && timeEntry.get("tagIds").isArray()
+                        && timeEntry.get("tagIds").size() > 0;
 
-                if (!hasTags) {
-                    System.out.println("\n⚠️  MISSING TAGS DETECTED!");
-                    System.out.println("  🤖 Auto-tagging logic would run here:");
-                    System.out.println("     1. Analyze description: \"" + description + "\"");
-                    System.out.println("     2. Check project/task context");
-                    System.out.println("     3. Query historical tagging patterns");
-                    System.out.println("     4. Suggest tags: [meeting, client-work, development]");
-                    System.out.println("     5. Apply tags via Clockify API");
-                    System.out.println();
-                    System.out.println("  📝 To implement:");
-                    System.out.println("     - Edit WebhookHandlers.java");
-                    System.out.println("     - Use ClockifyApiClient.java to call:");
-                    System.out.println("       PUT /workspaces/{workspaceId}/time-entries/{timeEntryId}");
-                    System.out.println("     - Include Authorization header with addon token");
-                    System.out.println();
+                    System.out.println("\n📋 Auto-Tag Assistant Analysis:");
+                    System.out.println("  Time Entry ID: " + timeEntryId);
+                    System.out.println("  Description: " + (description.isEmpty() ? "(empty)" : description));
+                    System.out.println("  Has Tags: " + (hasTags ? "Yes ✓" : "No ✗"));
 
-                    // Simulate tag suggestion logic
-                    suggestTagsForTimeEntry(workspaceId, timeEntryId, description);
-                } else {
-                    System.out.println("  ✓ Time entry already has tags, no action needed");
+                    if (!hasTags) {
+                        System.out.println("\n⚠️  MISSING TAGS DETECTED!");
+                        System.out.println("  🤖 Auto-tagging logic would run here:");
+                        System.out.println("     1. Analyze description: \"" + description + "\"");
+                        System.out.println("     2. Check project/task context");
+                        System.out.println("     3. Query historical tagging patterns");
+                        System.out.println("     4. Suggest tags: [meeting, client-work, development]");
+                        System.out.println("     5. Apply tags via Clockify API");
+                        System.out.println();
+                        System.out.println("  📝 To implement:");
+                        System.out.println("     - Edit WebhookHandlers.java");
+                        System.out.println("     - Use ClockifyApiClient.java to call:");
+                        System.out.println("       PUT /workspaces/{workspaceId}/time-entries/{timeEntryId}");
+                        System.out.println("     - Include Authorization header with addon token");
+                        System.out.println();
+
+                        // Simulate tag suggestion logic
+                        suggestTagsForTimeEntry(workspaceId, timeEntryId, description);
+                    } else {
+                        System.out.println("  ✓ Time entry already has tags, no action needed");
+                    }
+
+                    System.out.println("=".repeat(80) + "\n");
+
+                    return HttpResponse.ok("Webhook processed");
+
+                } catch (Exception e) {
+                    System.err.println("Error handling webhook: " + e.getMessage());
+                    e.printStackTrace();
+                    return HttpResponse.error(500, "Failed to process webhook: " + e.getMessage());
                 }
-
-                System.out.println("=".repeat(80) + "\n");
-
-                return com.cake.clockify.addonsdk.shared.response.HttpResponse.ok("Webhook processed");
-
-            } catch (Exception e) {
-                System.err.println("Error handling webhook: " + e.getMessage());
-                e.printStackTrace();
-                return com.cake.clockify.addonsdk.shared.response.HttpResponse.internalServerError(
-                    "Failed to process webhook: " + e.getMessage()
-                );
-            }
-        });
+            });
+        }
     }
 
     /**
@@ -129,5 +143,16 @@ public class WebhookHandlers {
         System.out.println("     4. PUT /workspaces/{workspaceId}/time-entries/{timeEntryId}");
         System.out.println("        with body: { \"tagIds\": [\"tag-id-1\", \"tag-id-2\"] }");
         System.out.println("     5. Handle API errors gracefully");
+    }
+
+    private static JsonNode parseRequestBody(HttpServletRequest request) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = request.getReader()) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+        }
+        return objectMapper.readTree(sb.toString());
     }
 }

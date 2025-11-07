@@ -1,4 +1,4 @@
-.PHONY: help setup validate build-sdk build-java build-template build-auto-tag-assistant build run-auto-tag-assistant clean install test
+.PHONY: help setup validate build build-template build-auto-tag-assistant run-auto-tag-assistant clean test
 
 # Default target
 help:
@@ -6,11 +6,9 @@ help:
 	@echo ""
 	@echo "  setup                      - Install dependencies and prepare environment"
 	@echo "  validate                   - Validate all manifest.json files"
-	@echo "  build                      - Build all modules (SDK + templates + addons)"
-	@echo "  build-sdk                  - Build only the vendored SDK modules"
+	@echo "  build                      - Build all modules (templates + addons)"
 	@echo "  build-template             - Build only the java-basic-addon template"
 	@echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
-	@echo "  install                    - Install SDK to local Maven repository"
 	@echo "  test                       - Run all tests"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
 	@echo "  clean                      - Clean all build artifacts"
@@ -21,6 +19,9 @@ help:
 	@echo "  3. In another terminal: ngrok http 8080"
 	@echo "  4. Update manifest.json baseUrl with ngrok URL"
 	@echo "  5. Install in Clockify using ngrok manifest URL"
+	@echo ""
+	@echo "Note: This boilerplate now uses ONLY Maven Central dependencies."
+	@echo "      No GitHub Packages authentication or external SDK needed!"
 
 # Setup environment
 setup:
@@ -28,7 +29,7 @@ setup:
 	@java -version
 	@echo "Checking Maven version..."
 	@mvn -version
-	@echo "Setup complete!"
+	@echo "✓ Setup complete!"
 
 # Validate manifest files
 validate:
@@ -37,16 +38,10 @@ validate:
 	python3 tools/validate-manifest.py addons/auto-tag-assistant/manifest.json
 	@echo "✓ All manifests valid"
 
-# Build SDK modules only
-build-sdk:
-	@echo "Building vendored SDK modules..."
-	mvn -q -f dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/annotation-processor/pom.xml clean install
-	mvn -q -f dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/addon-sdk/pom.xml clean install
-	@echo "✓ SDK built and installed to local Maven repo"
-
-# Build everything (SDK + templates + addons)
-build: build-sdk
+# Build everything (templates + addons) - NO SDK build needed!
+build:
 	@echo "Building all modules..."
+	@echo "Note: Using inline SDK with Maven Central dependencies only"
 	mvn -q clean package -DskipTests
 	@echo "✓ Build complete!"
 	@echo ""
@@ -66,9 +61,10 @@ build-auto-tag-assistant:
 	mvn -q -f addons/auto-tag-assistant/pom.xml clean package -DskipTests
 	@echo "✓ Auto-Tag Assistant built: addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar"
 
-# Install SDK to local Maven repository
-install: build-sdk
-	@echo "✓ SDK installed to ~/.m2/repository/"
+# No longer needed - kept for backward compatibility
+install:
+	@echo "Note: SDK installation is no longer needed."
+	@echo "This boilerplate now uses inline SDK with Maven Central dependencies only."
 
 # Run tests
 test:

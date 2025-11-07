@@ -1,7 +1,12 @@
 package com.example.autotagassistant;
 
-import com.cake.clockify.addonsdk.clockify.ClockifyAddon;
-import com.google.gson.JsonObject;
+import com.example.autotagassistant.sdk.ClockifyAddon;
+import com.example.autotagassistant.sdk.HttpResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
+
+import java.io.BufferedReader;
 
 /**
  * Handles add-on lifecycle events.
@@ -16,20 +21,22 @@ import com.google.gson.JsonObject;
  * - Clean up any stored data for this workspace
  */
 public class LifecycleHandlers {
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static void register(ClockifyAddon addon) {
         // Handle INSTALLED event
-        addon.onLifecycleInstalled(request -> {
+        addon.registerLifecycleHandler("INSTALLED", request -> {
             try {
-                String workspaceId = request.getResourceId();
-                JsonObject payload = request.getPayload();
+                JsonNode payload = parseRequestBody(request);
+                String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
+                String userId = payload.has("userId") ? payload.get("userId").asText() : "unknown";
 
                 System.out.println("\n" + "=".repeat(80));
                 System.out.println("LIFECYCLE EVENT: INSTALLED");
                 System.out.println("=".repeat(80));
                 System.out.println("Workspace ID: " + workspaceId);
-                System.out.println("User ID: " + request.getUserId());
-                System.out.println("Payload: " + payload);
+                System.out.println("User ID: " + userId);
+                System.out.println("Payload: " + payload.toPrettyString());
                 System.out.println("=".repeat(80));
 
                 // IMPORTANT: In a real implementation, you MUST:
@@ -38,28 +45,27 @@ public class LifecycleHandlers {
                 // 3. Use this token for all subsequent Clockify API calls for this workspace
                 //
                 // Example:
-                // String addonToken = payload.get("addonToken").getAsString();
+                // String addonToken = payload.get("addonToken").asText();
                 // tokenStore.save(workspaceId, addonToken);
 
                 System.out.println("⚠️  TODO: Store addon token for workspace " + workspaceId);
                 System.out.println("    Add token storage in LifecycleHandlers.java:register()");
                 System.out.println();
 
-                return com.cake.clockify.addonsdk.shared.response.HttpResponse.ok("Add-on installed successfully");
+                return HttpResponse.ok("Add-on installed successfully");
 
             } catch (Exception e) {
                 System.err.println("Error handling INSTALLED event: " + e.getMessage());
                 e.printStackTrace();
-                return com.cake.clockify.addonsdk.shared.response.HttpResponse.internalServerError(
-                    "Failed to process installation: " + e.getMessage()
-                );
+                return HttpResponse.error(500, "Failed to process installation: " + e.getMessage());
             }
         });
 
         // Handle DELETED event
-        addon.onLifecycleDeleted(request -> {
+        addon.registerLifecycleHandler("DELETED", request -> {
             try {
-                String workspaceId = request.getResourceId();
+                JsonNode payload = parseRequestBody(request);
+                String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
 
                 System.out.println("\n" + "=".repeat(80));
                 System.out.println("LIFECYCLE EVENT: DELETED");
@@ -80,15 +86,24 @@ public class LifecycleHandlers {
                 System.out.println("    Add cleanup logic in LifecycleHandlers.java:register()");
                 System.out.println();
 
-                return com.cake.clockify.addonsdk.shared.response.HttpResponse.ok("Add-on uninstalled successfully");
+                return HttpResponse.ok("Add-on uninstalled successfully");
 
             } catch (Exception e) {
                 System.err.println("Error handling DELETED event: " + e.getMessage());
                 e.printStackTrace();
-                return com.cake.clockify.addonsdk.shared.response.HttpResponse.internalServerError(
-                    "Failed to process uninstallation: " + e.getMessage()
-                );
+                return HttpResponse.error(500, "Failed to process uninstallation: " + e.getMessage());
             }
         });
+    }
+
+    private static JsonNode parseRequestBody(HttpServletRequest request) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = request.getReader()) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+        }
+        return objectMapper.readTree(sb.toString());
     }
 }
