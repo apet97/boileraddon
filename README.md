@@ -5,11 +5,16 @@ A clean, **truly self-contained** boilerplate for building Clockify add-ons with
 ## Quick Start (ONE Command)
 
 ```bash
-# Build everything
-make build
+# Clone the repository
+git clone https://github.com/apet97/boileraddon.git
+cd boileraddon
+
+# Build (downloads Maven Central dependencies on first run)
+mvn clean package -DskipTests
 
 # Run the working example
-make run-auto-tag-assistant
+ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/auto-tag-assistant \
+java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
 ```
 
 Then in another terminal:
@@ -21,65 +26,45 @@ ngrok http 8080
 
 🎉 You now have a working, installable Clockify add-on!
 
+**Install in Clockify:**
+1. Copy the ngrok HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
+2. Go to Clockify → Admin → Add-ons → Install Custom Add-on
+3. Enter: `https://abc123.ngrok-free.app/auto-tag-assistant/manifest.json`
+
 ## What's Included
 
 - ✅ **Working Example**: `addons/auto-tag-assistant/` - A complete auto-tagging add-on
-- ✅ **Clean Template**: `templates/java-basic-addon/` - Minimal starter template
 - ✅ **Inline SDK**: Minimal SDK directly in auto-tag-assistant - no external dependencies
 - ✅ **Maven Central Only**: All dependencies from public Maven Central (Jackson, Jetty, SLF4J)
-- ✅ **Complete Docs**: Full Clockify Marketplace developer documentation snapshot
-- ✅ **Build Automation**: Makefile with all common tasks
-- ✅ **Scaffolding Script**: Create new add-ons with one command
-- ✅ **Validation Tools**: Manifest validation against official schema
-- ✅ **Build Verification**: Complete dependency verification guide ([BUILD_VERIFICATION.md](BUILD_VERIFICATION.md))
+- ✅ **No Annotation Processing**: Simple Java 17 classes and builders
+- ✅ **No Lombok**: No reflection magic, just plain Java
+- ✅ **One-Shot Build**: Clone, build, run - that's it!
 
 ## Project Structure
 
 ```
 boileraddon/
 ├── pom.xml                                    # Multi-module parent POM
-├── Makefile                                   # Build automation
 ├── README.md                                  # This file
 │
-├── addons/
-│   └── auto-tag-assistant/                    # Working example add-on
-│       ├── manifest.json                      # Runtime manifest (no $schema!)
-│       ├── pom.xml                            # Maven Central dependencies only
-│       ├── README.md                          # Detailed implementation guide
-│       └── src/main/java/
-│           └── com/example/autotagassistant/
-│               ├── sdk/                       # Inline minimal SDK
-│               │   ├── ClockifyAddon.java
-│               │   ├── ClockifyManifest.java
-│               │   ├── AddonServlet.java
-│               │   ├── EmbeddedServer.java
-│               │   ├── RequestHandler.java
-│               │   └── HttpResponse.java
-│               └── ...                        # App code
-│
-├── templates/
-│   └── java-basic-addon/                      # Starter template
-│       ├── manifest.json
-│       ├── pom.xml
-│       └── src/main/java/...
-│
-├── dev-docs-marketplace-cake-snapshot/        # Complete documentation snapshot
-│   ├── cake_marketplace_dev_docs.md           # Combined docs
-│   ├── html/                                  # 48 HTML pages
-│   └── extras/
-│       ├── addon-java-sdk/                    # Reference SDK (not used in build)
-│       ├── manifest-schema-latest.json        # Schema for authoring
-│       ├── clockify-openapi.json              # API spec
-│       └── webhook-schemas.json               # Event schemas
-│
-├── scripts/
-│   └── new-addon.sh                           # Scaffold new add-ons
-│
-├── tools/
-│   └── validate-manifest.py                   # Manifest validator
-│
-└── prompts/
-    └── zero-shot-addon.md                     # AI generation guidelines
+└── addons/
+    └── auto-tag-assistant/                    # Working example add-on
+        ├── pom.xml                            # Maven Central dependencies only
+        ├── README.md                          # Detailed implementation guide
+        └── src/main/java/
+            └── com/example/autotagassistant/
+                ├── sdk/                       # Inline minimal SDK
+                │   ├── ClockifyAddon.java
+                │   ├── ClockifyManifest.java
+                │   ├── AddonServlet.java
+                │   ├── EmbeddedServer.java
+                │   ├── RequestHandler.java
+                │   └── HttpResponse.java
+                ├── AutoTagAssistantApp.java  # Main application
+                ├── ManifestController.java   # Manifest endpoint
+                ├── SettingsController.java   # Settings UI
+                ├── LifecycleHandlers.java    # INSTALLED/DELETED
+                └── WebhookHandlers.java      # Time entry webhooks
 ```
 
 ## Prerequisites
@@ -91,12 +76,12 @@ boileraddon/
 
 **Optional:**
 - **ngrok** (for local testing with Clockify) - Install: https://ngrok.com/download
-- **Python 3** (for manifest validation)
 
 **NOT Required:**
 - ❌ GitHub Packages authentication
 - ❌ Private artifact repositories
 - ❌ External SDK installation
+- ❌ Manual ~/.m2/settings.xml configuration
 
 ## Architecture: Inline SDK
 
@@ -133,47 +118,32 @@ src/main/java/com/example/autotagassistant/sdk/
 
 **Dependencies (all from Maven Central):**
 - Jackson 2.17.1 (JSON processing)
-- Jetty 11.0.20 (HTTP server)
+- Jetty 11.0.20 (HTTP server, including jetty-http, jetty-io, jetty-util, jetty-security)
 - Jakarta Servlet 5.0.0 (Servlet API)
 - SLF4J 2.0.13 (Logging)
 
-See [BUILD_VERIFICATION.md](BUILD_VERIFICATION.md) for complete dependency list and verification steps.
+## Building and Running
 
-## Building
-
-### Build Everything
+### Build the Fat JAR
 
 ```bash
-make build
+mvn clean package -DskipTests
 ```
 
-This builds all modules using **Maven Central dependencies only**. No SDK installation needed!
+This produces: `addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar`
 
-**First build:** Maven downloads dependencies from Maven Central (~50MB)
+**First build:** Maven downloads dependencies from Maven Central (~5MB)
 **Subsequent builds:** Uses cached dependencies (fast)
 
-### Build Individual Modules
+### Run the Application
 
 ```bash
-# Just the template
-make build-template
+# Default configuration (port 8080, base path /auto-tag-assistant)
+java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
 
-# Just auto-tag-assistant
-make build-auto-tag-assistant
-```
-
-## Running the Auto-Tag Assistant Example
-
-### 1. Build
-
-```bash
-make build-auto-tag-assistant
-```
-
-### 2. Run
-
-```bash
-make run-auto-tag-assistant
+# Custom configuration
+ADDON_PORT=3000 ADDON_BASE_URL=http://localhost:3000/my-addon \
+java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
 ```
 
 You'll see:
@@ -184,6 +154,7 @@ Auto-Tag Assistant Add-on Starting
 ================================================================================
 Base URL: http://localhost:8080/auto-tag-assistant
 Port: 8080
+Context Path: /auto-tag-assistant
 
 Endpoints:
   Manifest:  http://localhost:8080/auto-tag-assistant/manifest.json
@@ -194,7 +165,20 @@ Endpoints:
 ================================================================================
 ```
 
-### 3. Expose via ngrok
+### Test Locally
+
+```bash
+# Health check
+curl http://localhost:8080/auto-tag-assistant/health
+
+# Manifest (note: no $schema field in runtime manifest)
+curl http://localhost:8080/auto-tag-assistant/manifest.json
+
+# Settings UI (returns HTML)
+curl http://localhost:8080/auto-tag-assistant/settings
+```
+
+### Expose via ngrok
 
 In **another terminal**:
 
@@ -204,71 +188,19 @@ ngrok http 8080
 
 Copy the HTTPS URL (e.g., `https://abc123.ngrok-free.app`).
 
-### 4. Update Manifest baseUrl
-
-Edit `addons/auto-tag-assistant/manifest.json`:
-
-```json
-{
-  "baseUrl": "https://abc123.ngrok-free.app/auto-tag-assistant",
-  ...
-}
-```
-
-**Note**: The manifest served by the running app is programmatic, but you may want to update this for reference.
-
-### 5. Install in Clockify
+### Install in Clockify
 
 1. Go to **Clockify** → **Admin** → **Add-ons**
 2. Click **"Install Custom Add-on"**
 3. Enter manifest URL: `https://abc123.ngrok-free.app/auto-tag-assistant/manifest.json`
 4. Click **Install**
 
-### 6. Test It
+### Watch It Work
 
-1. Watch server logs for the **INSTALLED** lifecycle event
+1. Server logs show the **INSTALLED** lifecycle event with workspace token
 2. Open a time entry in Clockify
-3. Look for **"Auto-Tag Settings"** in the sidebar
-4. Create/update time entries → check logs for webhook events
-
-## Creating a New Add-on
-
-### Option 1: Scaffolding Script (Recommended)
-
-```bash
-scripts/new-addon.sh my-awesome-addon "My Awesome Add-on"
-```
-
-This creates `addons/my-awesome-addon/` with:
-- ✅ Correct package structure (`com.example.myawesomeaddon`)
-- ✅ Updated manifest.json (key, name, baseUrl)
-- ✅ Maven configuration pointing to local SDK
-- ✅ Module added to parent pom.xml
-
-Then:
-
-```bash
-# Build it
-mvn -f addons/my-awesome-addon/pom.xml clean package
-
-# Run it
-java -jar addons/my-awesome-addon/target/my-awesome-addon-0.1.0-jar-with-dependencies.jar
-```
-
-### Option 2: Manual Copy
-
-```bash
-# Copy template
-cp -r templates/java-basic-addon addons/my-addon
-
-# Update manifest.json (key, name, baseUrl)
-# Update pom.xml (artifactId, name, mainClass package)
-# Update package names in all Java files
-# Add <module>addons/my-addon</module> to root pom.xml
-
-# Build
-mvn -f addons/my-addon/pom.xml clean package
-```
+3. Look for **"Auto-Tag Assistant"** in the sidebar
+4. Create/update time entries → server logs show webhook events
 
 ## Key Concepts
 
@@ -276,60 +208,54 @@ mvn -f addons/my-addon/pom.xml clean package
 
 **CRITICAL**: Clockify's `/addons` endpoint **rejects** manifests with `$schema` or unknown fields.
 
-❌ **WRONG** (will be rejected):
-
-```json
-{
-  "$schema": "../dev-docs-marketplace-cake-snapshot/extras/manifest-schema-latest.json",
-  "version": "1.3",
-  ...
-}
-```
-
-✅ **CORRECT**:
+The runtime manifest served at `/manifest.json` is generated programmatically and includes ONLY these fields:
 
 ```json
 {
   "schemaVersion": "1.3",
-  "key": "my-addon",
-  "name": "My Add-on",
-  "description": "What it does",
-  "baseUrl": "http://localhost:8080/my-addon",
+  "key": "auto-tag-assistant",
+  "name": "Auto-Tag Assistant",
+  "description": "Automatically detects and suggests tags for time entries",
+  "baseUrl": "http://localhost:8080/auto-tag-assistant",
   "minimalSubscriptionPlan": "FREE",
-  "scopes": ["TIME_ENTRY_READ"],
-  "components": [...],
-  "webhooks": [...],
-  "lifecycle": [...]
+  "scopes": ["TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ"],
+  "components": [{
+    "type": "sidebar",
+    "path": "/settings",
+    "label": "Auto-Tag Assistant",
+    "accessLevel": "ADMINS"
+  }],
+  "webhooks": [
+    {"event": "NEW_TIMER_STARTED", "path": "/webhook"},
+    {"event": "TIMER_STOPPED", "path": "/webhook"},
+    {"event": "NEW_TIME_ENTRY", "path": "/webhook"},
+    {"event": "TIME_ENTRY_UPDATED", "path": "/webhook"}
+  ],
+  "lifecycle": [
+    {"type": "INSTALLED", "path": "/lifecycle"},
+    {"type": "DELETED", "path": "/lifecycle"}
+  ]
 }
 ```
 
-### baseUrl Must Match Server Endpoints
+### baseUrl and Context Path
 
-The `baseUrl` in your manifest tells Clockify where to reach your add-on:
+The application automatically extracts the context path from `ADDON_BASE_URL`:
 
-```json
-{
-  "baseUrl": "http://localhost:8080/my-addon",
-  "components": [{"type": "TIME_ENTRY_SIDEBAR", "path": "/settings"}],
-  "webhooks": [{"path": "/webhook"}],
-  "lifecycle": [{"path": "/lifecycle", "type": "INSTALLED"}]
-}
-```
+- `ADDON_BASE_URL=http://localhost:8080/auto-tag-assistant` → context path = `/auto-tag-assistant`
+- `ADDON_BASE_URL=http://localhost:8080` → context path = `/`
 
-Your server **MUST** respond to:
-- `GET http://localhost:8080/my-addon/manifest.json` → runtime manifest
-- `GET http://localhost:8080/my-addon/settings` → sidebar HTML
-- `POST http://localhost:8080/my-addon/webhook` → webhook events
-- `POST http://localhost:8080/my-addon/lifecycle` → INSTALLED/DELETED
+All endpoints are served relative to this context path.
 
 ### Store the Addon Token
 
 When Clockify installs your add-on, it sends an **INSTALLED** lifecycle event with a workspace-specific token:
 
 ```java
-addon.onLifecycleInstalled(request -> {
-    String workspaceId = request.getResourceId();
-    String addonToken = request.getPayload().get("addonToken").getAsString();
+addon.registerLifecycleHandler("INSTALLED", request -> {
+    JsonNode payload = parseRequestBody(request);
+    String workspaceId = payload.get("workspaceId").asText();
+    String addonToken = payload.get("addonToken").asText();
 
     // CRITICAL: Store this token!
     // Use it for ALL Clockify API calls for this workspace
@@ -349,44 +275,28 @@ HttpRequest req = HttpRequest.newBuilder()
     .build();
 ```
 
-## Makefile Targets
+## Verification Checklist
 
-```bash
-make help                      # Show all targets
-make setup                     # Verify Java/Maven installed
-make validate                  # Validate all manifests
-make build                     # Build everything
-make build-sdk                 # Build SDK only
-make build-template            # Build template only
-make build-auto-tag-assistant  # Build example only
-make run-auto-tag-assistant    # Run example
-make clean                     # Clean all artifacts
-make test                      # Run tests
-```
+After cloning and building, verify:
 
-## Validation
-
-Validate manifests before deploying:
-
-```bash
-make validate
-
-# Or manually
-python3 tools/validate-manifest.py addons/my-addon/manifest.json
-```
+- [ ] `mvn clean package -DskipTests` completes with `BUILD SUCCESS`
+- [ ] JAR exists at `addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar`
+- [ ] JAR is ~4-5MB (includes all dependencies)
+- [ ] `java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar` starts the server
+- [ ] `curl http://localhost:8080/auto-tag-assistant/health` returns `Auto-Tag Assistant is running`
+- [ ] `curl http://localhost:8080/auto-tag-assistant/manifest.json` returns valid JSON without `$schema`
+- [ ] Manifest includes `"schemaVersion": "1.3"` (NOT `"schema_version"`, NOT `"v1.3"`)
+- [ ] Manifest includes `components` with `sidebar` having `accessLevel: "ADMINS"`
 
 ## Troubleshooting
 
-### "cannot find symbol: package addonsdk"
+### "cannot find symbol" during compilation
 
-**Cause**: SDK not built yet.
+**Cause**: Maven dependency resolution failed.
 
 **Solution**:
-
 ```bash
-make build-sdk
-# or
-mvn clean install
+mvn clean package -DskipTests -U
 ```
 
 ### Clockify rejects manifest with "unknown field"
@@ -394,16 +304,16 @@ mvn clean install
 **Cause**: Manifest contains `$schema` or invalid fields.
 
 **Solution**:
-- Ensure `/manifest.json` endpoint serves programmatically (via `ManifestController`)
-- Never copy-paste the manifest.json file directly
-- Use only valid fields: `schemaVersion`, `key`, `name`, `description`, `baseUrl`, `minimalSubscriptionPlan`, `scopes`, `components`, `webhooks`, `lifecycle`
+- The `/manifest.json` endpoint serves programmatically generated JSON
+- Never manually edit the runtime manifest
+- Use `ManifestController` to ensure only valid fields are included
 
 ### Webhooks not received
 
 **Causes**:
-1. ngrok URL changed → restart ngrok, update manifest, reinstall add-on
+1. ngrok URL changed → restart ngrok, reinstall add-on
 2. baseUrl mismatch in manifest
-3. Events not configured in manifest
+3. Events not configured in manifest webhooks array
 
 **Solution**: Check server logs, verify manifest URL matches running server.
 
@@ -416,31 +326,29 @@ mvn clean install
 2. Use correct token for the workspace
 3. Use header: `Authorization: Bearer {token}`
 
-## SDK Provenance
+## Creating Your Own Add-on
 
-The vendored SDK is from https://github.com/clockify/addon-java-sdk (commit at time of snapshot). Check upstream for license and latest changes. This boilerplate vendors it locally for zero-friction development.
+Use the Auto-Tag Assistant as a template:
 
-## Documentation
+1. **Copy the structure:**
+   ```bash
+   cp -r addons/auto-tag-assistant addons/my-addon
+   ```
 
-All documentation is included:
+2. **Update package names:**
+   - Rename `com.example.autotagassistant` → `com.example.myaddon`
+   - Update imports in all Java files
 
-- **Marketplace Docs**: `dev-docs-marketplace-cake-snapshot/cake_marketplace_dev_docs.md`
-- **Manifest Schema**: `dev-docs-marketplace-cake-snapshot/extras/manifest-schema-latest.json`
-- **Clockify API**: `dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json`
-- **Auto-Tag README**: `addons/auto-tag-assistant/README.md`
-- **AI Prompt**: `prompts/zero-shot-addon.md`
+3. **Update configuration:**
+   - `pom.xml`: Change `<artifactId>`, `<name>`, `<mainClass>`
+   - `AutoTagAssistantApp.java`: Update addon key, name, description
+   - Add to root `pom.xml`: `<module>addons/my-addon</module>`
 
-## AI Usage Guidelines
-
-If you're an AI generating add-ons in this repo:
-
-1. **Read** `prompts/zero-shot-addon.md` for strict guidelines
-2. **Reference** `addons/auto-tag-assistant/` as the canonical working example
-3. **Use** `templates/java-basic-addon/` as starting point
-4. **Never** emit `$schema` in runtime manifests
-5. **Always** use `schemaVersion` (not `version`)
-6. **Always** align `baseUrl` + manifest paths + server endpoints
-7. **Never** invent manifest fields or webhook events
+4. **Build and run:**
+   ```bash
+   mvn clean package -DskipTests
+   java -jar addons/my-addon/target/my-addon-0.1.0-jar-with-dependencies.jar
+   ```
 
 ## Contributing
 
@@ -449,20 +357,14 @@ When adding new examples:
 1. Place in `addons/your-addon/`
 2. Add `<module>addons/your-addon</module>` to root pom.xml
 3. Include README.md with clear "how to run" instructions
-4. Validate manifest: `make validate`
-5. Test build: `make build`
+4. Ensure one-shot build works: `mvn clean package -DskipTests`
 
 ## License
 
-This boilerplate: [Your license]
-Vendored SDK: See `dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/LICENSE-PLACEHOLDER`
-Clockify Docs: © CAKE.com (for reference only)
+This boilerplate is provided as-is for educational and development purposes.
 
 ---
 
 **Have a working add-on in minutes, not hours.**
 
-For questions or issues, see:
-- Auto-Tag Assistant README: `addons/auto-tag-assistant/README.md`
-- Zero-shot prompt: `prompts/zero-shot-addon.md`
-- Developer docs: `dev-docs-marketplace-cake-snapshot/cake_marketplace_dev_docs.md`
+For more details, see `addons/auto-tag-assistant/README.md`.

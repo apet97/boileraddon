@@ -12,24 +12,30 @@ import org.slf4j.LoggerFactory;
 public class EmbeddedServer {
     private static final Logger logger = LoggerFactory.getLogger(EmbeddedServer.class);
     private final AddonServlet servlet;
+    private final String contextPath;
     private Server server;
 
     public EmbeddedServer(AddonServlet servlet) {
+        this(servlet, "/");
+    }
+
+    public EmbeddedServer(AddonServlet servlet, String contextPath) {
         this.servlet = servlet;
+        this.contextPath = contextPath;
     }
 
     public void start(int port) throws Exception {
         server = new Server(port);
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath("/");
+        context.setContextPath(contextPath);
         server.setHandler(context);
 
         ServletHolder servletHolder = new ServletHolder(servlet);
         context.addServlet(servletHolder, "/*");
 
         server.start();
-        logger.info("Server started on port {}", port);
+        logger.info("Server started on port {} with context path {}", port, contextPath);
         server.join();
     }
 

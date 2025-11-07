@@ -14,8 +14,8 @@ import java.util.List;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ClockifyManifest {
-    @JsonProperty("schema_version")
-    private String schemaVersion = "v1.3";
+    @JsonProperty("schemaVersion")
+    private String schemaVersion = "1.3";
 
     private String key;
     private String name;
@@ -159,6 +159,7 @@ public class ClockifyManifest {
         private String type;
         private String path;
         private String label;
+        private String accessLevel;
 
         public ComponentEndpoint() {}
 
@@ -168,11 +169,20 @@ public class ClockifyManifest {
             this.label = label;
         }
 
+        public ComponentEndpoint(String type, String path, String label, String accessLevel) {
+            this.type = type;
+            this.path = path;
+            this.label = label;
+            this.accessLevel = accessLevel;
+        }
+
         public String getType() { return type; }
         public String getPath() { return path; }
         public String getLabel() { return label; }
+        public String getAccessLevel() { return accessLevel; }
         public void setType(String type) { this.type = type; }
         public void setPath(String path) { this.path = path; }
         public void setLabel(String label) { this.label = label; }
+        public void setAccessLevel(String accessLevel) { this.accessLevel = accessLevel; }
     }
 }
