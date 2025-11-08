@@ -15,6 +15,18 @@ ngrok http 8080
 TEMPLATE=auto-tag-assistant ADDON_BASE_URL=https://YOUR.ngrok-free.app/auto-tag-assistant make zero-shot-run
 ```
 
+Docker zero‑shot (optional):
+
+```
+# Build and run selected add-on in Docker with a public base URL
+ngrok http 8080
+TEMPLATE=auto-tag-assistant \
+ADDON_PORT=8080 \
+ADDON_BASE_URL=https://YOUR.ngrok-free.app/auto-tag-assistant \
+make docker-run
+```
+This target builds a runtime image, publishes port 8080, and forwards `ADDON_BASE_URL`/`ADDON_PORT` into the container.
+
 2) Core rules (must comply)
 - Manifest: `schemaVersion: "1.3"`; omit `$schema`; keep `key`, `name`, `baseUrl`, `components`, `webhooks`, `lifecycle`.
 - Runtime manifest: serve via SDK (DefaultManifestController). Do not hand‑edit in production.
