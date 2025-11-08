@@ -43,7 +43,15 @@ public class ClockifyAddon {
      * @param handler  handler that will process requests to {@code path}
      */
     public void registerCustomEndpoint(String path, RequestHandler handler) {
-        endpoints.put(path, handler);
+        String normalizedPath = path != null ? path.trim() : "";
+        if (normalizedPath.isEmpty()) {
+            normalizedPath = "/";
+        }
+        if (!normalizedPath.startsWith("/")) {
+            normalizedPath = "/" + normalizedPath;
+        }
+
+        endpoints.put(normalizedPath, handler);
     }
 
     /**
