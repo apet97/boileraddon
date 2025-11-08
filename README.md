@@ -1,6 +1,8 @@
 # Clockify Add-on Boilerplate
 
 ![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
+[![Validate](https://github.com/apet97/boileraddon/actions/workflows/validate.yml/badge.svg)](https://github.com/apet97/boileraddon/actions/workflows/validate.yml)
+[![Docs](https://github.com/apet97/boileraddon/actions/workflows/jekyll-gh-pages.yml/badge.svg)](https://github.com/apet97/boileraddon/actions/workflows/jekyll-gh-pages.yml)
 ![Java](https://img.shields.io/badge/Java-17+-informational)
 ![Maven](https://img.shields.io/badge/Maven-3.6+-informational)
 [![Coverage (Pages)](https://img.shields.io/badge/Coverage-Pages-blue)](https://apet97.github.io/boileraddon/coverage/)
