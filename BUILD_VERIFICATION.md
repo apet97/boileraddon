@@ -79,8 +79,7 @@ All dependencies are resolved from **Maven Central ONLY**:
 
 All of these artifacts are available on Maven Central without authentication.
 
-> **Note:** The `templates/java-basic-addon` module remains optional in the reactor, but it now relies on the shared in-repo SDK
-> (`addons/addon-sdk`) and no longer requires external artifacts.
+> **Note:** The `addons/_template-addon` module remains optional in the reactor and relies on the shared in-repo SDK (`addons/addon-sdk`) without any external artifacts. The legacy scaffold under `templates/java-basic-addon` is retained only for historical reference.
 
 ## SDK Module Architecture
 

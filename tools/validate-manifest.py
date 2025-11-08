@@ -8,9 +8,11 @@ with open(schema_path, 'r', encoding='utf-8') as f:
     schema = json.load(f)
 
 errors = 0
-for rel in [
-    'templates/java-basic-addon/manifest.json'
-]:
+targets = sys.argv[1:] or [
+    'addons/_template-addon/manifest.json'
+]
+
+for rel in targets:
     path = os.path.join(root, rel)
     with open(path, 'r', encoding='utf-8') as f:
         data = json.load(f)

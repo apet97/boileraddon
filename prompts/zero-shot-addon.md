@@ -25,7 +25,7 @@ Use these files as the authoritative reference:
    - Demonstrates Clockify API client usage
    - Uses the shared SDK module (`addons/addon-sdk`)
 
-5. **Template**: `templates/java-basic-addon/`
+5. **Template**: `addons/_template-addon/`
    - Minimal starter template
    - Use as starting point for new add-ons
 
@@ -123,9 +123,8 @@ boileraddon/
 │       └── addon-java-sdk/                    # Archived documentation snapshot
 │           ├── annotation-processor/
 │           └── addon-sdk/
-├── templates/
-│   └── java-basic-addon/                      # Starter template
 ├── addons/
+│   ├── _template-addon/                      # Starter template module
 │   ├── addon-sdk/                             # Shared SDK module (servlet, manifest, Jetty helpers)
 │   └── auto-tag-assistant/                    # Working example that consumes the SDK module
 └── scripts/
@@ -163,7 +162,7 @@ This creates `addons/my-awesome-addon/` with:
 
 ### Option 2: Manual Creation
 
-1. Copy `templates/java-basic-addon/` to `addons/your-addon/`
+1. Copy `addons/_template-addon/` to `addons/your-addon/`
 2. Update `pom.xml`: change `<artifactId>` and `<name>`
 3. Update package names in all Java files
 4. Update `manifest.json`: change `key`, `name`, `baseUrl`
@@ -353,7 +352,7 @@ Brief description
 ## References
 
 - **Full example**: `addons/auto-tag-assistant/`
-- **Template**: `templates/java-basic-addon/`
+- **Template**: `addons/_template-addon/`
 - **Docs**: `dev-docs-marketplace-cake-snapshot/cake_marketplace_dev_docs.md`
 - **API Spec**: `dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json`
 - **Schema**: `dev-docs-marketplace-cake-snapshot/extras/manifest-schema-latest.json` (authoring only)
