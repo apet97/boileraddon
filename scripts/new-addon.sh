@@ -203,7 +203,19 @@ if command -v jq >/dev/null 2>&1; then
       .key = $key
       | .name = $name
       | .baseUrl = $url
-      | (.components[]? | select(has("label") and ((.label | ascii_downcase) == "template add-on")) | .label) |= $name
+      | if (.components | type) == "array" then
+          .components = (
+            .components
+            | map(
+                if (type == "object") and has("label") and ((.label // "" | ascii_downcase) == "template add-on")
+                then .label = $name
+                else .
+                end
+              )
+          )
+        else
+          .
+        end
     ' \
     "$DST_DIR/manifest.json" > "$DST_DIR/manifest.json.tmp" && mv "$DST_DIR/manifest.json.tmp" "$DST_DIR/manifest.json"
 else
