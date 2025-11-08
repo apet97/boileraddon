@@ -93,11 +93,26 @@ public final class TokenStore {
     }
 
     private static String normalizeApiBaseUrl(String apiBaseUrl) {
-        if (apiBaseUrl == null) {
-            return DEFAULT_API_BASE_URL;
+        String trimmed = apiBaseUrl == null ? "" : apiBaseUrl.trim();
+        String base = trimmed.isEmpty() ? DEFAULT_API_BASE_URL : trimmed;
+
+        // Remove trailing slashes to simplify suffix checks
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
         }
-        String trimmed = apiBaseUrl.trim();
-        return trimmed.isEmpty() ? DEFAULT_API_BASE_URL : trimmed;
+
+        // Clockify installation payloads can provide base URLs without the API version (e.g. /api).
+        // Ensure the path always targets the versioned REST API.
+        if (base.endsWith("/api")) {
+            return base + "/v1";
+        }
+
+        if (base.matches(".*/api/v\\d+$")) {
+            return base;
+        }
+
+        // If the caller supplied a custom domain without the /api prefix, append the full API path.
+        return base + "/api/v1";
     }
 
     /**
