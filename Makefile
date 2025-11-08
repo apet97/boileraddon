@@ -16,6 +16,7 @@ help:
 	@echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
 	@echo "  build-rules                - Build only the rules addon"
 	@echo "  build-overtime             - Build only the overtime addon"
+	@echo "  build-overtime             - Build only the overtime addon"
 	@echo "  dev                        - Build and run the template add-on using .env"
 	@echo "  docker-run                 - Build and run an add-on inside Docker (override TEMPLATE=...)"
 	@echo "  test                       - Run all tests"
@@ -25,6 +26,7 @@ help:
 	@echo "  rules-seed-demo            - Seed a demo rule and dry-run test"
 	@echo "  rules-webhook-sim          - Simulate a signed webhook locally"
 	@echo "  dev-rules                  - Run rules add-on using .env.rules"
+	@echo "  new-addon                  - Scaffold a new add-on (NAME, DISPLAY)"
 	@echo "  manifest-url               - Print the current manifest URL"
 	@echo "  clean                      - Clean all build artifacts"
 	@echo ""
@@ -238,3 +240,10 @@ dev-rules: build-rules
 	@echo "Starting Rules add-on with settings from .env.rules..."
 	@bash -c 'set -a; source .env.rules; set +a; \
 	  java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar'
+
+new-addon:
+	@if [ -z "$(NAME)" ] || [ -z "$(DISPLAY)" ]; then \
+		echo "Usage: make new-addon NAME=my-addon DISPLAY=\"My Add-on\""; \
+		exit 1; \
+	fi
+	@bash scripts/new-addon.sh $(NAME) "$(DISPLAY)"

@@ -9,6 +9,7 @@ A clean, **self-contained** boilerplate for building Clockify add‑ons with **M
 
 Quick links
 - Quick Start (Local): docs/QUICK_START_LOCAL.md
+- Zero‑Shot: docs/ZERO_SHOT.md
 - Ngrok Testing: docs/NGROK_TESTING.md
 - SDK Overview: docs/SDK_OVERVIEW.md
 - Parameters Reference: docs/CLOCKIFY_PARAMETERS.md

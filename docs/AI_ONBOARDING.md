@@ -1,9 +1,10 @@
 # AI Onboarding — Clockify Add-on Boilerplate
 
-Use this guide to start building immediately. It’s optimized for AI agents and junior contributors.
+Use this guide to start building immediately. It’s optimized for AI agents and junior contributors. For a condensed, action-only version, see docs/ZERO_SHOT.md.
 
 ## 1) Read the essentials (10 minutes)
 - README.md (Quickstart + runtime manifest rules)
+- docs/ZERO_SHOT.md (Checklist for zero‑shot start)
 - docs/ARCHITECTURE.md (components and flows)
 - SECURITY.md + THREAT_MODEL.md (security posture)
 - docs/DATABASE_TOKEN_STORE.md (production token storage)

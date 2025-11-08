@@ -29,7 +29,7 @@ public class SettingsController {
                 "<button type='submit'>Save</button>"+
                 "</form>"+
                 "<p>API endpoint: <code>/api/settings?workspaceId=&lt;id&gt;</code></p>"+
-                "<script>function save(){var w=document.getElementById('ws').value;var d=parseFloat(document.getElementById('daily').value);var wk=parseFloat(document.getElementById('weekly').value);var t=document.getElementById('tag').value;fetch('/overtime/api/settings?workspaceId='+encodeURIComponent(w),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dailyHours:d,weeklyHours:wk,tagName:t})}).then(r=>r.json()).then(_=>alert('Saved'));}</script>"+
+                "<script>function save(){var w=document.getElementById('ws').value;var d=parseFloat(document.getElementById('daily').value);var wk=parseFloat(document.getElementById('weekly').value);var t=document.getElementById('tag').value;fetch('api/settings?workspaceId='+encodeURIComponent(w),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dailyHours:d,weeklyHours:wk,tagName:t})}).then(r=>r.json()).then(_=>alert('Saved'));}</script>"+
                 "</body></html>";
         return HttpResponse.ok(html, "text/html");
     }
