@@ -171,8 +171,10 @@ public class SettingsController implements RequestHandler {
 
     function baseUrl(){
       const u = new URL(window.location.href);
-      // Remove trailing /settings or /settings/ and any trailing slash
-      let p = u.pathname.replace(/\/settings\/?$/, '').replace(/\/$/, '');
+      let p = u.pathname;
+      if (p.endsWith('/settings/')) p = p.slice(0, -10);
+      else if (p.endsWith('/settings')) p = p.slice(0, -9);
+      if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
       return u.origin + p;
     }
 
