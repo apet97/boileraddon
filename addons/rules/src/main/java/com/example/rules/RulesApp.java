@@ -110,6 +110,39 @@ public class RulesApp {
         // POST /rules/api/test — dry-run evaluation (no side effects)
         addon.registerCustomEndpoint("/api/test", rulesController.testRules());
 
+        // Cache endpoints: GET /rules/api/cache?workspaceId=... (summary), POST /rules/api/cache/refresh?workspaceId=...
+        addon.registerCustomEndpoint("/api/cache", request -> {
+            try {
+                String ws = request.getParameter("workspaceId");
+                if (ws == null || ws.isBlank()) return HttpResponse.error(400, "{\"error\":\"workspaceId required\"}", "application/json");
+                var snap = com.example.rules.cache.WorkspaceCache.get(ws);
+                String json = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
+                        .put("workspaceId", ws)
+                        .put("tags", snap.tagsById.size())
+                        .put("projects", snap.projectsById.size())
+                        .put("clients", snap.clientsById.size())
+                        .put("users", snap.usersById.size())
+                        .put("hasTasks", !snap.tasksByProjectNameNorm.isEmpty())
+                        .toString();
+                return HttpResponse.ok(json, "application/json");
+            } catch (Exception e) {
+                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+            }
+        });
+        addon.registerCustomEndpoint("/api/cache/refresh", request -> {
+            try {
+                String ws = request.getParameter("workspaceId");
+                if (ws == null || ws.isBlank()) return HttpResponse.error(400, "{\"error\":\"workspaceId required\"}", "application/json");
+                var wkOpt = com.clockify.addon.sdk.security.TokenStore.get(ws);
+                if (wkOpt.isEmpty()) return HttpResponse.error(404, "{\"error\":\"token not found\"}", "application/json");
+                var wk = wkOpt.get();
+                com.example.rules.cache.WorkspaceCache.refresh(ws, wk.apiBaseUrl(), wk.token());
+                return HttpResponse.ok("{\"status\":\"refreshed\"}", "application/json");
+            } catch (Exception e) {
+                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+            }
+        });
+
         // GET /rules/status — runtime status (token present, modes)
         addon.registerCustomEndpoint("/status", request -> {
             try {

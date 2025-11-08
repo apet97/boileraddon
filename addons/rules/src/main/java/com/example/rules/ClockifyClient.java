@@ -37,6 +37,34 @@ public class ClockifyClient {
         return om.readTree(resp.body());
     }
 
+    public JsonNode getProjects(String workspaceId, boolean archived) throws Exception {
+        String qs = "?archived=" + archived + "&page-size=500";
+        HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/projects" + qs, token, Map.of());
+        ensure2xx(resp, 200);
+        return om.readTree(resp.body());
+    }
+
+    public JsonNode getClients(String workspaceId, boolean archived) throws Exception {
+        String qs = "?archived=" + archived + "&page-size=500";
+        HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/clients" + qs, token, Map.of());
+        ensure2xx(resp, 200);
+        return om.readTree(resp.body());
+    }
+
+    public JsonNode getUsers(String workspaceId) throws Exception {
+        String qs = "?page-size=500";
+        HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/users" + qs, token, Map.of());
+        ensure2xx(resp, 200);
+        return om.readTree(resp.body());
+    }
+
+    public JsonNode getTasks(String workspaceId, String projectId) throws Exception {
+        String qs = "?page-size=500";
+        HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/projects/" + projectId + "/tasks" + qs, token, Map.of());
+        ensure2xx(resp, 200);
+        return om.readTree(resp.body());
+    }
+
     public ObjectNode getTimeEntry(String workspaceId, String timeEntryId) throws Exception {
         HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/time-entries/" + timeEntryId, token, Map.of());
         ensure2xx(resp, 200);
@@ -106,4 +134,3 @@ public class ClockifyClient {
         }
     }
 }
-

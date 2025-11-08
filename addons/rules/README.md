@@ -11,7 +11,7 @@ Automation add-on that applies rule-driven actions to time entries (e.g., taggin
 
 See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Matrix](../../docs/PERMISSIONS_MATRIX.md) for choosing plan/scopes and wiring routes.
 
-## Quick Start
+## Quick Start  
 
 ```
 mvn -q -pl addons/rules -am package -DskipTests
@@ -24,6 +24,15 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules java -jar addons/rules/target/r
 ```
 
 Developer signatures: webhooks include an HMAC header `clockify-webhook-signature` (and case variants). In Developer workspaces, Clockify may send a JWT header `Clockify-Signature`; the SDK accepts it by default. Toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
+
+### Workspace Cache (ID ↔ Name)
+
+Rules preloads workspace entities after install so rules and UI can map names to IDs:
+- Tags, Projects, Clients, Users, Tasks (by project)
+- Inspect: `GET /rules/api/cache?workspaceId=<ws>` → counts
+- Refresh: `POST /rules/api/cache/refresh?workspaceId=<ws>`
+
+See also: docs/WEBHOOK_IFTTT.md for event→action patterns.
 
 ## Manifest (Scopes and Plan)
 

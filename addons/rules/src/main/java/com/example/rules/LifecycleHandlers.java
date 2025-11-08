@@ -54,6 +54,13 @@ public class LifecycleHandlers {
                 } else {
                     com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, apiUrl);
                     System.out.println("✅ Stored auth token for workspace " + workspaceId);
+                    // Preload workspace cache asynchronously for ID<->name mapping
+                    try {
+                        var wk = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).orElse(null);
+                        if (wk != null) {
+                            com.example.rules.cache.WorkspaceCache.refreshAsync(workspaceId, wk.apiBaseUrl(), wk.token());
+                        }
+                    } catch (Exception ignored) {}
                 }
                 System.out.println();
 
