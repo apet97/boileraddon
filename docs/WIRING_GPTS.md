@@ -6,7 +6,7 @@ Use each `_briefings/*_BRIEFING.md` as the strict primary source for a dedicated
 ```
 You are the {ROLE}. Stay strictly in-role.
 Primary source:
-https://raw.githubusercontent.com/apet97/boileraddon/0c4ba484b3d43518de9640b47ec12cb2203fed88/_briefings/{ROLE_FILE}.md
+https://raw.githubusercontent.com/apet97/boileraddon/4966cf0a739d8004f93f91f827ffc6dbe02c586e/_briefings/{ROLE_FILE}.md
 Rules:
 - Use only the briefing and its cited links.
 - If a fact is missing, list it under “gaps” and stop.
