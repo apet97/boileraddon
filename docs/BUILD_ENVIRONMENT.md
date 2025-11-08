@@ -40,6 +40,18 @@ Create `~/.m2/toolchains.xml` on your machine:
 
 The build uses `maven-toolchains-plugin` to select JDK 17 for the Surefire fork.
 
+Quick paths by OS:
+- macOS (Homebrew): jdkHome like `/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home`
+- macOS (Apple JDK selector): output of `"$('/usr/libexec/java_home' -v 17)"`
+- Linux (Temurin/Adoptium): `/usr/lib/jvm/temurin-17-jdk` or `/usr/lib/jvm/java-17-openjdk-amd64`
+- Windows (Temurin): `C:\\Program Files\\Eclipse Adoptium\\jdk-17*`
+
+Common error and fix:
+- Error: `Requested toolchain specification did not match any configured toolchain: {version=17}`
+  - Ensure `~/.m2/toolchains.xml` exists and points `jdkHome` to a valid JDK 17.
+  - Verify: `mvn -X -v` prints the Toolchains loaded and lists a 17 JDK.
+  - Also ensure your runtime `JAVA_HOME` points to a 17 JDK (or set in shell before running Maven).
+
 ## 3) Pinned test plugins + JaCoCo binding
 
 - Surefire/Failsafe are pinned to 3.2.5 in the parent POM.
