@@ -6,6 +6,7 @@
 ![Java](https://img.shields.io/badge/Java-17+-informational)
 ![Maven](https://img.shields.io/badge/Maven-3.6+-informational)
 [![Coverage](https://apet97.github.io/boileraddon/coverage/badge.svg)](https://apet97.github.io/boileraddon/coverage/)
+[![Docs Index](https://img.shields.io/badge/Docs-Index-blue)](docs/README.md)
 
 A clean, **self-contained** boilerplate for building Clockify add‑ons with **Maven Central dependencies only** — no private repos, no external SDK installs. It ships a lightweight in‑repo SDK (routing, middleware, security), a production‑ready Rules add‑on, and an Auto‑Tag example.
 

@@ -1,6 +1,12 @@
 # Auto-Tag Assistant  
 [AI START HERE](../../docs/AI_START_HERE.md)
 
+![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
+[![Validate](https://github.com/apet97/boileraddon/actions/workflows/validate.yml/badge.svg)](https://github.com/apet97/boileraddon/actions/workflows/validate.yml)
+[![Docs](https://github.com/apet97/boileraddon/actions/workflows/jekyll-gh-pages.yml/badge.svg)](https://github.com/apet97/boileraddon/actions/workflows/jekyll-gh-pages.yml)
+[![Coverage](https://apet97.github.io/boileraddon/coverage/badge.svg)](https://apet97.github.io/boileraddon/coverage/)
+[![Docs Index](https://img.shields.io/badge/Docs-Index-blue)](../../docs/README.md)
+
 A Clockify add-on that automatically manages tags on time entries, ensuring every entry is categorized correctly. For a deep dive into the inline SDK and routing flow that power this example, see [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md).
 
 ## Overview

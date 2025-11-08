@@ -1,6 +1,12 @@
 # Rules Add-on  
 [AI START HERE](../../docs/AI_START_HERE.md)
 
+![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
+[![Validate](https://github.com/apet97/boileraddon/actions/workflows/validate.yml/badge.svg)](https://github.com/apet97/boileraddon/actions/workflows/validate.yml)
+[![Docs](https://github.com/apet97/boileraddon/actions/workflows/jekyll-gh-pages.yml/badge.svg)](https://github.com/apet97/boileraddon/actions/workflows/jekyll-gh-pages.yml)
+[![Coverage](https://apet97.github.io/boileraddon/coverage/badge.svg)](https://apet97.github.io/boileraddon/coverage/)
+[![Docs Index](https://img.shields.io/badge/Docs-Index-blue)](../../docs/README.md)
+
 Automation add-on that applies rule-driven actions to time entries (e.g., tagging entries that match conditions). Includes lifecycle handlers, a settings page, and webhook processing.
 
 ## Quick Start
