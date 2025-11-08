@@ -19,12 +19,17 @@ Quick index for contributors and AI agents.
 
 ## Manifests, Lifecycle, Webhooks
 - Manifest & Lifecycle — docs/MANIFEST_AND_LIFECYCLE.md
+- Manifest Recipes — docs/MANIFEST_RECIPES.md
+- Permissions Matrix — docs/PERMISSIONS_MATRIX.md
 - Parameters Reference (manifest fields, headers, env flags) — docs/CLOCKIFY_PARAMETERS.md
 - Request/Response Examples — docs/REQUEST-RESPONSE-EXAMPLES.md
 
 ## CI & Coverage
 - CI Overview — docs/CI_OVERVIEW.md
 - Coverage badge and publishing (Pages) — documented in CI Overview
+
+## AI Workflow
+- AI PR Checklist — docs/AI_PR_CHECKLIST.md
 
 ## Security & Deployment
 - Security Checklist — docs/SECURITY_CHECKLIST.md

@@ -92,6 +92,7 @@ rg -n "class PathSanitizer|ConfigValidator|registerLifecycleHandler|registerWebh
 - Route → Manifest mapping tables live in each add‑on README and docs/MANIFEST_AND_LIFECYCLE.md.
 
 Docs: docs/MANIFEST_AND_LIFECYCLE.md, docs/CLOCKIFY_PARAMETERS.md
+Recipes and scope help: docs/MANIFEST_RECIPES.md, docs/PERMISSIONS_MATRIX.md
 
 ## CI & Coverage
 - build-and-test runs tests on Temurin 17, uploads jacoco-aggregate; Pages fetches the artifact and generates coverage badge.
