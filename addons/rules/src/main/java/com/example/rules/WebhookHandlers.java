@@ -32,6 +32,14 @@ public class WebhookHandlers {
     private static com.example.rules.store.RulesStoreSPI rulesStore;
     private static Evaluator evaluator;
 
+    @FunctionalInterface
+    public interface ClientFactory { ClockifyClient create(String baseUrl, String token); }
+
+    private static ClientFactory clientFactory = ClockifyClient::new;
+    public static void setClientFactory(ClientFactory factory) {
+        clientFactory = (factory != null) ? factory : ClockifyClient::new;
+    }
+
     public static void register(ClockifyAddon addon, com.example.rules.store.RulesStoreSPI store) {
         rulesStore = store;
         evaluator = new Evaluator();
@@ -92,7 +100,9 @@ public class WebhookHandlers {
                     }
 
                     // If not enabled to mutate, log and exit (backward-compatible behavior for tests)
-                    if (!"true".equalsIgnoreCase(System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false"))) {
+                    boolean applyEnv = "true".equalsIgnoreCase(System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false"));
+                    boolean applyProp = "true".equalsIgnoreCase(System.getProperty("RULES_APPLY_CHANGES", "false"));
+                    if (!(applyEnv || applyProp)) {
                         logger.info("RULES_APPLY_CHANGES=false — logging actions only");
                         logActions(actionsToApply);
                         return createResponse(eventType, "actions_logged", actionsToApply);
@@ -106,7 +116,7 @@ public class WebhookHandlers {
                     }
 
                     var wk = wkOpt.get();
-                    ClockifyClient api = new ClockifyClient(wk.apiBaseUrl(), wk.token());
+                    ClockifyClient api = clientFactory.create(wk.apiBaseUrl(), wk.token());
 
                     // Read existing entry and tags once, then apply changes in-memory and PUT once if needed
                     com.fasterxml.jackson.databind.node.ObjectNode entry = api.getTimeEntry(workspaceId, timeEntry.path("id").asText());
