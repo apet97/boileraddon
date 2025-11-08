@@ -230,6 +230,7 @@ This document summarizes the comprehensive improvements made to the Clockify Add
   - BaseUrlDetector proxy/IPv6 matrix, WebhookSignatureValidator, RateLimiter (IP/workspace modes)
   - Rules token persistence via lifecycle installed/deleted; ClockifyClient util helpers; SettingsController HTML
 - Pages publishes a small coverage badge (docs/coverage/badge.svg), generated from the aggregate report if present.
+ - Build-and-Test workflow comments a one-line coverage summary on pull requests.
 - Added docs/BUILD_ENVIRONMENT.md with clear steps to set JAVA_HOME, configure Toolchains, and verify the forked JVM.
   - Troubleshooting
   - Pre-production checklist

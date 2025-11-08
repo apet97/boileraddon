@@ -62,6 +62,14 @@ The Pages workflow publishes `docs/coverage/` including `jacoco.xml` (if present
 
 - If the aggregate report is not available for the push (e.g., a docs-only commit), the badge shows `N/A`.
 
+## Coverage comment on Pull Requests
+
+The build-and-test workflow computes a simple coverage summary and posts a one-line comment on PRs:
+
+- It prefers the aggregate report at `target/site/jacoco-aggregate/jacoco.xml` (if present),
+  otherwise it falls back to `addons/addon-sdk/target/site/jacoco/jacoco.xml`.
+- The comment shows `🧪 Coverage summary: <percent>%` or `N/A` if no report exists for that run.
+
 ## Troubleshooting
 
 - Ensure you’re on Java 17 for both Maven and the forked test JVM (see docs/BUILD_ENVIRONMENT.md). Newer JDKs can cause the test JVM to die or Mockito to fail.

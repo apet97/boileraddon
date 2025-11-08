@@ -14,6 +14,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - name: Validate manifests
         run: |
           python3 -m pip install --user --upgrade pip
@@ -45,3 +49,33 @@ jobs:
         with:
           name: jacoco-aggregate
           path: target/site/jacoco-aggregate/**
+
+      - name: Compute coverage summary (for PR comment)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          mkdir -p coverage-out
+          if [ -f target/site/jacoco-aggregate/jacoco.xml ]; then
+            python3 tools/coverage_badge.py target/site/jacoco-aggregate/jacoco.xml coverage-out
+          elif [ -f addons/addon-sdk/target/site/jacoco/jacoco.xml ]; then
+            python3 tools/coverage_badge.py addons/addon-sdk/target/site/jacoco/jacoco.xml coverage-out
+          else
+            echo '{"coverage":"N/A"}' > coverage-out/summary.json
+          fi
+          echo "COVERAGE_SUMMARY=$(cat coverage-out/summary.json | tr -d '\n')" >> $GITHUB_ENV
+
+      - name: Comment coverage on PR
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = process.env.COVERAGE_SUMMARY || '{}';
+            let pct = 'N/A';
+            try { pct = JSON.parse(summary).coverage || 'N/A'; } catch (e) {}
+            const body = `🧪 Coverage summary: ${pct === 'N/A' ? 'N/A' : pct + '%'}`;
+            const { context, github } = require('@actions/github');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
