@@ -38,3 +38,19 @@ for rel in targets:
         print(f"OK: {rel}")
 
 sys.exit(1 if errors else 0)
+
+
+REQUIRED_SCHEMA_VERSION = "1.3"
+
+def validate_manifest_dict(path, data):
+    errs = []
+    if "$schema" in data:
+        errs.append(f"{path}: contains $schema (Clockify will reject this manifest)")
+    sv = data.get("schemaVersion")
+    if sv != REQUIRED_SCHEMA_VERSION:
+        errs.append(f"{path}: schemaVersion must be "{REQUIRED_SCHEMA_VERSION}" (found {sv!r})")
+    required = ["key", "name", "schemaVersion", "baseUrl"]
+    for k in required:
+        if k not in data:
+            errs.append(f"{path}: missing required field: {k}")
+    return errs
