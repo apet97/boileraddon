@@ -60,6 +60,8 @@ See docs/MANIFEST_AND_LIFECYCLE.md for full guidance and docs/REQUEST-RESPONSE-E
 | `/lifecycle/installed` | Lifecycle install callback | `lifecycle[]` item `{ type: "INSTALLED", path: "/lifecycle/installed" }` |
 | `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
 | `/webhook` (default) | Time entry webhooks (e.g., NEW_TIME_ENTRY, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
+| `/health` | Health endpoint | Not listed in manifest |
+| `/metrics` | Prometheus metrics scrape | Not listed in manifest |
 
 ## Checklist: Plan, Scopes, Events
 

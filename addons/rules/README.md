@@ -63,6 +63,8 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 | `/lifecycle/installed` | Lifecycle install callback | `lifecycle[]` item `{ type: "INSTALLED", path: "/lifecycle/installed" }` |
 | `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
 | `/webhook` (default) | Time entry webhooks (TIME_ENTRY_CREATED, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
+| `/health` | Health endpoint (includes DB probe when DB_URL/DB_USER set) | Not listed in manifest |
+| `/metrics` | Prometheus metrics scrape | Not listed in manifest |
 | Custom (e.g. `/webhooks/entries`) | Alternative webhook mount | One `webhooks[]` item per event with `path: "/webhooks/entries"` |
 | `/health` | Health endpoint (includes DB probe when DB_URL/DB_USER set) | Not listed in manifest |
 

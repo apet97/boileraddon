@@ -65,6 +65,15 @@ Validate multiple at once:
 make manifest-validate-all URLS="https://.../rules https://.../auto-tag-assistant"
 ```
 
+Quick customization checklist (per add‑on):
+- Set manifest basics: `key`, `name`, `baseUrl`, `schemaVersion: "1.3"` (programmatically via `ClockifyManifest`)
+- Choose `minimalSubscriptionPlan` and the smallest viable `scopes[]`
+- Register lifecycle paths (`INSTALLED`, `DELETED`) and your webhook events/paths
+- Register any UI components (e.g., `/settings` sidebar) and custom endpoints
+- Validate: `make manifest-print` → confirm fields/paths; `make manifest-validate-runtime` → schema checks
+- Test: module tests first, then full `mvn -fae verify`
+- Observability: expose `/health` (optionally with DB probe) and `/metrics` (Prometheus), then monitor
+
 ## Common Hotspots (and files)
 - Path Sanitization: addons/addon-sdk/src/main/java/com/clockify/addon/sdk/util/PathSanitizer.java
 - Config Validation: addons/addon-sdk/src/main/java/com/clockify/addon/sdk/config/ConfigValidator.java
@@ -89,6 +98,12 @@ Docs: docs/MANIFEST_AND_LIFECYCLE.md, docs/CLOCKIFY_PARAMETERS.md
 - Pages deploy runs after build-and-test succeeds on main.
 
 Docs: docs/CI_OVERVIEW.md
+
+## Observability
+- `/health` — JSON health (add a DB check when `DB_URL`/`DB_USER` are set)
+- `/metrics` — Prometheus scrape (Micrometer registry); not listed in manifest
+
+Docs: docs/PRODUCTION-DEPLOYMENT.md#monitoring--observability, docs/SDK_OVERVIEW.md
 
 ## Security Checklist (Minimum)
 - Validate webhook signatures (HMAC-SHA256).

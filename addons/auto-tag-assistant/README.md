@@ -209,6 +209,7 @@ Runtime manifest is served at `/{addon}/manifest.json` and auto‑updates as you
 | `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
 | `/webhook` | Time entry webhooks (NEW_TIMER_STARTED, TIMER_STOPPED, NEW_TIME_ENTRY, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
 | `/health` | Health endpoint (includes DB probe when DB_URL/DB_USER set) | Not listed in manifest |
+| `/metrics` | Prometheus metrics scrape | Not listed in manifest |
 
 ## Checklist: Plan, Scopes, Events
 
