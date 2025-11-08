@@ -20,6 +20,7 @@ help:
 	@echo "  test                       - Run all tests"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
 	@echo "  run-rules                  - Run the rules addon locally"
+	@echo "  manifest-url               - Print the current manifest URL"
 	@echo "  clean                      - Clean all build artifacts"
 	@echo ""
 	@echo "Quick start:"
@@ -107,7 +108,7 @@ run-auto-tag-assistant:
 	@echo ""
 	@echo "To expose via ngrok:"
 	@echo "  1. In another terminal: ngrok http 8080"
-	@echo "  2. Update manifest.json baseUrl to: https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant"
+	@echo "  2. Restart with: ADDON_BASE_URL=https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant make run-auto-tag-assistant"
 	@echo "  3. Install in Clockify using: https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant/manifest.json"
 	@echo ""
 	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/auto-tag-assistant \
@@ -132,7 +133,7 @@ run-rules:
 	@echo ""
 	@echo "To expose via ngrok:"
 	@echo "  1. In another terminal: ngrok http 8080"
-	@echo "  2. Update manifest.json baseUrl to: https://YOUR-SUBDOMAIN.ngrok-free.app/rules"
+	@echo "  2. Restart with: ADDON_BASE_URL=https://YOUR-SUBDOMAIN.ngrok-free.app/rules make run-rules"
 	@echo "  3. Install in Clockify using: https://YOUR-SUBDOMAIN.ngrok-free.app/rules/manifest.json"
 	@echo ""
 	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/rules \
@@ -180,3 +181,14 @@ dev-check:
 ai-start:
 	@echo "AI Onboarding: /Users/15x/boileraddon/docs/AI_ONBOARDING.md"
 	@echo "AGENTS Guide: /Users/15x/boileraddon/AGENTS.md"
+
+# Print the current manifest URL based on ADDON_BASE_URL
+manifest-url:
+	@if [ -z "$(ADDON_BASE_URL)" ]; then \
+		echo "ADDON_BASE_URL is not set. Example:"; \
+		echo "  export ADDON_BASE_URL=https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant"; \
+		echo "  or"; \
+		echo "  export ADDON_BASE_URL=https://YOUR-SUBDOMAIN.ngrok-free.app/rules"; \
+	else \
+		echo "Manifest URL: $(ADDON_BASE_URL)/manifest.json"; \
+	fi
