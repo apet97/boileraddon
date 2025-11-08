@@ -29,6 +29,9 @@ help:
 	@echo ""
 	@echo "Note: This boilerplate now uses ONLY Maven Central dependencies."
 	@echo "      No GitHub Packages authentication or external SDK needed!"
+	@echo ""
+	@echo "AI onboarding:"
+	@echo "  make ai-start               - Print AI onboarding pointers"
  
 briefings-open:
 	@echo "_briefings/INDEX.md is at $(PWD)/_briefings/INDEX.md"
@@ -146,3 +149,8 @@ schema-validate:
 # Quick environment sanity check
 dev-check:
 	@bash scripts/dev-env-check.sh
+
+# AI helpers
+ai-start:
+	@echo "AI Onboarding: /Users/15x/boileraddon/docs/AI_ONBOARDING.md"
+	@echo "AGENTS Guide: /Users/15x/boileraddon/AGENTS.md"
