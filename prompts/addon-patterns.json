@@ -1,0 +1,513 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Clockify Addon Patterns Library",
+  "description": "Structured collection of common addon patterns for AI-driven generation",
+  "version": "1.0.0",
+  "patterns": [
+    {
+      "id": "auto-tagging",
+      "name": "Automatic Tagging",
+      "description": "Automatically assign tags to time entries based on project, description, or custom logic",
+      "complexity": "medium",
+      "useCase": "Automatically categorize time entries for better reporting and analytics",
+      "requiredScopes": ["TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ", "TAG_WRITE"],
+      "webhooks": ["TIMER_STOPPED", "NEW_TIME_ENTRY", "TIME_ENTRY_UPDATED"],
+      "components": ["TIME_ENTRY_SIDEBAR"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/tags",
+        "POST /workspaces/{workspaceId}/tags",
+        "PUT /workspaces/{workspaceId}/time-entries/{id}"
+      ],
+      "dataModel": {
+        "storage": ["installation_tokens", "tagging_rules"],
+        "entities": ["Tag", "TimeEntry", "TaggingRule"]
+      },
+      "exampleImplementation": "/addons/auto-tag-assistant/"
+    },
+    {
+      "id": "tag-enforcement",
+      "name": "Tag Enforcement",
+      "description": "Enforce required tags on time entries before they can be saved",
+      "complexity": "simple",
+      "useCase": "Ensure all time entries have required categorization tags",
+      "requiredScopes": ["TIME_ENTRY_READ", "TAG_READ"],
+      "webhooks": ["NEW_TIME_ENTRY", "TIME_ENTRY_UPDATED"],
+      "components": ["TIME_ENTRY_SIDEBAR", "SETTINGS_SIDEBAR"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/tags",
+        "GET /workspaces/{workspaceId}/time-entries/{id}"
+      ],
+      "dataModel": {
+        "storage": ["installation_tokens", "required_tags_config"],
+        "entities": ["Tag", "TimeEntry", "EnforcementRule"]
+      },
+      "businessLogic": [
+        "Listen for NEW_TIME_ENTRY webhook",
+        "Check if time entry has all required tags",
+        "Display warning in sidebar if tags are missing",
+        "Optionally: prevent saving until tags are added"
+      ]
+    },
+    {
+      "id": "cost-center-assignment",
+      "name": "Cost Center Assignment",
+      "description": "Automatically assign cost centers to time entries based on project",
+      "complexity": "simple",
+      "useCase": "Track costs by department or cost center for financial reporting",
+      "requiredScopes": ["TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "PROJECT_READ", "CUSTOM_FIELD_WRITE"],
+      "webhooks": ["NEW_TIME_ENTRY"],
+      "components": ["SETTINGS_SIDEBAR", "PROJECT_SIDEBAR"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/projects",
+        "GET /workspaces/{workspaceId}/custom-fields",
+        "PUT /workspaces/{workspaceId}/time-entries/{id}"
+      ],
+      "dataModel": {
+        "storage": ["installation_tokens", "project_cost_center_mapping"],
+        "entities": ["Project", "TimeEntry", "CostCenter"]
+      },
+      "businessLogic": [
+        "Map projects to cost centers in settings",
+        "Listen for NEW_TIME_ENTRY webhook",
+        "Look up project's cost center",
+        "Add cost center as custom field to time entry"
+      ]
+    },
+    {
+      "id": "jira-sync",
+      "name": "Jira Synchronization",
+      "description": "Bi-directional sync between Clockify projects/time entries and Jira issues",
+      "complexity": "advanced",
+      "useCase": "Keep time tracking synchronized with Jira issues and projects",
+      "requiredScopes": ["TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "PROJECT_READ", "PROJECT_WRITE", "TASK_READ", "TASK_WRITE"],
+      "webhooks": ["NEW_TIME_ENTRY", "TIME_ENTRY_UPDATED", "TIME_ENTRY_DELETED"],
+      "components": ["SETTINGS_SIDEBAR", "TIME_ENTRY_SIDEBAR", "PROJECT_SIDEBAR"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/projects",
+        "POST /workspaces/{workspaceId}/projects",
+        "GET /workspaces/{workspaceId}/time-entries",
+        "POST /workspaces/{workspaceId}/time-entries"
+      ],
+      "externalApis": {
+        "jira": {
+          "baseUrl": "https://your-domain.atlassian.net",
+          "auth": "Basic (email + API token)",
+          "endpoints": [
+            "GET /rest/api/3/project",
+            "GET /rest/api/3/issue/{issueKey}",
+            "POST /rest/api/3/issue/{issueKey}/worklog"
+          ]
+        }
+      },
+      "dataModel": {
+        "storage": ["installation_tokens", "jira_credentials", "project_mapping", "sync_state"],
+        "entities": ["Project", "TimeEntry", "JiraProject", "JiraIssue", "SyncMapping"]
+      },
+      "businessLogic": [
+        "Store Jira credentials in settings",
+        "Map Clockify projects to Jira projects",
+        "On NEW_TIME_ENTRY: create Jira worklog",
+        "Periodically sync Jira worklogs to Clockify",
+        "Handle sync conflicts and errors"
+      ]
+    },
+    {
+      "id": "time-approval-workflow",
+      "name": "Time Approval Workflow",
+      "description": "Multi-stage approval process for time entries",
+      "complexity": "advanced",
+      "useCase": "Require manager approval for time entries before they are finalized",
+      "requiredScopes": ["TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "USER_READ", "CUSTOM_FIELD_WRITE"],
+      "webhooks": ["NEW_TIME_ENTRY", "TIME_ENTRY_UPDATED"],
+      "components": ["TIME_ENTRY_SIDEBAR", "SETTINGS_SIDEBAR", "REPORT_TAB"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/time-entries",
+        "PUT /workspaces/{workspaceId}/time-entries/{id}",
+        "GET /workspaces/{workspaceId}/users"
+      ],
+      "dataModel": {
+        "storage": ["installation_tokens", "approval_rules", "approval_requests", "approval_history"],
+        "entities": ["TimeEntry", "ApprovalRequest", "ApprovalRule", "User"]
+      },
+      "businessLogic": [
+        "Define approval workflow in settings",
+        "On NEW_TIME_ENTRY: create approval request",
+        "Notify approvers via email/webhook",
+        "Track approval status as custom field",
+        "Allow approve/reject actions in sidebar",
+        "Show approval dashboard in report tab"
+      ]
+    },
+    {
+      "id": "project-budget-tracking",
+      "name": "Project Budget Tracking",
+      "description": "Track project budgets and alert when approaching limits",
+      "complexity": "medium",
+      "useCase": "Monitor project time and cost budgets in real-time",
+      "requiredScopes": ["PROJECT_READ", "TIME_ENTRY_READ", "USER_READ"],
+      "webhooks": ["NEW_TIME_ENTRY", "TIME_ENTRY_UPDATED", "TIME_ENTRY_DELETED"],
+      "components": ["PROJECT_SIDEBAR", "WIDGET", "REPORT_TAB"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/projects",
+        "GET /workspaces/{workspaceId}/time-entries",
+        "GET /workspaces/{workspaceId}/users"
+      ],
+      "dataModel": {
+        "storage": ["installation_tokens", "project_budgets", "budget_alerts"],
+        "entities": ["Project", "TimeEntry", "Budget", "Alert"]
+      },
+      "businessLogic": [
+        "Define budget limits in settings",
+        "On time entry webhook: calculate current usage",
+        "Compare against budget limits",
+        "Send alert when threshold reached (80%, 100%)",
+        "Display budget status in project sidebar",
+        "Show budget dashboard widget"
+      ]
+    },
+    {
+      "id": "billable-rate-calculator",
+      "name": "Billable Rate Calculator",
+      "description": "Calculate and display billable amounts for time entries",
+      "complexity": "simple",
+      "useCase": "Show real-time billable amounts to users",
+      "requiredScopes": ["TIME_ENTRY_READ", "PROJECT_READ", "USER_READ"],
+      "webhooks": ["NEW_TIME_ENTRY", "TIMER_STOPPED"],
+      "components": ["TIME_ENTRY_SIDEBAR", "WIDGET"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/time-entries/{id}",
+        "GET /workspaces/{workspaceId}/projects/{id}",
+        "GET /workspaces/{workspaceId}/users/{id}"
+      ],
+      "dataModel": {
+        "storage": ["installation_tokens", "custom_rates"],
+        "entities": ["TimeEntry", "Project", "User", "Rate"]
+      },
+      "businessLogic": [
+        "Get time entry duration",
+        "Determine billable rate (user, project, or custom)",
+        "Calculate total billable amount",
+        "Display in sidebar with breakdown",
+        "Show daily/weekly totals in widget"
+      ]
+    },
+    {
+      "id": "slack-notifications",
+      "name": "Slack Notifications",
+      "description": "Send Slack notifications for specific time tracking events",
+      "complexity": "simple",
+      "useCase": "Notify team members about time tracking activities",
+      "requiredScopes": ["TIME_ENTRY_READ", "USER_READ"],
+      "webhooks": ["NEW_TIMER_STARTED", "TIMER_STOPPED", "NEW_TIME_ENTRY"],
+      "components": ["SETTINGS_SIDEBAR"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/time-entries/{id}",
+        "GET /workspaces/{workspaceId}/users/{id}"
+      ],
+      "externalApis": {
+        "slack": {
+          "baseUrl": "https://slack.com/api",
+          "auth": "Bot token",
+          "endpoints": [
+            "POST /chat.postMessage",
+            "POST /users.lookupByEmail"
+          ]
+        }
+      },
+      "dataModel": {
+        "storage": ["installation_tokens", "slack_credentials", "notification_rules"],
+        "entities": ["TimeEntry", "User", "NotificationRule"]
+      },
+      "businessLogic": [
+        "Configure Slack webhook URL in settings",
+        "Define notification triggers",
+        "On webhook event: format message",
+        "Post to Slack channel or DM",
+        "Handle Slack API errors"
+      ]
+    },
+    {
+      "id": "timesheet-export",
+      "name": "Timesheet Export",
+      "description": "Export timesheets in various formats (CSV, PDF, Excel)",
+      "complexity": "medium",
+      "useCase": "Generate formatted timesheets for payroll or client billing",
+      "requiredScopes": ["TIME_ENTRY_READ", "PROJECT_READ", "USER_READ"],
+      "webhooks": [],
+      "components": ["REPORT_TAB", "SETTINGS_SIDEBAR"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/time-entries",
+        "GET /workspaces/{workspaceId}/projects",
+        "GET /workspaces/{workspaceId}/users"
+      ],
+      "dataModel": {
+        "storage": ["installation_tokens", "export_templates"],
+        "entities": ["TimeEntry", "Project", "User", "ExportTemplate"]
+      },
+      "businessLogic": [
+        "Define export template in settings",
+        "Fetch time entries for date range",
+        "Format data according to template",
+        "Generate file (CSV/PDF/Excel)",
+        "Provide download link in report tab"
+      ]
+    },
+    {
+      "id": "task-auto-creation",
+      "name": "Task Auto-Creation",
+      "description": "Automatically create tasks based on time entry descriptions",
+      "complexity": "medium",
+      "useCase": "Convert time tracking into task management",
+      "requiredScopes": ["TIME_ENTRY_READ", "TASK_READ", "TASK_WRITE", "PROJECT_READ"],
+      "webhooks": ["NEW_TIME_ENTRY"],
+      "components": ["TIME_ENTRY_SIDEBAR", "SETTINGS_SIDEBAR"],
+      "apiEndpoints": [
+        "GET /workspaces/{workspaceId}/projects/{projectId}/tasks",
+        "POST /workspaces/{workspaceId}/projects/{projectId}/tasks",
+        "PUT /workspaces/{workspaceId}/time-entries/{id}"
+      ],
+      "dataModel": {
+        "storage": ["installation_tokens", "task_creation_rules"],
+        "entities": ["TimeEntry", "Task", "Project", "CreationRule"]
+      },
+      "businessLogic": [
+        "Define task creation rules in settings",
+        "On NEW_TIME_ENTRY: parse description",
+        "Check if matching task exists",
+        "Create new task if needed",
+        "Link time entry to task",
+        "Display task in sidebar"
+      ]
+    }
+  ],
+  "componentPatterns": {
+    "TIME_ENTRY_SIDEBAR": {
+      "description": "Context panel displayed when viewing a time entry",
+      "useCases": [
+        "Display additional time entry details",
+        "Show validation warnings",
+        "Provide quick actions (approve, tag, categorize)",
+        "Display related external data (Jira issues, etc.)"
+      ],
+      "availableContext": {
+        "queryParams": ["timeEntryId", "workspaceId", "userId", "jwt"],
+        "jwtClaims": ["userId", "workspaceId", "userEmail", "userName"]
+      },
+      "htmlTemplate": "<!DOCTYPE html><html><head><title>Sidebar</title></head><body><h1>Time Entry Sidebar</h1></body></html>"
+    },
+    "SETTINGS_SIDEBAR": {
+      "description": "Admin-only configuration panel",
+      "useCases": [
+        "Configure addon settings",
+        "Manage integrations",
+        "Define rules and workflows",
+        "View addon status and health"
+      ],
+      "availableContext": {
+        "queryParams": ["workspaceId", "userId", "jwt"],
+        "jwtClaims": ["userId", "workspaceId", "userEmail", "userName"]
+      },
+      "htmlTemplate": "<!DOCTYPE html><html><head><title>Settings</title></head><body><h1>Addon Settings</h1></body></html>"
+    },
+    "PROJECT_SIDEBAR": {
+      "description": "Context panel displayed when viewing a project",
+      "useCases": [
+        "Display project statistics",
+        "Show project-specific configuration",
+        "Display budget/cost information",
+        "Show external system integration status"
+      ],
+      "availableContext": {
+        "queryParams": ["projectId", "workspaceId", "userId", "jwt"],
+        "jwtClaims": ["userId", "workspaceId", "userEmail", "userName"]
+      },
+      "htmlTemplate": "<!DOCTYPE html><html><head><title>Project Sidebar</title></head><body><h1>Project Info</h1></body></html>"
+    },
+    "REPORT_TAB": {
+      "description": "Custom report view in reports section",
+      "useCases": [
+        "Display custom analytics",
+        "Show consolidated reports",
+        "Provide export functionality",
+        "Display approval dashboards"
+      ],
+      "availableContext": {
+        "queryParams": ["workspaceId", "userId", "jwt"],
+        "jwtClaims": ["userId", "workspaceId", "userEmail", "userName"]
+      },
+      "htmlTemplate": "<!DOCTYPE html><html><head><title>Report</title></head><body><h1>Custom Report</h1></body></html>"
+    },
+    "WIDGET": {
+      "description": "Dashboard widget on Clockify homepage",
+      "useCases": [
+        "Display quick stats",
+        "Show alerts and notifications",
+        "Provide quick actions",
+        "Display summary information"
+      ],
+      "availableContext": {
+        "queryParams": ["workspaceId", "userId", "jwt"],
+        "jwtClaims": ["userId", "workspaceId", "userEmail", "userName"]
+      },
+      "htmlTemplate": "<!DOCTYPE html><html><head><title>Widget</title></head><body><h1>Dashboard Widget</h1></body></html>"
+    }
+  },
+  "webhookPatterns": {
+    "NEW_TIME_ENTRY": {
+      "trigger": "New time entry created (manually or via API)",
+      "payload": {
+        "event": "NEW_TIME_ENTRY",
+        "workspaceId": "string",
+        "userId": "string",
+        "timeEntryId": "string",
+        "timeEntry": {
+          "id": "string",
+          "description": "string",
+          "projectId": "string | null",
+          "taskId": "string | null",
+          "tagIds": ["string"],
+          "billable": "boolean",
+          "timeInterval": {
+            "start": "ISO 8601 datetime",
+            "end": "ISO 8601 datetime",
+            "duration": "ISO 8601 duration"
+          }
+        }
+      },
+      "useCases": [
+        "Validate time entry data",
+        "Auto-assign tags or categories",
+        "Sync to external systems",
+        "Trigger approval workflows",
+        "Send notifications"
+      ]
+    },
+    "NEW_TIMER_STARTED": {
+      "trigger": "User starts a timer",
+      "payload": {
+        "event": "NEW_TIMER_STARTED",
+        "workspaceId": "string",
+        "userId": "string",
+        "timeEntryId": "string",
+        "timeEntry": {
+          "timeInterval": {
+            "start": "ISO 8601 datetime",
+            "end": null
+          }
+        }
+      },
+      "useCases": [
+        "Track active timers",
+        "Send \"timer started\" notifications",
+        "Display active timer in dashboard",
+        "Prevent multiple timers"
+      ]
+    },
+    "TIMER_STOPPED": {
+      "trigger": "User stops a running timer",
+      "payload": {
+        "event": "TIMER_STOPPED",
+        "workspaceId": "string",
+        "userId": "string",
+        "timeEntryId": "string",
+        "timeEntry": {
+          "timeInterval": {
+            "start": "ISO 8601 datetime",
+            "end": "ISO 8601 datetime",
+            "duration": "ISO 8601 duration"
+          }
+        }
+      },
+      "useCases": [
+        "Auto-tag based on duration/description",
+        "Validate minimum time requirements",
+        "Send completion notifications",
+        "Trigger post-tracking workflows"
+      ]
+    },
+    "TIME_ENTRY_UPDATED": {
+      "trigger": "Time entry modified",
+      "payload": {
+        "event": "TIME_ENTRY_UPDATED",
+        "workspaceId": "string",
+        "userId": "string",
+        "timeEntryId": "string",
+        "timeEntry": {},
+        "changes": {
+          "description": {"old": "string", "new": "string"},
+          "projectId": {"old": "string", "new": "string"}
+        }
+      },
+      "useCases": [
+        "Re-validate after changes",
+        "Sync updates to external systems",
+        "Track change history",
+        "Trigger re-approval if needed"
+      ]
+    },
+    "TIME_ENTRY_DELETED": {
+      "trigger": "Time entry deleted",
+      "payload": {
+        "event": "TIME_ENTRY_DELETED",
+        "workspaceId": "string",
+        "userId": "string",
+        "timeEntryId": "string"
+      },
+      "useCases": [
+        "Cleanup related data",
+        "Sync deletion to external systems",
+        "Send deletion notifications",
+        "Update statistics"
+      ]
+    }
+  },
+  "storagePatterns": {
+    "in-memory": {
+      "description": "Simple in-memory storage for development",
+      "pros": ["Fast", "Simple to implement", "No external dependencies"],
+      "cons": ["Data lost on restart", "Not suitable for production"],
+      "implementation": "java.util.concurrent.ConcurrentHashMap",
+      "useCase": "Development and testing only"
+    },
+    "file-based": {
+      "description": "Store data in local files",
+      "pros": ["Persistent across restarts", "No database required"],
+      "cons": ["Limited scalability", "Concurrent access complexity"],
+      "implementation": "java.util.Properties + file I/O",
+      "useCase": "Small-scale production deployments"
+    },
+    "database": {
+      "description": "Store data in relational database",
+      "pros": ["Scalable", "ACID guarantees", "Query capabilities"],
+      "cons": ["Requires database setup", "More complex"],
+      "implementation": "JDBC + PostgreSQL/MySQL",
+      "useCase": "Production deployments at scale"
+    }
+  },
+  "errorHandlingPatterns": {
+    "rate-limiting": {
+      "detection": "HTTP 429 response from Clockify API",
+      "strategy": "Exponential backoff with jitter",
+      "implementation": "for (int i = 0; i < maxRetries; i++) { try { return call(); } catch (RateLimitException e) { Thread.sleep((long)(1000 * Math.pow(2, i) + Math.random() * 1000)); } }",
+      "maxRetries": 5
+    },
+    "network-errors": {
+      "detection": "IOException, SocketTimeoutException",
+      "strategy": "Retry with exponential backoff",
+      "implementation": "Retry up to 3 times with 2s, 4s, 8s delays",
+      "fallback": "Log error and return graceful error response"
+    },
+    "validation-errors": {
+      "detection": "Invalid input data",
+      "strategy": "Return HTTP 400 with detailed error message",
+      "implementation": "Validate input early, return structured error JSON",
+      "logging": "Log validation failures for debugging"
+    },
+    "auth-errors": {
+      "detection": "HTTP 401/403 from Clockify API",
+      "strategy": "Check token validity, prompt re-installation if needed",
+      "implementation": "Return HTTP 401 with clear error message",
+      "userAction": "User may need to reinstall addon"
+    }
+  }
+}

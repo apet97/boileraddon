@@ -3,15 +3,11 @@ package com.clockify.addon.sdk.middleware;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.RateLimiter as GuavaRateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
+import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -25,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 public class RateLimiter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(RateLimiter.class);
 
-    private final LoadingCache<String, com.google.common.util.concurrent.RateLimiter> limiters;
+    private final LoadingCache<String, GuavaRateLimiter> limiters;
     private final double permitsPerSecond;
     private final String limitBy;
 
@@ -44,11 +40,11 @@ public class RateLimiter implements Filter {
         this.limiters = CacheBuilder.newBuilder()
                 .expireAfterAccess(5, TimeUnit.MINUTES)
                 .maximumSize(10000) // Max 10k unique identifiers
-                .build(new CacheLoader<String, com.google.common.util.concurrent.RateLimiter>() {
+                .build(new CacheLoader<String, GuavaRateLimiter>() {
                     @Override
-                    public com.google.common.util.concurrent.RateLimiter load(String key) {
+                    public GuavaRateLimiter load(String key) {
                         logger.debug("Creating new rate limiter for: {}", key);
-                        return com.google.common.util.concurrent.RateLimiter.create(permitsPerSecond);
+                        return GuavaRateLimiter.create(permitsPerSecond);
                     }
                 });
 
@@ -77,7 +73,7 @@ public class RateLimiter implements Filter {
         String identifier = getIdentifier(httpRequest);
 
         try {
-            com.google.common.util.concurrent.RateLimiter limiter = limiters.get(identifier);
+            GuavaRateLimiter limiter = limiters.get(identifier);
 
             // Try to acquire a permit (non-blocking)
             if (limiter.tryAcquire()) {
