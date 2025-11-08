@@ -54,3 +54,17 @@ See docs/MANIFEST_AND_LIFECYCLE.md for full guidance and docs/REQUEST-RESPONSE-E
 | `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
 | `/webhook` (default) | Time entry webhooks (e.g., NEW_TIME_ENTRY, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
 
+## Checklist: Plan, Scopes, Events
+
+- Plan (minimalSubscriptionPlan)
+  - Start with `FREE`; consider `STANDARD`/`PRO` if policy or UI requires.
+- Scopes (least privilege)
+  - Core: `TIME_ENTRY_READ`, `TIME_ENTRY_WRITE`
+  - Helpful: `TAG_READ`, `TAG_WRITE` (if tagging overtime entries)
+- Webhook events
+  - Time entry: `NEW_TIME_ENTRY`/`TIME_ENTRY_CREATED`, `TIME_ENTRY_UPDATED`
+  - Optional: `TIME_ENTRY_DELETED`, `NEW_TIMER_STARTED`, `TIMER_STOPPED`
+- References
+  - Event payloads: docs/REQUEST-RESPONSE-EXAMPLES.md
+  - Full catalog: dev-docs-marketplace-cake-snapshot/
+  - Manifest fields: docs/CLOCKIFY_PARAMETERS.md

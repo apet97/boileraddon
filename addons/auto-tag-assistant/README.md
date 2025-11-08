@@ -203,5 +203,20 @@ Runtime manifest is served at `/{addon}/manifest.json` and auto‑updates as you
 | `/webhook` | Time entry webhooks (NEW_TIMER_STARTED, TIMER_STOPPED, NEW_TIME_ENTRY, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
 | `/health` | Liveness/readiness check | Not listed in manifest (optional health endpoint) |
 
+## Checklist: Plan, Scopes, Events
+
+- Plan (minimalSubscriptionPlan)
+  - Start with `FREE`; raise to `STANDARD`/`PRO` if your feature set requires it.
+- Scopes (least privilege)
+  - Core: `TIME_ENTRY_READ`, `TIME_ENTRY_WRITE`, `TAG_READ`, `TAG_WRITE`
+  - Optional: `PROJECT_READ` (to improve tag suggestions by project)
+- Webhook events
+  - Time entry: `NEW_TIMER_STARTED`, `TIMER_STOPPED`, `NEW_TIME_ENTRY`, `TIME_ENTRY_UPDATED`
+  - Add others only if your logic needs them.
+- References
+  - Event payloads: docs/REQUEST-RESPONSE-EXAMPLES.md
+  - Full catalog: dev-docs-marketplace-cake-snapshot/
+  - Manifest fields: docs/CLOCKIFY_PARAMETERS.md
+
 
 Questions? Open an issue in the root repository.

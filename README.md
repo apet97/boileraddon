@@ -566,3 +566,15 @@ After cloning and building, verify:
 Before promoting an add‑on, review:
 - Security Checklist: docs/SECURITY_CHECKLIST.md
 - Production Deployment: docs/PRODUCTION-DEPLOYMENT.md
+
+### Per‑Addon Zero‑Shot
+
+Each add‑on can declare its own plan, scopes, components, webhooks, and lifecycle paths using the SDK’s manifest builder and registration helpers. Start from the examples in each add‑on README and verify live using the Make targets:
+
+- `make manifest-print` — fetch and pretty‑print runtime manifest
+- `make manifest-validate-runtime` — fetch and validate runtime manifest against schema
+- `make manifest-validate-all URLS="https://.../rules https://.../auto-tag-assistant"` — validate multiple
+
+Guides:
+- Manifest & Lifecycle: docs/MANIFEST_AND_LIFECYCLE.md
+- Parameters & scopes: docs/CLOCKIFY_PARAMETERS.md
