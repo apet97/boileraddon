@@ -16,6 +16,9 @@ Quick links
 - SDK Overview: docs/SDK_OVERVIEW.md
 - Repo Structure: docs/REPO_STRUCTURE.md
 - Build Environment (Java 17): docs/BUILD_ENVIRONMENT.md
+- Make Targets: docs/MAKE_TARGETS.md
+- CI Overview: docs/CI_OVERVIEW.md
+- Security Checklist: docs/SECURITY_CHECKLIST.md
 - Parameters Reference: docs/CLOCKIFY_PARAMETERS.md
 - Rules Add‑on: docs/ADDON_RULES.md
 - Architecture: docs/ARCHITECTURE.md
