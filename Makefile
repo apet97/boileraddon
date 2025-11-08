@@ -8,8 +8,8 @@ help:
 	@echo "  validate                   - Validate all manifest.json files"
 	@echo "  build                      - Build all modules (templates + addons)"
 	@echo "  build-template             - Build only the _template-addon module"
-        @echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
-        @echo "  dev                        - Build and run the template add-on using .env"
+	@echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
+	@echo "  dev                        - Build and run the template add-on using .env"
 	@echo "  test                       - Run all tests"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
 	@echo "  clean                      - Clean all build artifacts"
@@ -75,7 +75,7 @@ test:
 
 # Run auto-tag-assistant locally
 run-auto-tag-assistant:
-        @echo "Starting Auto-Tag Assistant..."
+	@echo "Starting Auto-Tag Assistant..."
 	@echo "================================"
 	@echo "Base URL: http://localhost:8080/auto-tag-assistant"
 	@echo "Manifest: http://localhost:8080/auto-tag-assistant/manifest.json"
@@ -86,16 +86,16 @@ run-auto-tag-assistant:
 	@echo "  2. Update manifest.json baseUrl to: https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant"
 	@echo "  3. Install in Clockify using: https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant/manifest.json"
 	@echo ""
-        ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/auto-tag-assistant \
-        java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
+	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/auto-tag-assistant \
+	java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
 
 dev: build-template
-        @if [ ! -f .env ]; then \
-                echo "Missing .env file. Run: cp .env.example .env"; \
-                exit 1; \
-        fi
-        @echo "Starting _template-addon with settings from .env..."
-        @bash -c 'set -a; source .env; set +a; java -jar addons/_template-addon/target/_template-addon-0.1.0-jar-with-dependencies.jar'
+	@if [ ! -f .env ]; then \
+		echo "Missing .env file. Run: cp .env.example .env"; \
+		exit 1; \
+	fi
+	@echo "Starting _template-addon with settings from .env..."
+	@bash -c 'set -a; source .env; set +a; java -jar addons/_template-addon/target/_template-addon-0.1.0-jar-with-dependencies.jar'
 
 # Clean build artifacts
 clean:
