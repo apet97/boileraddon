@@ -14,20 +14,27 @@ class BaseUrlDetector {
         Optional<String> forwardedPort = forwardedOrHeader(request, "port", "X-Forwarded-Port");
         Optional<String> hostHeader = firstHeaderValue(request, "Host");
 
-        String scheme = forwardedProto.filter(value -> !value.isBlank()).orElseGet(() -> {
-            String requestScheme = request.getScheme();
-            return (requestScheme == null || requestScheme.isBlank()) ? "http" : requestScheme;
-        });
-        String host = forwardedHost.filter(value -> !value.isBlank())
-                .or(() -> hostHeader)
-                .orElse(request.getServerName());
+        Optional<String> forwardedProtoValue = forwardedProto.filter(value -> !value.isBlank());
+        Optional<String> forwardedHostValue = forwardedHost.filter(value -> !value.isBlank());
+        Optional<String> forwardedPortValue = forwardedPort.filter(value -> !value.isBlank());
+
+        String scheme = forwardedProtoValue
+            .orElseGet(() -> {
+                String requestScheme = request.getScheme();
+                return (requestScheme == null || requestScheme.isBlank()) ? "http" : requestScheme;
+            });
+        String host = forwardedHostValue
+            .or(() -> hostHeader)
+            .orElse(request.getServerName());
 
         if (host == null || host.isBlank()) {
             return Optional.empty();
         }
 
-        boolean hasForwardingHeaders = forwardedProto.isPresent() || forwardedHost.isPresent() || forwardedPort.isPresent();
-        String port = forwardedPort.filter(value -> !value.isBlank()).orElse(null);
+        boolean hasForwardingHeaders = forwardedProtoValue.isPresent()
+            || forwardedHostValue.isPresent()
+            || forwardedPortValue.isPresent();
+        String port = forwardedPortValue.orElse(null);
         if (port == null) {
             port = inferPort(host, scheme, request, hasForwardingHeaders);
         }
