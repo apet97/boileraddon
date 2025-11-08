@@ -11,11 +11,13 @@ Quick index for contributors and AI agents.
 ## Build & Environment
 - Build Environment (Java 17 + Toolchains) — docs/BUILD_ENVIRONMENT.md
 - Make Targets — docs/MAKE_TARGETS.md
+ - Docker Development — docs/DOCKER_DEV.md
 
 ## SDK & Architecture
 - SDK Overview — docs/SDK_OVERVIEW.md
 - Architecture — docs/ARCHITECTURE.md
 - Repo Structure — docs/REPO_STRUCTURE.md
+ - Metrics — docs/METRICS.md
 
 ## Manifests, Lifecycle, Webhooks
 - Manifest & Lifecycle — docs/MANIFEST_AND_LIFECYCLE.md
@@ -27,6 +29,8 @@ Quick index for contributors and AI agents.
 ## CI & Coverage
 - CI Overview — docs/CI_OVERVIEW.md
 - Coverage badge and publishing (Pages) — documented in CI Overview
+- FAQ — docs/FAQ.md
+ - Branch Protection — docs/BRANCH_PROTECTION.md
 
 ## AI Workflow
 - AI PR Checklist — docs/AI_PR_CHECKLIST.md
@@ -35,6 +39,8 @@ Quick index for contributors and AI agents.
 - Security Checklist — docs/SECURITY_CHECKLIST.md
 - Production Deployment — docs/PRODUCTION-DEPLOYMENT.md
 - PostgreSQL Guide — docs/POSTGRESQL_GUIDE.md
+- Local Secrets & Config — docs/LOCAL_SECRETS.md
+- Release Checklist — docs/RELEASE_CHECKLIST.md
 
 ## Add‑on Modules
 - Template — addons/_template-addon/README.md

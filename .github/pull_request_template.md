@@ -1,26 +1,37 @@
 ## Summary
 
-- [ ] Feature/fix summary and scope
-- [ ] Linked issue(s):
+- [ ] Concise title (fix/feat/docs/build/ci)
+- [ ] Brief description of what changed and why (1–3 bullets)
 
-## Pre‑merge checklist (please tick all)
+## Validation Proof
 
-- [ ] Java 17 in use locally (`java -version` shows 17.x)
-- [ ] Maven uses Java 17 (`mvn -version` shows 17.x)
-- [ ] Toolchains configured or CI runner uses Java 17 (see docs/BUILD_ENVIRONMENT.md)
-- [ ] Manifests validated: `python3 tools/validate-manifest.py` → OK only
-- [ ] Module tests: `mvn -e -DtrimStackTrace=false -pl addons/addon-sdk -am test` → 0 failures
-- [ ] Full build: `mvn -e -DtrimStackTrace=false -fae verify` → BUILD SUCCESS
-- [ ] No `$schema` in runtime manifests; schemaVersion is `"1.3"`
+Paste exact command/output snippets after running locally:
 
-## Outputs (paste or attach)
+- [ ] `python3 tools/validate-manifest.py` → OK
+- [ ] `make smoke` → all 3 modules pass
+- [ ] `mvn -e -pl addons/addon-sdk -am test` → 0 failures, 0 errors
+- [ ] `mvn -e -fae verify` → BUILD SUCCESS
 
-- Manifest validator output
-- Surefire summaries (if any failed previously)
-- `java -version` and `mvn -version`
+## Checklist
 
-## Notes for reviewers
+- [ ] Manifests omit `$schema` and include `schemaVersion: "1.3"`
+- [ ] Java 17 toolchain in place (Maven + test fork)
+- [ ] Docs updated (AI START HERE/Recipes if behavior or routes changed)
+- [ ] Security surfaces (CSP, rate limiting, signature verification) preserved or improved
+- [ ] Minimal scopes and correct plan for the feature set
 
-- Anything special about environment, credentials, or steps
-- Any follow‑ups needed (tests, docs, CI)
+## Release Notes (draft)
+
+Provide a short user‑facing changelog block (see docs/RELEASE_NOTES_TEMPLATE.md):
+
+```
+### Highlights
+- ...
+
+### Changes
+- ...
+
+### Upgrade Notes
+- ...
+```
 

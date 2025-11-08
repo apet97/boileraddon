@@ -64,6 +64,11 @@ addon.registerCustomEndpoint("/manifest.json", new DefaultManifestController(add
 
 `DefaultManifestController` computes `baseUrl` per request (useful behind proxies) so your manifest always points to the correct public URL.
 
+Base URL and context path:
+- Set `baseUrl` to your public URL including the add‑on context path (e.g., `https://YOUR.ngrok-free.app/rules`).
+- The embedded server derives the servlet context path from the URL path portion. If the path is empty, `/` is used.
+- Avoid trailing slashes in `baseUrl` (the boilerplate trims duplications); keep a single context path segment per add‑on module.
+
 ## Per‑Addon Variations (Zero‑Shot Friendly)
 
 Different add‑ons require different permissions (scopes), minimum subscription plans, UI components, and webhook subscriptions. The SDK’s manifest builder and registration helpers are designed to make this trivial and zero‑shot for each module.

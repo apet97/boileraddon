@@ -1,0 +1,36 @@
+- name: breaking-change
+  color: d73a4a
+  description: Breaking change requiring action
+
+- name: feature
+  color: 0e8a16
+  description: New functionality
+
+- name: enhancement
+  color: 84b6eb
+  description: Improvement to existing behavior
+
+- name: bugfix
+  color: d73a4a
+  description: Bug fix
+
+- name: fix
+  color: d73a4a
+  description: Minor fix (non-breaking)
+
+- name: docs
+  color: 0075ca
+  description: Documentation changes
+
+- name: build
+  color: 5319e7
+  description: Build or dependency updates
+
+- name: ci
+  color: fbca04
+  description: CI configuration or checks
+
+- name: chore
+  color: cfd3d7
+  description: Maintenance, no production behavior change
+

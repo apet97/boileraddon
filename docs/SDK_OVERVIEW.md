@@ -24,6 +24,12 @@ Routing note:
 
 Attach filters to the `EmbeddedServer` before start so they protect all routes (manifest, lifecycle, custom endpoints, webhooks).
 
+## Metrics
+
+- Micrometer Prometheus registry is exposed via `/metrics` using `MetricsHandler`.
+- Built‑in webhook counters/timer are recorded automatically.
+- Add your own counters/timers using `MetricsHandler.registry()` (see docs/METRICS.md for snippets).
+
 ## Security Utilities
 
 Consolidated in the SDK (preferred for all modules):
