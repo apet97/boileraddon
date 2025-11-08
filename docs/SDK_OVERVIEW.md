@@ -48,6 +48,10 @@ Usage patterns:
 - Auto-Tag Assistant — reference wiring for manifest, lifecycle, settings UI, and webhooks.
 - Rules Add-on — shows evaluator-driven automation and a dry-run endpoint at `/rules/api/test`.
 
+## HTTP Client
+
+- ClockifyHttpClient — minimal wrapper over Java 17 HttpClient with sane timeouts and retries for 429/5xx. Always sends `x-addon-token` header. Use for reads/writes against `{apiBaseUrl}` stored per workspace via TokenStore.
+
 ## Environment Flags (summary)
 
 - ADDON_BASE_URL — external base URL for this module (e.g., ngrok HTTPS URL).
@@ -64,4 +68,3 @@ Usage patterns:
 - Production deployment: docs/PRODUCTION-DEPLOYMENT.md
 - Token storage: docs/DATABASE_TOKEN_STORE.md
 - Quick reference: docs/QUICK-REFERENCE.md
-

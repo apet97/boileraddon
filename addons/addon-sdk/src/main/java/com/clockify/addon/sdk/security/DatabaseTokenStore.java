@@ -10,7 +10,7 @@ import java.util.Optional;
  * Example JDBC-backed TokenStore. Requires a JDBC driver on the runtime classpath.
  * Provides a basic schema and naive upsert; adapt for your target database.
  */
-public class DatabaseTokenStore implements TokenStore {
+public class DatabaseTokenStore implements TokenStoreSPI {
     private static final Logger log = LoggerFactory.getLogger(DatabaseTokenStore.class);
 
     private final String url;
@@ -108,4 +108,3 @@ public class DatabaseTokenStore implements TokenStore {
         return v;
     }
 }
-

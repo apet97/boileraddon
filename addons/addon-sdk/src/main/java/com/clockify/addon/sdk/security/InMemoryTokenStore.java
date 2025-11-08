@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * In-memory demo implementation. Not suitable for production.
  */
-public class InMemoryTokenStore implements TokenStore {
+public class InMemoryTokenStore implements TokenStoreSPI {
     private final Map<String, String> tokenByWorkspace = new ConcurrentHashMap<>();
 
     @Override
@@ -33,4 +33,3 @@ public class InMemoryTokenStore implements TokenStore {
         tokenByWorkspace.remove(workspaceId);
     }
 }
-

@@ -99,6 +99,9 @@ public class RulesApp {
             }
         });
 
+        // POST /rules/api/test — dry-run evaluation (no side effects)
+        addon.registerCustomEndpoint("/api/test", rulesController.testRules());
+
         // POST /rules/lifecycle/installed & /lifecycle/deleted - Lifecycle events
         LifecycleHandlers.register(addon, rulesStore);
 
