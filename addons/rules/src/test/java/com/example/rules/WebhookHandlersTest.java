@@ -268,4 +268,61 @@ class WebhookHandlersTest {
         when(request.getInputStream()).thenReturn(inputStream);
         when(request.getReader()).thenReturn(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(bytes))));
     }
+
+    @Test
+    void testWebhook_acceptsDeveloperJwtSignature() throws Exception {
+        String workspaceId = "workspace-1";
+        String authToken = "test-token";
+
+        // Provide stored token (required by validator even when accepting JWT header)
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
+
+        String payload = """
+            {
+                "workspaceId": "workspace-1",
+                "event": "NEW_TIME_ENTRY",
+                "timeEntry": { "id": "e1", "description": "hello", "tagIds": [] }
+            }
+            """;
+
+        // Craft a minimal JWT with base64url payload containing the workspaceId; signature ignored by validator
+        String headerJson = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
+        String payloadJson = "{\"workspaceId\":\"" + workspaceId + "\"}";
+        java.util.Base64.Encoder urlEnc = java.util.Base64.getUrlEncoder().withoutPadding();
+        String jwt = urlEnc.encodeToString(headerJson.getBytes()) + "." + urlEnc.encodeToString(payloadJson.getBytes()) + ".x";
+
+        // Mock request with JWT header instead of HMAC header
+        when(request.getHeader("clockify-webhook-signature")).thenReturn(null);
+        when(request.getHeader("Clockify-Signature")).thenReturn(jwt);
+        when(request.getAttribute("clockify.rawBody")).thenReturn(payload);
+        JsonNode jsonNode = mapper.readTree(payload);
+        when(request.getAttribute("clockify.jsonBody")).thenReturn(jsonNode);
+
+        byte[] bytes = payload.getBytes();
+        ServletInputStream inputStream = new ServletInputStream() {
+            private final ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+            @Override public int read() { return bis.read(); }
+            @Override public boolean isFinished() { return bis.available() == 0; }
+            @Override public boolean isReady() { return true; }
+            @Override public void setReadListener(jakarta.servlet.ReadListener readListener) { }
+        };
+        when(request.getInputStream()).thenReturn(inputStream);
+        when(request.getReader()).thenReturn(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(bytes))));
+
+        // Wire add-on and handler
+        ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+                .key("rules").name("Rules").description("Test")
+                .baseUrl("http://localhost:8080/rules")
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ"})
+                .build();
+
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        WebhookHandlers.register(addon, store);
+
+        HttpResponse response = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
+        assertEquals(200, response.getStatusCode());
+        JsonNode out = mapper.readTree(response.getBody());
+        assertTrue(out.has("status"));
+    }
 }
