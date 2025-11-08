@@ -58,6 +58,17 @@ curl http://localhost:8080/auto-tag-assistant/settings
 
 Prefer to start from a blank slate? Use the Java template under `addons/_template-addon/`.
 
+### Scaffold a new add-on
+
+Automate the copy/rename steps with the helper script:
+
+```bash
+scripts/new-addon.sh my-addon "My Add-on"
+```
+
+The script clones the template module, updates the Maven coordinates, rewrites the Java package/class names, and registers the
+module in the parent `pom.xml` so it builds alongside the rest of the project.
+
 ```bash
 # Build only the template
 mvn -pl addons/_template-addon package -DskipTests
