@@ -21,16 +21,19 @@ A clean, self-contained starting point for building Clockify add-ons with **zero
    ```bash
    mvn clean package -DskipTests
    ```
-3. **Run the Auto-Tag Assistant example**
-   ```bash
-   ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/auto-tag-assistant \
-   java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
-   ```
-4. **Expose the server to Clockify (second terminal)**
+3. **Expose the server to Clockify (second terminal)**
    ```bash
    ngrok http 8080
    ```
-5. **Install in Clockify** – Copy the HTTPS URL from ngrok and provide `https://<your-domain>/auto-tag-assistant/manifest.json` when installing a custom add-on in **Admin → Add-ons**.
+   Copy the HTTPS forwarding domain that ngrok prints (for example `https://abc123.ngrok-free.app`).
+4. **Run the Auto-Tag Assistant example with the ngrok URL**
+   ```bash
+   ADDON_PORT=8080 ADDON_BASE_URL=https://abc123.ngrok-free.app/auto-tag-assistant \
+   java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
+   ```
+   If you already started the JAR before launching ngrok, stop it and restart with the HTTPS domain so the generated manifest
+   points to the public URL.
+5. **Install in Clockify** – Provide `https://abc123.ngrok-free.app/auto-tag-assistant/manifest.json` when installing a custom add-on in **Admin → Add-ons**.
 
 The runtime manifest served at `/auto-tag-assistant/manifest.json` is already schema-compliant and omits `$schema`, so Clockify accepts it without modification.
 
