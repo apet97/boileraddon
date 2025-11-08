@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Entry Details</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 14px;
+            color: #333;
+            background: #f5f7fa;
+            padding: 16px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1a1a1a;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat {
+            padding: 12px;
+            background: #f5f7fa;
+            border-radius: 6px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #666;
+            font-size: 13px;
+        }
+
+        .info-value {
+            font-weight: 500;
+            text-align: right;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+
+        .tags-container {
+            margin-top: 8px;
+        }
+
+        .action-button {
+            width: 100%;
+            padding: 10px;
+            background: #03A9F4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+
+        .action-button:hover {
+            background: #0288D1;
+        }
+
+        .action-button.secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .action-button.secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #03A9F4;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge.billable {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .badge.non-billable {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 12px;">Loading entry details...</p>
+    </div>
+
+    <div id="content" style="display: none;">
+        <div class="card">
+            <h2>Time Entry Analytics</h2>
+            <div class="stat-grid">
+                <div class="stat">
+                    <div class="stat-label">Duration</div>
+                    <div class="stat-value" id="duration">-</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Cost</div>
+                    <div class="stat-value" id="cost">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Entry Details</h2>
+            <div class="info-row">
+                <span class="info-label">Description</span>
+                <span class="info-value" id="description">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Project</span>
+                <span class="info-value" id="project">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status</span>
+                <span class="info-value" id="billable">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Tags</span>
+                <div class="tags-container" id="tags">
+                    <span class="tag">meeting</span>
+                    <span class="tag">development</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Quick Actions</h2>
+            <button class="action-button" onclick="suggestTags()">
+                Suggest Tags
+            </button>
+            <button class="action-button secondary" onclick="exportEntry()">
+                Export Entry
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Get parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const jwt = urlParams.get('jwt');
+        const timeEntryId = urlParams.get('timeEntryId');
+
+        // Parse JWT
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                ).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error('Failed to parse JWT:', e);
+                return null;
+            }
+        }
+
+        const userContext = jwt ? parseJwt(jwt) : null;
+
+        // Load time entry details
+        async function loadTimeEntry() {
+            try {
+                const response = await fetch(`/addon/api/time-entry/${timeEntryId}?workspaceId=${userContext.workspaceId}`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to load time entry');
+                }
+
+                const entry = await response.json();
+                displayTimeEntry(entry);
+
+            } catch (error) {
+                console.error('Error loading time entry:', error);
+                document.getElementById('loading').innerHTML =
+                    '<p style="color: #c62828;">Failed to load entry details</p>';
+            }
+        }
+
+        function displayTimeEntry(entry) {
+            // Hide loading, show content
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+
+            // Update duration
+            const duration = parseDuration(entry.timeInterval.duration);
+            document.getElementById('duration').textContent = formatDuration(duration);
+
+            // Calculate cost
+            const hours = duration / 3600;
+            const costAmount = (entry.hourlyRate.amount / 100) * hours;
+            document.getElementById('cost').textContent =
+                `${entry.hourlyRate.currency} ${costAmount.toFixed(2)}`;
+
+            // Update details
+            document.getElementById('description').textContent = entry.description || '(no description)';
+            document.getElementById('project').textContent = entry.projectName || '(no project)';
+
+            // Update billable status
+            const billableEl = document.getElementById('billable');
+            if (entry.billable) {
+                billableEl.innerHTML = '<span class="badge billable">BILLABLE</span>';
+            } else {
+                billableEl.innerHTML = '<span class="badge non-billable">NON-BILLABLE</span>';
+            }
+
+            // Update tags
+            const tagsEl = document.getElementById('tags');
+            if (entry.tags && entry.tags.length > 0) {
+                tagsEl.innerHTML = entry.tags.map(tag =>
+                    `<span class="tag">${tag.name}</span>`
+                ).join('');
+            } else {
+                tagsEl.innerHTML = '<span style="color: #999; font-size: 12px;">No tags</span>';
+            }
+        }
+
+        function parseDuration(duration) {
+            // Parse ISO 8601 duration (e.g., "PT2H30M")
+            const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+            if (!match) return 0;
+            const hours = parseInt(match[1] || 0);
+            const minutes = parseInt(match[2] || 0);
+            const seconds = parseInt(match[3] || 0);
+            return hours * 3600 + minutes * 60 + seconds;
+        }
+
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${hours}h ${minutes}m`;
+        }
+
+        function suggestTags() {
+            alert('Tag suggestion feature would analyze the description and suggest relevant tags');
+        }
+
+        function exportEntry() {
+            alert('Export feature would generate a report or export data in various formats');
+        }
+
+        // Load entry on page load
+        if (userContext && timeEntryId) {
+            loadTimeEntry();
+        } else {
+            document.getElementById('loading').innerHTML =
+                '<p style="color: #c62828;">Missing required parameters</p>';
+        }
+    </script>
+</body>
+</html>
