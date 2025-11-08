@@ -110,10 +110,7 @@ docker-run:
                 $(DOCKER_IMAGE)
 
 dev: build-template
-	@if [ ! -f .env ]; then \
-		echo "Missing .env file. Run: cp .env.example .env"; \
-		exit 1; \
-	fi
+	@test -f .env || (echo "Missing .env file. Run: cp .env.example .env"; exit 1)
 	@echo "Starting _template-addon with settings from .env..."
 	@bash -c 'set -a; source .env; set +a; java -jar addons/_template-addon/target/_template-addon-0.1.0-jar-with-dependencies.jar'
 
