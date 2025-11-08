@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -71,8 +72,9 @@ public class AddonServlet extends HttpServlet {
         }
 
         if ("POST".equalsIgnoreCase(req.getMethod())) {
-            if ("/webhook".equals(path)) {
-                return handleWebhook(req);
+            HttpResponse webhookResponse = tryHandleWebhook(req, path);
+            if (webhookResponse != null) {
+                return webhookResponse;
             }
 
             HttpResponse lifecycleResponse = tryHandleLifecycle(req, path);
@@ -82,6 +84,30 @@ public class AddonServlet extends HttpServlet {
         }
 
         return HttpResponse.error(404, "Endpoint not found: " + path);
+    }
+
+    private HttpResponse tryHandleWebhook(HttpServletRequest req, String path) throws Exception {
+        Map<String, RequestHandler> handlersForPath = addon.getWebhookHandlersByPath().get(path);
+        boolean usingDefaultPath = ClockifyAddon.DEFAULT_WEBHOOK_PATH.equals(path);
+
+        if (handlersForPath == null && !usingDefaultPath) {
+            handlersForPath = addon.getWebhookHandlersByPath().get(ClockifyAddon.DEFAULT_WEBHOOK_PATH);
+            usingDefaultPath = true;
+        }
+
+        if (handlersForPath == null && usingDefaultPath) {
+            handlersForPath = addon.getWebhookHandlers();
+        }
+
+        if (handlersForPath == null) {
+            return null;
+        }
+
+        if (handlersForPath.isEmpty() && !usingDefaultPath) {
+            return null;
+        }
+
+        return handleWebhook(req, handlersForPath);
     }
 
     private HttpResponse tryHandleLifecycle(HttpServletRequest req, String path) throws Exception {
@@ -150,7 +176,7 @@ public class AddonServlet extends HttpServlet {
         return HttpResponse.ok(responseBody, "application/json");
     }
 
-    private HttpResponse handleWebhook(HttpServletRequest req) throws Exception {
+    private HttpResponse handleWebhook(HttpServletRequest req, Map<String, RequestHandler> handlers) throws Exception {
         JsonNode json;
         try {
             json = readAndCacheJsonBody(req);
@@ -190,7 +216,7 @@ public class AddonServlet extends HttpServlet {
             return HttpResponse.error(400, "Missing webhook event type");
         }
 
-        RequestHandler handler = addon.getWebhookHandlers().get(event);
+        RequestHandler handler = handlers.get(event);
         if (handler != null) {
             return handler.handle(req);
         }

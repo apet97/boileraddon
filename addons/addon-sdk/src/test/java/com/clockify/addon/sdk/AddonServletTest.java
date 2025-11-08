@@ -138,6 +138,78 @@ class AddonServletTest {
     }
 
     @Test
+    void webhookRoutesByPathAndUpdatesManifest() throws Exception {
+        int port = findFreePort();
+        String contextPath = "/auto-tag-assistant";
+        String baseUrl = "http://localhost:" + port + contextPath;
+
+        ClockifyManifest manifest = ClockifyManifest
+                .v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Test manifest")
+                .baseUrl(baseUrl)
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ"})
+                .build();
+
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        addon.registerWebhookHandler("TIME_ENTRY_CREATED", request -> HttpResponse.ok("default-handler"));
+        addon.registerWebhookHandler("PROJECT_CREATED", "/project-webhook", request -> HttpResponse.ok("project-handler"));
+
+        assertEquals(2, manifest.getWebhooks().size());
+        ClockifyManifest.WebhookEndpoint defaultEndpoint = manifest.getWebhooks().stream()
+                .filter(endpoint -> "TIME_ENTRY_CREATED".equals(endpoint.getEvent()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("/webhook", defaultEndpoint.getPath());
+
+        ClockifyManifest.WebhookEndpoint projectEndpoint = manifest.getWebhooks().stream()
+                .filter(endpoint -> "PROJECT_CREATED".equals(endpoint.getEvent()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("/project-webhook", projectEndpoint.getPath());
+
+        AddonServlet servlet = new AddonServlet(addon);
+        EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<?> serverFuture = executor.submit(() -> {
+            try {
+                server.start(port);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        waitForServer(port);
+
+        try {
+            HttpURLConnection projectConnection = openWebhookConnection(baseUrl + "/project-webhook");
+            projectConnection.setRequestProperty("clockify-webhook-event-type", "PROJECT_CREATED");
+            writeRequestBody(projectConnection, "{}");
+
+            int projectStatus = projectConnection.getResponseCode();
+            String projectResponse = readBody(projectConnection, projectStatus);
+
+            assertEquals(200, projectStatus);
+            assertEquals("project-handler", projectResponse);
+
+            HttpURLConnection defaultConnection = openWebhookConnection(baseUrl + "/webhook");
+            defaultConnection.setRequestProperty("clockify-webhook-event-type", "TIME_ENTRY_CREATED");
+            writeRequestBody(defaultConnection, "{}");
+
+            int defaultStatus = defaultConnection.getResponseCode();
+            String defaultResponse = readBody(defaultConnection, defaultStatus);
+
+            assertEquals(200, defaultStatus);
+            assertEquals("default-handler", defaultResponse);
+        } finally {
+            stopServer(server, serverFuture, executor);
+        }
+    }
+
+    @Test
     void webhookReturnsBadRequestWhenEventMissing() throws Exception {
         int port = findFreePort();
         String contextPath = "/auto-tag-assistant";
