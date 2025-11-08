@@ -31,6 +31,39 @@ PY
 
 PYTHONPATH="$STUB_ENV_DIR${PYTHONPATH:+:$PYTHONPATH}" scripts/new-addon.sh "$TMP_NAME" "$DISPLAY_NAME" >/dev/null
 
+MANIFEST_PATH="addons/$TMP_NAME/manifest.json"
+
+python3 - "$MANIFEST_PATH" "$DISPLAY_NAME" <<'PY'
+import json
+import sys
+
+manifest_path, expected_label = sys.argv[1:3]
+
+with open(manifest_path, "r", encoding="utf-8") as fh:
+    manifest = json.load(fh)
+
+missing = [field for field in ("key", "name", "baseUrl", "components") if field not in manifest]
+if missing:
+    print(
+        "Smoke test failed: manifest missing required fields: " + ", ".join(missing),
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+components = manifest.get("components")
+if not isinstance(components, list) or not components:
+    print("Smoke test failed: manifest.components must be a non-empty list.", file=sys.stderr)
+    sys.exit(1)
+
+labels = [comp.get("label") for comp in components if isinstance(comp, dict) and "label" in comp]
+if expected_label not in labels:
+    print(
+        f"Smoke test failed: expected component label '{expected_label}' not found in manifest.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+PY
+
 CLASS_SOURCE=$(echo "$TMP_NAME" | tr -cd '[:alnum:]_-')
 CLASS_PREFIX=$(echo "$CLASS_SOURCE" | tr '_-' ' ' | awk '{for (i = 1; i <= NF; i++) { if ($i != "") { printf "%s%s", toupper(substr($i, 1, 1)), substr($i, 2); } }}')
 if [ -z "$CLASS_PREFIX" ]; then
