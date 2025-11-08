@@ -1,7 +1,7 @@
 package com.example.autotagassistant;
 
-import com.example.autotagassistant.sdk.ClockifyManifest;
-import com.example.autotagassistant.sdk.HttpResponse;
+import com.clockify.addon.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.HttpResponse;
 import org.junit.jupiter.api.Test;
 
 import jakarta.servlet.AsyncContext;

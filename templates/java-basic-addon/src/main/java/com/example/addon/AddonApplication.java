@@ -1,10 +1,10 @@
 package com.example.addon;
 
-import com.example.addon.sdk.AddonServlet;
-import com.example.addon.sdk.ClockifyAddon;
-import com.example.addon.sdk.ClockifyManifest;
-import com.example.addon.sdk.EmbeddedServer;
-import com.example.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.AddonServlet;
+import com.clockify.addon.sdk.ClockifyAddon;
+import com.clockify.addon.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.EmbeddedServer;
+import com.clockify.addon.sdk.HttpResponse;
 
 public class AddonApplication {
     public static void main(String[] args) throws Exception {

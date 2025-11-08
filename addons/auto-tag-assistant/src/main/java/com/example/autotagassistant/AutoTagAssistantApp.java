@@ -1,9 +1,10 @@
 package com.example.autotagassistant;
 
-import com.example.autotagassistant.sdk.AddonServlet;
-import com.example.autotagassistant.sdk.EmbeddedServer;
-import com.example.autotagassistant.sdk.ClockifyAddon;
-import com.example.autotagassistant.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.AddonServlet;
+import com.clockify.addon.sdk.EmbeddedServer;
+import com.clockify.addon.sdk.ClockifyAddon;
+import com.clockify.addon.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.HttpResponse;
 
 /**
  * Auto-Tag Assistant Add-on
@@ -61,7 +62,7 @@ public class AutoTagAssistantApp {
 
         // Health check
         addon.registerCustomEndpoint("/health", request ->
-                com.example.autotagassistant.sdk.HttpResponse.ok("Auto-Tag Assistant is running"));
+                HttpResponse.ok("Auto-Tag Assistant is running"));
 
         // Extract context path from base URL
         // Example: http://localhost:8080/auto-tag-assistant -> /auto-tag-assistant

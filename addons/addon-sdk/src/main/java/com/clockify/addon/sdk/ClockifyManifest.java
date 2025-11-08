@@ -1,4 +1,4 @@
-package com.example.autotagassistant.sdk;
+package com.clockify.addon.sdk;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -8,9 +8,25 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Clockify Add-on Manifest Model (v1.3)
- *
- * This is a simplified manifest builder that doesn't require annotation processing.
+ * Manifest builder for Clockify add-ons (schema version {@code 1.3}).
+ * <p>
+ * The model provides a fluent builder that mirrors the JSON manifest Clockify
+ * expects. Declarative registration of lifecycle and webhook endpoints happens
+ * automatically when using {@link ClockifyAddon}.
+ * </p>
+ * <p>
+ * Example usage:
+ * </p>
+ * <pre>{@code
+ * ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+ *     .key("my-addon")
+ *     .name("My Add-on")
+ *     .description("Greets users")
+ *     .baseUrl("https://example.com/my-addon")
+ *     .minimalSubscriptionPlan("FREE")
+ *     .scopes(new String[]{"WORKSPACE_READ"})
+ *     .build();
+ * }</pre>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ClockifyManifest {

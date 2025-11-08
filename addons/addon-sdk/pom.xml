@@ -11,17 +11,12 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>auto-tag-assistant</artifactId>
+  <artifactId>addon-sdk</artifactId>
   <version>0.1.0</version>
-  <name>auto-tag-assistant</name>
+  <name>addon-sdk</name>
+  <packaging>jar</packaging>
 
   <dependencies>
-    <dependency>
-      <groupId>com.clockify.boilerplate</groupId>
-      <artifactId>addon-sdk</artifactId>
-      <version>0.1.0</version>
-    </dependency>
-    <!-- All dependencies from Maven Central - NO external SDK needed -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
@@ -33,28 +28,26 @@
       <version>2.17.1</version>
     </dependency>
     <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <version>5.0.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-server</artifactId>
       <version>11.0.20</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
       <version>11.0.20</version>
-    </dependency>
-    <dependency>
-      <groupId>jakarta.servlet</groupId>
-      <artifactId>jakarta.servlet-api</artifactId>
-      <version>5.0.0</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>2.0.13</version>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
       <version>2.0.13</version>
     </dependency>
     <dependency>
@@ -69,38 +62,11 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.11.0</version>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.6.0</version>
-        <configuration>
-          <archive>
-            <manifest>
-              <mainClass>com.example.autotagassistant.AutoTagAssistantApp</mainClass>
-            </manifest>
-          </archive>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
-        </configuration>
-        <executions>
-          <execution>
-            <id>make-assembly</id>
-            <phase>package</phase>
-            <goals>
-              <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
-        <configuration><useModulePath>false</useModulePath></configuration>
+        <configuration>
+          <useModulePath>false</useModulePath>
+        </configuration>
       </plugin>
     </plugins>
   </build>

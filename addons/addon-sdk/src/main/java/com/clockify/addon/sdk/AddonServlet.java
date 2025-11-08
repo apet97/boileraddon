@@ -1,4 +1,4 @@
-package com.example.autotagassistant.sdk;
+package com.clockify.addon.sdk;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,13 +12,34 @@ import java.io.IOException;
 import java.util.stream.Collectors;
 
 /**
- * Main servlet that routes requests to registered handlers.
+ * Primary servlet entry point that routes HTTP requests to {@link RequestHandler}
+ * implementations registered on a {@link ClockifyAddon} instance.
+ * <p>
+ * Typical usage embeds the servlet in a Jetty server via {@link EmbeddedServer}:
+ * </p>
+ * <pre>{@code
+ * ClockifyAddon addon = new ClockifyAddon(manifest);
+ * ObjectMapper mapper = new ObjectMapper();
+ * addon.registerCustomEndpoint("/manifest.json", request ->
+ *     HttpResponse.ok(mapper.writeValueAsString(manifest), "application/json"));
+ * addon.registerWebhookHandler("TIME_ENTRY_UPDATED", request -> HttpResponse.ok("handled"));
+ *
+ * AddonServlet servlet = new AddonServlet(addon);
+ * new EmbeddedServer(servlet, "/my-addon").start(8080);
+ * }</pre>
+ * The servlet automatically wires lifecycle and webhook handlers that were
+ * previously registered on the {@link ClockifyAddon}.
  */
 public class AddonServlet extends HttpServlet {
     private static final Logger logger = LoggerFactory.getLogger(AddonServlet.class);
     private final ClockifyAddon addon;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * Creates a new servlet wrapper around the provided add-on instance.
+     *
+     * @param addon configured add-on containing registered handlers
+     */
     public AddonServlet(ClockifyAddon addon) {
         this.addon = addon;
     }

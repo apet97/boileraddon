@@ -1,6 +1,6 @@
 # Clockify Add-on Boilerplate
 
-A clean, **truly self-contained** boilerplate for building Clockify add-ons with **ZERO external authentication required**. Uses a minimal inline SDK with **Maven Central dependencies ONLY** - no GitHub Packages, no private artifacts, no hidden prerequisites.
+A clean, **truly self-contained** boilerplate for building Clockify add-ons with **ZERO external authentication required**. Uses an in-repo SDK module with **Maven Central dependencies ONLY** - no GitHub Packages, no private artifacts, no hidden prerequisites.
 
 ## Quick Start (ONE Command)
 
@@ -38,7 +38,7 @@ ngrok http 8080
 ## What's Included
 
 - ✅ **Working Example**: `addons/auto-tag-assistant/` - A complete auto-tagging add-on
-- ✅ **Inline SDK**: Minimal SDK directly in auto-tag-assistant - no external dependencies
+- ✅ **SDK Module**: `addons/addon-sdk` shared by all add-ons - no external dependencies
 - ✅ **Maven Central Only**: All dependencies from public Maven Central (Jackson, Jetty, SLF4J)
 - ✅ **No Annotation Processing**: Simple Java 17 classes and builders
 - ✅ **No Lombok**: No reflection magic, just plain Java
@@ -51,13 +51,14 @@ boileraddon/
 ├── pom.xml                                    # Multi-module parent POM
 ├── README.md                                  # This file
 │
-└── addons/
-    └── auto-tag-assistant/                    # Working example add-on
-        ├── pom.xml                            # Maven Central dependencies only
-        ├── README.md                          # Detailed implementation guide
-        └── src/main/java/
-            └── com/example/autotagassistant/
-                ├── sdk/                       # Inline minimal SDK
+├── addons/
+│   ├── addon-sdk/                             # Shared SDK module
+│   └── auto-tag-assistant/                    # Working example add-on
+│       ├── pom.xml                            # Maven Central dependencies only
+│       ├── README.md                          # Detailed implementation guide
+│       └── src/main/java/
+│           └── com/example/autotagassistant/
+│               ├── ...                        # Add-on logic consuming the SDK
                 │   ├── ClockifyAddon.java
                 │   ├── ClockifyManifest.java
                 │   ├── AddonServlet.java
@@ -87,11 +88,11 @@ boileraddon/
 - ❌ External SDK installation
 - ❌ Manual ~/.m2/settings.xml configuration
 
-## Architecture: Inline SDK
+## Architecture: In-Repo SDK Module
 
-This boilerplate uses a **minimal inline SDK** approach instead of external dependencies:
+This boilerplate ships a **first-party SDK module** instead of relying on external artifacts:
 
-### Why Inline SDK?
+### Why In-Repo SDK?
 
 **Before (External SDK Problems):**
 - Required `com.cake.clockify:addon-sdk` from GitHub Packages
@@ -99,8 +100,8 @@ This boilerplate uses a **minimal inline SDK** approach instead of external depe
 - Circular dependencies between SDK modules
 - Hidden authentication requirements
 
-**Now (Inline SDK Benefits):**
-- ✅ All SDK code directly in `src/main/java/.../sdk/`
+**Now (In-Repo SDK Benefits):**
+- ✅ All SDK code lives in `addons/addon-sdk`
 - ✅ No annotation processing complexity
 - ✅ Simple, readable, customizable
 - ✅ Maven Central dependencies only
@@ -108,10 +109,10 @@ This boilerplate uses a **minimal inline SDK** approach instead of external depe
 
 ### SDK Components
 
-The inline SDK provides everything needed for Clockify add-ons:
+The SDK module provides everything needed for Clockify add-ons:
 
 ```
-src/main/java/com/example/autotagassistant/sdk/
+addons/addon-sdk/src/main/java/com/clockify/addon/sdk/
 ├── ClockifyAddon.java          # Main addon coordinator
 ├── ClockifyManifest.java       # Manifest model with builder
 ├── AddonServlet.java           # HTTP servlet for routing
