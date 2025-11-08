@@ -87,3 +87,26 @@ rm -rf ~/.m2/repository/org/jacoco ~/.m2/repository/org/apache/maven/surefire
 ```
 
 - On newer JDKs locally, if Mockito fails to mock classes, use the subclass mock-maker under `src/test/resources/mockito-extensions` and (optionally) set `net.bytebuddy.experimental=true` in Surefire.
+
+## DB Integration Tests (PostgreSQL)
+
+When testing JDBC-backed stores, prefer Testcontainers to run against a real PostgreSQL:
+
+```
+<dependencies>
+  <dependency>
+    <groupId>org.testcontainers</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <version>1.20.2</version>
+    <scope>test</scope>
+  </dependency>
+  <dependency>
+    <groupId>org.testcontainers</groupId>
+    <artifactId>postgresql</artifactId>
+    <version>1.20.2</version>
+    <scope>test</scope>
+  </dependency>
+</dependencies>
+```
+
+See `DatabaseTokenStoreIT` in `addons/addon-sdk` for a concrete example. CI runs on GitHub Actions with Docker available, so Testcontainers works out of the box.

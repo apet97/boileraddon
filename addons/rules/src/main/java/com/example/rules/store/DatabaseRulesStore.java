@@ -40,7 +40,7 @@ public class DatabaseRulesStore implements RulesStoreSPI {
         if (url == null || url.isBlank()) {
             throw new IllegalStateException("Missing RULES_DB_URL or DB_URL");
         }
-        String user = getenvOr("RULES_DB_USERNAME", System.getenv("DB_USERNAME"));
+        String user = getenvOr("RULES_DB_USERNAME", getenvOr("DB_USER", System.getenv("DB_USERNAME")));
         String pass = getenvOr("RULES_DB_PASSWORD", System.getenv("DB_PASSWORD"));
         return new DatabaseRulesStore(url, user, pass);
     }
@@ -202,4 +202,3 @@ public class DatabaseRulesStore implements RulesStoreSPI {
         return (v == null || v.isBlank()) ? fallback : v;
     }
 }
-

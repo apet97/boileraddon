@@ -1,0 +1,30 @@
+name: db-migrate
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (informational)"
+        required: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      DB_URL: ${{ secrets.DB_URL }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Run Flyway migrations (POM profile)
+        run: |
+          if [ -z "$DB_URL" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+            echo "DB_URL/DB_USER/DB_PASSWORD secrets are required" >&2
+            exit 2
+          fi
+          mvn -B -Pflyway -DskipTests flyway:migrate

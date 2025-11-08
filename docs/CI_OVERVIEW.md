@@ -23,6 +23,10 @@ This repository runs three workflows:
   - Generates `docs/coverage/badge.svg` and `docs/coverage/summary.json` from the `jacoco.xml` (falls back to N/A if missing).
   - Builds the docs (Jekyll) and deploys the site to GitHub Pages.
 
+- db-migrate.yml — on-demand Flyway migrations (manual)
+  - Secure workflow that runs `mvn -Pflyway flyway:migrate` reading credentials from repository secrets.
+  - Provide `DB_URL`, `DB_USER`, and `DB_PASSWORD` as GitHub Secrets before triggering.
+
 Local equivalents
 - Manifests: `python3 tools/validate-manifest.py`
 - addon-sdk tests: `mvn -e -pl addons/addon-sdk -am test`
@@ -31,4 +35,3 @@ Local equivalents
 Troubleshooting
 - Ensure Java 17 for both Maven and the forked test JVM.
 - If the Pages badge shows `N/A`, ensure `build-and-test` ran on `main` and produced an artifact. Re-run `build-and-test` if necessary; Pages will follow.
-

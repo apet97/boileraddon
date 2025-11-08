@@ -154,6 +154,27 @@ services:
 
 - Use `.env` for local dev; do not commit real secrets.
 
+### Health endpoint with DB check
+
+Add the SDK `HealthCheck` endpoint and register a database provider to catch DB outages:
+
+```java
+HealthCheck health = new HealthCheck("my-addon", "1.0.0");
+health.addHealthCheckProvider(new HealthCheck.HealthCheckProvider() {
+  public String getName() { return "database"; }
+  public HealthCheck.HealthCheckResult check() {
+    try {
+      DatabaseTokenStore store = DatabaseTokenStore.fromEnvironment();
+      long count = store.count();
+      return new HealthCheck.HealthCheckResult("database", true, "Connected", count);
+    } catch (Exception e) {
+      return new HealthCheck.HealthCheckResult("database", false, e.getMessage());
+    }
+  }
+});
+addon.registerCustomEndpoint("/health", health);
+```
+
 ## 8) Backup & recovery
 
 - Automate backups (managed service snapshots or `pg_dump` + retention/rotation).

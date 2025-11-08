@@ -179,6 +179,7 @@ Dispatch model:
 | `/lifecycle/installed` | Lifecycle install callback | `lifecycle[]` item `{ type: "INSTALLED", path: "/lifecycle/installed" }` |
 | `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
 | `/webhook` | Webhook endpoint mount | One `webhooks[]` item per event with `path: "/webhook"` |
+| `/metrics` | Prometheus metrics scrape | Not listed in manifest |
 
 
 ## Webhook Registration

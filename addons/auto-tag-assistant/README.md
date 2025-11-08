@@ -208,7 +208,7 @@ Runtime manifest is served at `/{addon}/manifest.json` and auto‑updates as you
 | `/lifecycle/installed` | Lifecycle install callback | `lifecycle[]` item `{ type: "INSTALLED", path: "/lifecycle/installed" }` |
 | `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
 | `/webhook` | Time entry webhooks (NEW_TIMER_STARTED, TIMER_STOPPED, NEW_TIME_ENTRY, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
-| `/health` | Liveness/readiness check | Not listed in manifest (optional health endpoint) |
+| `/health` | Health endpoint (includes DB probe when DB_URL/DB_USER set) | Not listed in manifest |
 
 ## Checklist: Plan, Scopes, Events
 

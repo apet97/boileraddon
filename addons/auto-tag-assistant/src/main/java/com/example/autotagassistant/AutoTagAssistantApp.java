@@ -5,6 +5,9 @@ import com.clockify.addon.sdk.EmbeddedServer;
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.health.HealthCheck;
+import com.clockify.addon.sdk.security.DatabaseTokenStore;
+import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.ConfigValidator;
 
 /**
@@ -74,9 +77,28 @@ public class AutoTagAssistantApp {
 
         preloadLocalSecrets();
 
-        // Health check
-        addon.registerCustomEndpoint("/health", request ->
-                HttpResponse.ok("Auto-Tag Assistant is running"));
+        // Health check with optional DB connectivity probe
+        HealthCheck health = new HealthCheck("auto-tag-assistant", "0.1.0");
+        String dbUrl = System.getenv("DB_URL");
+        String dbUser = System.getenv().getOrDefault("DB_USER", System.getenv("DB_USERNAME"));
+        String dbPassword = System.getenv("DB_PASSWORD");
+        if (dbUrl != null && !dbUrl.isBlank() && dbUser != null && !dbUser.isBlank()) {
+            health.addHealthCheckProvider(new HealthCheck.HealthCheckProvider() {
+                @Override public String getName() { return "database"; }
+                @Override public HealthCheck.HealthCheckResult check() {
+                    try {
+                        DatabaseTokenStore store = new DatabaseTokenStore(dbUrl, dbUser, dbPassword);
+                        long n = store.count();
+                        return new HealthCheck.HealthCheckResult("database", true, "Connected", n);
+                    } catch (Exception e) {
+                        return new HealthCheck.HealthCheckResult("database", false, e.getMessage());
+                    }
+                }
+            });
+        }
+        addon.registerCustomEndpoint("/health", health);
+        // Prometheus metrics (optional; text/plain scrape)
+        addon.registerCustomEndpoint("/metrics", new MetricsHandler());
 
         // Extract context path from base URL
         // Example: http://localhost:8080/auto-tag-assistant -> /auto-tag-assistant

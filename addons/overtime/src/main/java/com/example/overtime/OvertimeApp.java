@@ -1,6 +1,8 @@
 package com.example.overtime;
 
 import com.clockify.addon.sdk.*;
+import com.clockify.addon.sdk.health.HealthCheck;
+import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.middleware.CorsFilter;
 import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
@@ -30,9 +32,12 @@ public class OvertimeApp {
 
         // Endpoints
         addon.registerCustomEndpoint("/manifest.json", new DefaultManifestController(manifest));
-        addon.registerCustomEndpoint("/health", req -> HttpResponse.ok("OK"));
+        // Health with optional DB probe (if DB env is set in a future persistent store variant)
+        HealthCheck health = new HealthCheck("overtime", "0.1.0");
+        addon.registerCustomEndpoint("/health", health);
         addon.registerCustomEndpoint("/settings", settingsController::handleHtml);
         addon.registerCustomEndpoint("/api/settings", settingsController::handleApi);
+        addon.registerCustomEndpoint("/metrics", new MetricsHandler());
 
         // Lifecycle and webhook handlers
         LifecycleHandlers.register(addon);
@@ -73,4 +78,3 @@ public class OvertimeApp {
         }
     }
 }
-

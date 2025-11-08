@@ -6,6 +6,7 @@ import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.ConfigValidator;
 import com.clockify.addon.sdk.EmbeddedServer;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.health.HealthCheck;
 import com.clockify.addon.sdk.middleware.CorsFilter;
 import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
@@ -13,6 +14,7 @@ import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
 import com.example.rules.store.RulesStore;
 import com.example.rules.store.RulesStoreSPI;
 import com.example.rules.store.DatabaseRulesStore;
+import com.clockify.addon.sdk.metrics.MetricsHandler;
 
 /**
  * Rules Add-on for Clockify
@@ -113,9 +115,27 @@ public class RulesApp {
         // Preload local secrets for development
         preloadLocalSecrets();
 
-        // Health check
-        addon.registerCustomEndpoint("/health", request ->
-                HttpResponse.ok("Rules add-on is running"));
+        // Health check with optional DB probe (via DatabaseRulesStore if configured)
+        HealthCheck health = new HealthCheck("rules", "0.1.0");
+        String dbUrl = System.getenv("DB_URL");
+        String dbUser = System.getenv().getOrDefault("DB_USER", System.getenv("DB_USERNAME"));
+        String dbPassword = System.getenv("DB_PASSWORD");
+        if (dbUrl != null && !dbUrl.isBlank() && dbUser != null && !dbUser.isBlank()) {
+            health.addHealthCheckProvider(new HealthCheck.HealthCheckProvider() {
+                @Override public String getName() { return "database"; }
+                @Override public HealthCheck.HealthCheckResult check() {
+                    try {
+                        DatabaseRulesStore dbStore = new DatabaseRulesStore(dbUrl, dbUser, dbPassword);
+                        int n = dbStore.getAll("health-probe").size();
+                        return new HealthCheck.HealthCheckResult("database", true, "Connected", n);
+                    } catch (Exception e) {
+                        return new HealthCheck.HealthCheckResult("database", false, e.getMessage());
+                    }
+                }
+            });
+        }
+        addon.registerCustomEndpoint("/health", health);
+        addon.registerCustomEndpoint("/metrics", new MetricsHandler());
 
         // Extract context path from base URL
         String contextPath = sanitizeContextPath(baseUrl);
