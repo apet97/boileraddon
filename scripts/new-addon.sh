@@ -199,7 +199,12 @@ if command -v jq >/dev/null 2>&1; then
     --arg key "$KEY" \
     --arg name "$DISPLAY_NAME" \
     --arg url "$BASE_URL" \
-    '.key=$key | .name=$name | .baseUrl=$url | (.components[]? | select(has("label") and ((.label | ascii_downcase) == "template add-on")) | .label) |= $name' \
+    '
+      .key = $key
+      | .name = $name
+      | .baseUrl = $url
+      | (.components[]? | select(has("label") and ((.label | ascii_downcase) == "template add-on")) | .label) |= $name
+    ' \
     "$DST_DIR/manifest.json" > "$DST_DIR/manifest.json.tmp" && mv "$DST_DIR/manifest.json.tmp" "$DST_DIR/manifest.json"
 else
   # Fallback to sed (less reliable but works)
