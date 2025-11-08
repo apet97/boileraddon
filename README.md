@@ -56,17 +56,17 @@ curl http://localhost:8080/auto-tag-assistant/settings
 
 ## Using the Template Module
 
-Prefer to start from a blank slate? Use the Java template under `templates/java-basic-addon/`.
+Prefer to start from a blank slate? Use the Java template under `addons/_template-addon/`.
 
 ```bash
 # Build only the template
-mvn -f templates/java-basic-addon/pom.xml clean package -DskipTests
+mvn -pl addons/_template-addon package -DskipTests
 
 # Or via Makefile helper
 make build-template
 
 # Run the generated fat JAR
-java -jar templates/java-basic-addon/target/java-basic-addon-0.1.0-jar-with-dependencies.jar
+java -jar addons/_template-addon/target/_template-addon-0.1.0-jar-with-dependencies.jar
 ```
 
 **⚠️ Do _not_ run `ngrok http 80` — the add-on binds to port 8080, so ngrok must forward `8080`.**
@@ -97,6 +97,7 @@ boileraddon/
 ├── README.md                                  # This file
 │
 ├── addons/
+│   ├── _template-addon/                      # Minimal starter template module
 │   ├── addon-sdk/                             # Shared SDK module
 │   │   └── src/main/java/com/clockify/addon/sdk/
 │   │       ├── ClockifyAddon.java
@@ -115,8 +116,6 @@ boileraddon/
 │               ├── SettingsController.java   # Settings UI
 │               ├── LifecycleHandlers.java    # INSTALLED/DELETED
 │               └── WebhookHandlers.java      # Time entry webhooks
-├── templates/
-│   └── java-basic-addon/                      # Minimal starter template
 └── tools/
     └── validate-manifest.py                   # Manifest validation helper
 ```

@@ -7,7 +7,7 @@ help:
 	@echo "  setup                      - Install dependencies and prepare environment"
 	@echo "  validate                   - Validate all manifest.json files"
 	@echo "  build                      - Build all modules (templates + addons)"
-	@echo "  build-template             - Build only the java-basic-addon template"
+	@echo "  build-template             - Build only the _template-addon module"
 	@echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
 	@echo "  test                       - Run all tests"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
@@ -34,26 +34,26 @@ setup:
 # Validate manifest files
 validate:
 	@echo "Validating manifest files..."
-	python3 tools/validate-manifest.py templates/java-basic-addon/manifest.json
-	python3 tools/validate-manifest.py addons/auto-tag-assistant/manifest.json
+	@python3 tools/validate-manifest.py addons/_template-addon/manifest.json
+	@python3 tools/validate-manifest.py addons/auto-tag-assistant/manifest.json
 	@echo "✓ All manifests valid"
 
 # Build everything (templates + addons) - NO SDK build needed!
 build:
 	@echo "Building all modules..."
 	@echo "Note: Using inline SDK with Maven Central dependencies only"
-	mvn -q clean package -DskipTests
+	@mvn -q clean package -DskipTests
 	@echo "✓ Build complete!"
 	@echo ""
 	@echo "Built artifacts:"
-	@ls -lh templates/java-basic-addon/target/*jar-with-dependencies.jar 2>/dev/null || true
+	@ls -lh addons/_template-addon/target/*jar-with-dependencies.jar 2>/dev/null || true
 	@ls -lh addons/auto-tag-assistant/target/*jar-with-dependencies.jar 2>/dev/null || true
 
 # Build template only
 build-template:
-	@echo "Building java-basic-addon template..."
-	mvn -q -f templates/java-basic-addon/pom.xml clean package -DskipTests
-	@echo "✓ Template built: templates/java-basic-addon/target/java-basic-addon-0.1.0-jar-with-dependencies.jar"
+	@echo "Building _template-addon module..."
+	@mvn -q -pl addons/_template-addon package -DskipTests
+	@echo "✓ Template built: addons/_template-addon/target/_template-addon-0.1.0-jar-with-dependencies.jar"
 
 # Build auto-tag-assistant only
 build-auto-tag-assistant:

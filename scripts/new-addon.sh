@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Scaffold a new Clockify add-on from the java-basic-addon template.
+# Scaffold a new Clockify add-on from the addons/_template-addon module.
 #
 # Usage: scripts/new-addon.sh <addon-name> [display-name]
 #
@@ -8,7 +8,7 @@
 #   scripts/new-addon.sh my-cool-addon "My Cool Add-on"
 #
 # This will:
-# 1. Copy templates/java-basic-addon to addons/<addon-name>
+# 1. Copy addons/_template-addon to addons/<addon-name>
 # 2. Update package names, artifactId, manifest key, and baseUrl
 # 3. Validate the manifest
 # 4. Add the new module to the root pom.xml
@@ -25,14 +25,14 @@ if [ $# -lt 1 ]; then
 fi
 
 NAME_RAW="$1"
-DISPLAY_NAME="${2:-Java Basic Addon}"
+DISPLAY_NAME="${2:-Template Add-on}"
 
 # Sanitize names for different contexts
 PKG_NAME=$(echo "$NAME_RAW" | tr -cd '[:alnum:]-_' | tr '-' '_')
 ARTIFACT_ID=$(echo "$NAME_RAW" | tr -cd '[:alnum:]-_.')
 KEY=$(echo "$NAME_RAW" | tr -cd '[:alnum:].-_' | tr '_' '-')
 
-SRC_DIR="templates/java-basic-addon"
+SRC_DIR="addons/_template-addon"
 DST_DIR="addons/$NAME_RAW"
 
 # Check if destination already exists
@@ -55,39 +55,47 @@ cp -r "$SRC_DIR" "$DST_DIR"
 echo "Updating pom.xml..."
 if command -v perl >/dev/null 2>&1; then
   # Use perl if available (most systems)
-  perl -0777 -pe "s#<artifactId>java-basic-addon</artifactId>#<artifactId>${ARTIFACT_ID}</artifactId>#; s#<name>java-basic-addon</name>#<name>${ARTIFACT_ID}</name>#" -i "$DST_DIR/pom.xml"
+  perl -0777 -pe "s#<artifactId>_template-addon</artifactId>#<artifactId>${ARTIFACT_ID}</artifactId>#; s#<name>_template-addon</name>#<name>${ARTIFACT_ID}</name>#" -i "$DST_DIR/pom.xml"
 else
   # Fallback to sed (less reliable for multi-line but works for our case)
-  sed -i.bak "s#<artifactId>java-basic-addon</artifactId>#<artifactId>${ARTIFACT_ID}</artifactId>#g; s#<name>java-basic-addon</name>#<name>${ARTIFACT_ID}</name>#g" "$DST_DIR/pom.xml"
+  sed -i.bak "s#<artifactId>_template-addon</artifactId>#<artifactId>${ARTIFACT_ID}</artifactId>#g; s#<name>_template-addon</name>#<name>${ARTIFACT_ID}</name>#g" "$DST_DIR/pom.xml"
   rm -f "$DST_DIR/pom.xml.bak"
 fi
 
 # Update package structure
 echo "Updating package names..."
-SRC_PKG_PATH="com/example/addon"
+SRC_PKG_PATH="com/example/templateaddon"
 DST_PKG_PATH="com/example/${PKG_NAME}"
 
 mkdir -p "$DST_DIR/src/main/java/$DST_PKG_PATH"
-mkdir -p "$DST_DIR/src/test/java/$DST_PKG_PATH"
-
-# Move and update Java files
-for f in "$DST_DIR/src/main/java/$SRC_PKG_PATH"/*.java; do
-  if [ -f "$f" ]; then
-    filename=$(basename "$f")
-    sed "s/package com.example.addon;/package com.example.${PKG_NAME};/g" "$f" > "$DST_DIR/src/main/java/$DST_PKG_PATH/$filename"
-  fi
-done
+cp -R "$DST_DIR/src/main/java/$SRC_PKG_PATH"/* "$DST_DIR/src/main/java/$DST_PKG_PATH"/
 rm -rf "$DST_DIR/src/main/java/$SRC_PKG_PATH"
 
-# Move and update test files if they exist
-if [ -d "$DST_DIR/src/test/java/$SRC_PKG_PATH" ]; then
-  for f in "$DST_DIR/src/test/java/$SRC_PKG_PATH"/*.java; do
-    if [ -f "$f" ]; then
-      filename=$(basename "$f")
-      sed "s/package com.example.addon;/package com.example.${PKG_NAME};/g" "$f" > "$DST_DIR/src/test/java/$DST_PKG_PATH/$filename"
-    fi
-  done
-  rm -rf "$DST_DIR/src/test/java/$SRC_PKG_PATH"
+if [ -d "$DST_DIR/src/test/java" ]; then
+  mkdir -p "$DST_DIR/src/test/java/$DST_PKG_PATH"
+  if [ -d "$DST_DIR/src/test/java/$SRC_PKG_PATH" ]; then
+    cp -R "$DST_DIR/src/test/java/$SRC_PKG_PATH"/* "$DST_DIR/src/test/java/$DST_PKG_PATH"/ 2>/dev/null || true
+    rm -rf "$DST_DIR/src/test/java/$SRC_PKG_PATH"
+  fi
+fi
+
+if command -v perl >/dev/null 2>&1; then
+  find "$DST_DIR/src" -type f -name '*.java' -exec perl -pi -e "s/com\\.example\\.templateaddon/com.example.${PKG_NAME}/g; s/_template-addon/${NAME_RAW}/g" {} +
+elif command -v python3 >/dev/null 2>&1; then
+  python3 - "$DST_DIR" "$PKG_NAME" "$NAME_RAW" <<'PY'
+import pathlib, sys
+root = pathlib.Path(sys.argv[1])
+pkg = sys.argv[2]
+name = sys.argv[3]
+for path in root.rglob('*.java'):
+    text = path.read_text()
+    text = text.replace('com.example.templateaddon', f'com.example.{pkg}')
+    text = text.replace('_template-addon', name)
+    path.write_text(text)
+PY
+else
+  echo "Warning: Unable to rewrite Java packages automatically (missing perl/python3)." >&2
+  echo "         Update occurrences of 'com.example.templateaddon' and '_template-addon' manually." >&2
 fi
 
 # Update manifest.json
@@ -111,9 +119,9 @@ fi
 # Update main class reference in pom.xml
 echo "Updating main class reference..."
 if command -v perl >/dev/null 2>&1; then
-  perl -0777 -pe "s#<mainClass>com.example.addon.AddonApplication</mainClass>#<mainClass>com.example.${PKG_NAME}.AddonApplication</mainClass>#" -i "$DST_DIR/pom.xml"
+  perl -0777 -pe "s#<mainClass>com.example.templateaddon.TemplateAddonApp</mainClass>#<mainClass>com.example.${PKG_NAME}.TemplateAddonApp</mainClass>#" -i "$DST_DIR/pom.xml"
 else
-  sed -i.bak "s#<mainClass>com.example.addon.AddonApplication</mainClass>#<mainClass>com.example.${PKG_NAME}.AddonApplication</mainClass>#g" "$DST_DIR/pom.xml"
+  sed -i.bak "s#<mainClass>com.example.templateaddon.TemplateAddonApp</mainClass>#<mainClass>com.example.${PKG_NAME}.TemplateAddonApp</mainClass>#g" "$DST_DIR/pom.xml"
   rm -f "$DST_DIR/pom.xml.bak"
 fi
 
