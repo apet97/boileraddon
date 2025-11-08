@@ -49,27 +49,40 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            // List artifacts and select latest non-expired jacoco-aggregate
-            const artifacts = await github.paginate(
-              github.rest.actions.listArtifactsForRepo,
-              { owner, repo, per_page: 100 },
-              (res) => res.data.artifacts
-            );
-            const candidates = artifacts
-              .filter(a => a.name === 'jacoco-aggregate' && !a.expired)
-              .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-            if (candidates.length === 0) {
+            const isWorkflowRun = context.eventName === 'workflow_run';
+            let artifact = null;
+
+            if (isWorkflowRun) {
+              const runId = context.payload.workflow_run && context.payload.workflow_run.id;
+              if (runId) {
+                const res = await github.rest.actions.listWorkflowRunArtifacts({ owner, repo, run_id: runId });
+                const arr = (res.data && res.data.artifacts) || [];
+                artifact = arr.find(a => a && a.name === 'jacoco-aggregate' && !a.expired) || null;
+              }
+            }
+
+            if (!artifact) {
+              // Fallback: latest non-expired repo artifact
+              const res2 = await github.rest.actions.listArtifactsForRepo({ owner, repo, per_page: 100 });
+              const arr2 = (res2.data && res2.data.artifacts) || [];
+              artifact = arr2
+                .filter(a => a && a.name === 'jacoco-aggregate' && !a.expired)
+                .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0] || null;
+            }
+
+            if (!artifact) {
               core.info('No jacoco-aggregate artifact found. Proceeding without it.');
               return;
             }
-            const a = candidates[0];
-            const res = await github.rest.actions.downloadArtifact({
+
+            const dl = await github.rest.actions.downloadArtifact({
               owner,
               repo,
-              artifact_id: a.id,
+              artifact_id: artifact.id,
               archive_format: 'zip'
             });
-            require('fs').writeFileSync('jacoco-aggregate.zip', Buffer.from(res.data));
+            const fs = require('fs');
+            fs.writeFileSync('jacoco-aggregate.zip', Buffer.from(dl.data));
             core.setOutput('downloaded', 'true');
 
       - name: Unpack coverage artifact (if present)
