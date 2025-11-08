@@ -59,6 +59,7 @@ public class ClockifyApiClient {
                 .uri(URI.create(url))
                 .header("x-addon-token", authToken)
                 .header("Accept", "application/json")
+                .timeout(Duration.ofSeconds(30))
                 .GET()
                 .build();
 
@@ -85,6 +86,7 @@ public class ClockifyApiClient {
                 .uri(URI.create(url))
                 .header("x-addon-token", authToken)
                 .header("Accept", "application/json")
+                .timeout(Duration.ofSeconds(30))
                 .GET()
                 .build();
 
@@ -135,6 +137,7 @@ public class ClockifyApiClient {
                 .header("x-addon-token", authToken)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
+                .timeout(Duration.ofSeconds(30))
                 .PUT(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
@@ -167,6 +170,7 @@ public class ClockifyApiClient {
                 .header("x-addon-token", authToken)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
+                .timeout(Duration.ofSeconds(30))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 

@@ -19,8 +19,14 @@ jobs:
       - name: Validate manifest
         run: |
           python tools/validate-manifest.py
-      - name: Build template module (optional)
-        if: ${{ false }} # flip to true if GitHub Packages auth is configured
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+      - name: Build all modules
         run: |
-          sudo apt-get update && sudo apt-get install -y maven
-          mvn -q -pl addons/_template-addon package -DskipTests
+          mvn clean package -DskipTests
+      - name: Run tests
+        run: |
+          mvn test
