@@ -7,6 +7,7 @@ Quick index for contributors and AI agents.
 - AI Zero‑Shot Playbook — docs/AI_ZERO_SHOT_PLAYBOOK.md
 - AI Onboarding — docs/AI_ONBOARDING.md
 - AGENTS Guide — AGENTS.md
+- Developer Workspace Runbook — docs/DEV_WORKSPACE_RUNBOOK.md
 
 ## Build & Environment
 - Build Environment (Java 17 + Toolchains) — docs/BUILD_ENVIRONMENT.md
