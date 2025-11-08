@@ -2,7 +2,7 @@
 #
 # Scaffold a new Clockify add-on from the addons/_template-addon module.
 #
-# Usage: scripts/new-addon.sh <addon-name> [display-name]
+# Usage: scripts/new-addon.sh [--port <port>] [--base-path <path>] <addon-name> [display-name]
 #
 # Example:
 #   scripts/new-addon.sh my-cool-addon "My Cool Add-on"
@@ -16,16 +16,70 @@
 
 set -euo pipefail
 
-if [ $# -lt 1 ]; then
-  echo "Usage: $0 <addon-name> [display-name]" >&2
+usage() {
+  echo "Usage: $0 [--port <port>] [--base-path <path>] <addon-name> [display-name]" >&2
   echo "" >&2
   echo "Example:" >&2
-  echo "  $0 my-cool-addon \"My Cool Add-on\"" >&2
+  echo "  $0 --port 8080 --base-path my-cool-addon my-cool-addon \"My Cool Add-on\"" >&2
+}
+
+PORT=8080
+BASE_PATH=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --port)
+      if [ $# -lt 2 ]; then
+        echo "Error: --port requires a value" >&2
+        usage
+        exit 2
+      fi
+      PORT="$2"
+      shift 2
+      ;;
+    --base-path)
+      if [ $# -lt 2 ]; then
+        echo "Error: --base-path requires a value" >&2
+        usage
+        exit 2
+      fi
+      BASE_PATH="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --*)
+      echo "Error: Unknown option $1" >&2
+      usage
+      exit 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [ $# -lt 1 ]; then
+  usage
   exit 2
 fi
 
 NAME_RAW="$1"
 DISPLAY_NAME="${2:-Template Add-on}"
+
+if [ -z "$BASE_PATH" ]; then
+  BASE_PATH="$NAME_RAW"
+fi
+
+# Strip any leading/trailing slashes to avoid double slashes when constructing URLs
+BASE_PATH="${BASE_PATH#/}"
+BASE_PATH="${BASE_PATH%/}"
 
 # Sanitize names for different contexts
 PKG_NAME=$(echo "$NAME_RAW" | tr -cd '[:alnum:]-_' | tr '-' '_')
@@ -41,10 +95,20 @@ if [ -e "$DST_DIR" ]; then
   exit 3
 fi
 
+BASE_URL="http://localhost:${PORT}/${BASE_PATH}"
+REMOTE_BASE_URL_HOST="https://YOUR-SUBDOMAIN.ngrok-free.app"
+REMOTE_BASE_URL="$REMOTE_BASE_URL_HOST/${BASE_PATH}"
+if [ -n "$BASE_PATH" ]; then
+  REMOTE_MANIFEST_URL="$REMOTE_BASE_URL_HOST/${BASE_PATH}/manifest.json"
+else
+  REMOTE_MANIFEST_URL="$REMOTE_BASE_URL_HOST/manifest.json"
+fi
+
 echo "Creating new add-on: $NAME_RAW"
 echo "  Package name: com.example.${PKG_NAME}"
 echo "  Artifact ID:  $ARTIFACT_ID"
 echo "  Manifest key: $KEY"
+echo "  Base URL:     $BASE_URL"
 echo ""
 
 # Copy template using cp -r (POSIX compliant, no rsync needed)
@@ -100,7 +164,6 @@ fi
 
 # Update manifest.json
 echo "Updating manifest.json..."
-BASE_URL="http://localhost:8080/${NAME_RAW}"
 
 if command -v jq >/dev/null 2>&1; then
   # Use jq if available (recommended)
@@ -115,6 +178,12 @@ else
   sed -i.bak "s#\"key\": \".*\"#\"key\": \"$KEY\"#g; s#\"name\": \".*\"#\"name\": \"$DISPLAY_NAME\"#g; s#\"baseUrl\": \".*\"#\"baseUrl\": \"$BASE_URL\"#g" "$DST_DIR/manifest.json"
   rm -f "$DST_DIR/manifest.json.bak"
 fi
+
+echo "Writing .env seed file..."
+cat > "$DST_DIR/.env" <<EOF
+ADDON_PORT=$PORT
+ADDON_BASE_URL=$BASE_URL
+EOF
 
 # Update main class reference in pom.xml
 echo "Updating main class reference..."
@@ -163,16 +232,16 @@ echo "  1. Build the add-on:"
 echo "     mvn -f $DST_DIR/pom.xml clean package"
 echo ""
 echo "  2. Run it locally:"
-echo "     java -jar $DST_DIR/target/${ARTIFACT_ID}-0.1.0-jar-with-dependencies.jar"
+echo "     ADDON_PORT=$PORT ADDON_BASE_URL=$BASE_URL java -jar $DST_DIR/target/${ARTIFACT_ID}-0.1.0-jar-with-dependencies.jar"
 echo ""
 echo "  3. Expose with ngrok:"
-echo "     ngrok http 8080"
+echo "     ngrok http $PORT"
 echo ""
 echo "  4. Update manifest baseUrl in $DST_DIR/manifest.json"
-echo "     to: https://YOUR-SUBDOMAIN.ngrok-free.app/${NAME_RAW}"
+echo "     to: $REMOTE_BASE_URL"
 echo ""
 echo "  5. Install in Clockify using manifest URL:"
-echo "     https://YOUR-SUBDOMAIN.ngrok-free.app/${NAME_RAW}/manifest.json"
+echo "     $REMOTE_MANIFEST_URL"
 echo ""
 echo "  6. Customize the logic in:"
 echo "     - $DST_DIR/src/main/java/$DST_PKG_PATH/WebhookHandlers.java"
