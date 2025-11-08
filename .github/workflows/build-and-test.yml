@@ -42,7 +42,7 @@ jobs:
           path: '**/target/site/jacoco/**'
 
       - name: Aggregate coverage (JaCoCo)
-        run: mvn -B -q verify -DskipTests -Djacoco.skip=true || true
+        run: mvn -B -q verify -DskipTests
       - name: Upload aggregate coverage
         if: always()
         uses: actions/upload-artifact@v4
