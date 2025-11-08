@@ -84,8 +84,8 @@ class WebhookHandlersTest {
         // Get the registered handler
         HttpResponse response = addon.getWebhookHandlers().get("TIME_ENTRY_CREATED").handle(request);
 
-        assertEquals(200, response.statusCode());
-        JsonNode json = mapper.readTree(response.body());
+        assertEquals(200, response.getStatusCode());
+        JsonNode json = mapper.readTree(response.getBody());
         assertEquals("no_rules", json.get("status").asText());
     }
 
@@ -134,8 +134,8 @@ class WebhookHandlersTest {
         // Get the registered handler
         HttpResponse response = addon.getWebhookHandlers().get("TIME_ENTRY_CREATED").handle(request);
 
-        assertEquals(200, response.statusCode());
-        JsonNode json = mapper.readTree(response.body());
+        assertEquals(200, response.getStatusCode());
+        JsonNode json = mapper.readTree(response.getBody());
         assertEquals("actions_logged", json.get("status").asText());
         assertEquals(1, json.get("actionsCount").asInt());
     }
@@ -178,7 +178,7 @@ class WebhookHandlersTest {
         // Get the registered handler
         HttpResponse response = addon.getWebhookHandlers().get("TIME_ENTRY_CREATED").handle(request);
 
-        assertEquals(403, response.statusCode());
+        assertEquals(403, response.getStatusCode());
     }
 
     @Test
@@ -226,8 +226,8 @@ class WebhookHandlersTest {
         // Get the registered handler
         HttpResponse response = addon.getWebhookHandlers().get("TIME_ENTRY_CREATED").handle(request);
 
-        assertEquals(200, response.statusCode());
-        JsonNode json = mapper.readTree(response.body());
+        assertEquals(200, response.getStatusCode());
+        JsonNode json = mapper.readTree(response.getBody());
         assertEquals("no_match", json.get("status").asText());
         assertEquals(0, json.get("actionsCount").asInt());
     }

@@ -393,6 +393,11 @@ class DefaultManifestControllerTest {
         }
 
         @Override
+        public String getRequestId() {
+            return null;
+        }
+
+        @Override
         public BufferedReader getReader() throws IOException {
             throw new UnsupportedOperationException();
         }
