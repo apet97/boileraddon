@@ -52,6 +52,17 @@ public class OvertimeClient {
         return (ObjectNode) om.readTree(resp.body());
     }
 
+    public JsonNode listTimeEntries(String ws, String userId, String startIso, String endIso) throws Exception {
+        String q = String.format("/workspaces/%s/time-entries?userId=%s&start=%s&end=%s&page-size=2000",
+                ws, url(userId), url(startIso), url(endIso));
+        HttpResponse<String> resp = http.get(q, token, Map.of());
+        return om.readTree(resp.body());
+    }
+
+    private static String url(String v) {
+        return java.net.URLEncoder.encode(v, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
     public static String normalizeTagName(String name) {
         return name == null ? null : name.trim().toLowerCase();
     }
@@ -63,4 +74,3 @@ public class OvertimeClient {
         return arr;
     }
 }
-

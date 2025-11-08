@@ -47,38 +47,39 @@ public class WebhookHandlers {
 
         // Fallback MVP heuristic: use this entry's duration if totals are unavailable
         long entryMinutes = extractDurationMinutes(te);
-        boolean overtime = false;
-        if (entryMinutes >= Math.round(dailyHours * 60)) {
-            overtime = true;
-        }
-
-        if (!overtime) {
-            // Try aggregate via API (simple read + compare)
-            var tok = com.clockify.addon.sdk.security.TokenStore.get(ws);
-            if (tok.isPresent() && entryId != null) {
-                String base = tok.get().apiBaseUrl();
-                String tkn = tok.get().token();
-                OvertimeClient api = new OvertimeClient(base, tkn);
+        boolean overtime = entryMinutes >= Math.round(dailyHours * 60);
+        var tok = com.clockify.addon.sdk.security.TokenStore.get(ws);
+        if (tok.isPresent() && entryId != null) {
+            String userId = text(te, "userId");
+            if (userId == null) userId = text(body, "userId");
+            if (userId != null) {
+                OvertimeClient api = new OvertimeClient(tok.get().apiBaseUrl(), tok.get().token());
                 try {
-                    // In a complete version, fetch user's daily/weekly totals.
-                    // Here we just re-read the entry for resilience and proceed with tag application if needed.
-                    ObjectNode entry = api.getTimeEntry(ws, entryId);
-                    entryMinutes = Math.max(entryMinutes, extractDurationMinutes(entry));
-                    overtime = entryMinutes >= Math.round(dailyHours * 60);
+                    // Calculate daily total: entries from 00:00 to 23:59 of the same day
+                    var ends = extractEnd(te);
+                    if (ends != null) {
+                        String dayStart = ends.toLocalDate().atStartOfDay().atOffset(ends.getOffset()).toString();
+                        String dayEnd = ends.toLocalDate().atTime(23,59,59).atOffset(ends.getOffset()).toString();
+                        long dailyTotal = sumMinutes(api.listTimeEntries(ws, userId, dayStart, dayEnd));
+                        if (dailyTotal >= Math.round(dailyHours * 60)) overtime = true;
+
+                        // Weekly window (Mon-Sun as a baseline; adjust per locale if needed)
+                        java.time.LocalDate d = ends.toLocalDate();
+                        java.time.DayOfWeek dow = d.getDayOfWeek();
+                        java.time.LocalDate monday = d.minusDays((dow.getValue()+6)%7);
+                        java.time.LocalDate sunday = monday.plusDays(6);
+                        String weekStart = monday.atStartOfDay().atOffset(ends.getOffset()).toString();
+                        String weekEnd = sunday.atTime(23,59,59).atOffset(ends.getOffset()).toString();
+                        long weeklyTotal = sumMinutes(api.listTimeEntries(ws, userId, weekStart, weekEnd));
+                        if (weeklyTotal >= Math.round(weeklyHours * 60)) overtime = true;
+                    }
                     if (overtime) {
                         ensureTagApplied(api, ws, entryId, tagName);
                         return ok(event, "overtime_tag_applied");
                     }
                 } catch (Exception ex) {
-                    log.warn("Overtime check failed for workspace {} entry {}: {}", ws, entryId, ex.toString());
+                    log.warn("Overtime total computation failed for workspace {} entry {}: {}", ws, entryId, ex.toString());
                 }
-            }
-        } else {
-            var tok = com.clockify.addon.sdk.security.TokenStore.get(ws);
-            if (tok.isPresent() && entryId != null) {
-                OvertimeClient api = new OvertimeClient(tok.get().apiBaseUrl(), tok.get().token());
-                ensureTagApplied(api, ws, entryId, tagName);
-                return ok(event, "overtime_tag_applied");
             }
         }
 
@@ -132,6 +133,23 @@ public class WebhookHandlers {
         }
     }
 
+    private static java.time.OffsetDateTime extractEnd(JsonNode te) {
+        if (te == null || !te.has("timeInterval")) return null;
+        JsonNode ti = te.get("timeInterval");
+        String end = ti.has("end") && !ti.get("end").isNull() ? ti.get("end").asText() : null;
+        if (end == null) return null;
+        try { return java.time.OffsetDateTime.parse(end, java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME);} catch (Exception e){return null;}
+    }
+
+    private static long sumMinutes(JsonNode entries) {
+        if (entries == null || !entries.isArray()) return 0;
+        long total = 0;
+        for (JsonNode e : entries) {
+            total += extractDurationMinutes(e);
+        }
+        return total;
+    }
+
     private static HttpResponse ok(String event, String status) throws Exception {
         ObjectNode n = om.createObjectNode();
         n.put("event", event);
@@ -153,4 +171,3 @@ public class WebhookHandlers {
         return n != null && n.has(f) && !n.get(f).isNull() ? n.get(f).asText(null) : null;
     }
 }
-
