@@ -17,7 +17,9 @@ ADDON_BASE_URL=http://localhost:8080/rules make run-rules
 
 # Expose via ngrok (separate terminal)
 ngrok http 8080
-# Install using: https://<ngrok-domain>/rules/manifest.json
+# Restart with ngrok base URL
+#   ADDON_BASE_URL=https://<ngrok-domain>/rules make run-rules
+# Install in Clockify using: https://<ngrok-domain>/rules/manifest.json
 ```
 
 Optional runtime safeguards:
@@ -88,7 +90,8 @@ curl -s -X POST http://localhost:8080/rules/api/test \
 - See SECURITY.md and THREAT_MODEL.md for the full posture
 
 ## Notes
-- The demo logs matched actions; in production, call Clockify APIs to apply changes and ensure idempotence (e.g., don’t re‑add existing tags).
+- The demo logs matched actions by default; to apply changes, set `RULES_APPLY_CHANGES=true`.
+- In production, call Clockify APIs to apply changes and ensure idempotence (e.g., don’t re‑add existing tags).
 
 ### Applying actions (example)
 

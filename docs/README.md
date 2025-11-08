@@ -25,6 +25,7 @@ This directory contains comprehensive documentation designed to enable AI assist
 
 - **[Build Verification](../BUILD_VERIFICATION.md)** - Validate your build setup
 - **[Clockify Parameters](CLOCKIFY_PARAMETERS.md)** - Manifest fields, headers, webhooks, env flags
+- **[ngrok Testing](NGROK_TESTING.md)** - Expose your add-on and install in Clockify
 
 ### 📦 Product Specs
 

@@ -25,7 +25,10 @@ make build-template       # or: make build
 make run-auto-tag-assistant
 # In another terminal (optional):
 ngrok http 8080
-# Then install using the printed manifest URL (use https ngrok domain)
+# Restart with HTTPS ngrok domain, then install using the runtime manifest URL
+#   ADDON_BASE_URL=https://YOUR-NGROK.ngrok-free.app/auto-tag-assistant make run-auto-tag-assistant
+#   make manifest-url
+# Use the https URL printed by manifest-url to install in Clockify
 ```
 
 Runtime options:

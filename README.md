@@ -67,9 +67,12 @@ Build and run the Rules add‑on to define "if … then …" automations for tim
 
 ```
 make build-rules
-ADDON_BASE_URL=http://localhost:8080/rules make run-rules
-# Install using: http://localhost:8080/rules/manifest.json (or your ngrok https URL)
+# In another terminal: ngrok http 8080 (copy HTTPS URL)
+ADDON_BASE_URL=https://YOUR-NGROK.ngrok-free.app/rules make run-rules
+# Install using: https://YOUR-NGROK.ngrok-free.app/rules/manifest.json
 ```
+To log actions without changing Clockify, leave `RULES_APPLY_CHANGES` unset (default) or set it to `false`.
+To apply actions, set `RULES_APPLY_CHANGES=true`.
 
 See docs/ADDON_RULES.md for API, schema, and examples.
 
