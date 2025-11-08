@@ -86,8 +86,12 @@ public class RulesApp {
         // GET /rules/manifest.json - Returns runtime manifest (NO $schema field)
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
 
-        // GET /rules/settings - Sidebar iframe
-        addon.registerCustomEndpoint("/settings", new SettingsController());
+        // GET /rules/settings - Sidebar iframe (register common aliases to avoid 404 on trailing-slash)
+        SettingsController settings = new SettingsController();
+        addon.registerCustomEndpoint("/settings", settings);
+        addon.registerCustomEndpoint("/settings/", settings);
+        // Convenience: serve settings at root as well (direct browsing to /rules)
+        addon.registerCustomEndpoint("/", settings);
 
         // Rules CRUD API
         addon.registerCustomEndpoint("/api/rules", request -> {
