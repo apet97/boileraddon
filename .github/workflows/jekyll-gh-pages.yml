@@ -37,14 +37,53 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Build aggregate coverage (JaCoCo)
+      - name: Fetch latest JaCoCo aggregate artifact from build-and-test
+        id: fetch-artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            // List artifacts and select latest non-expired jacoco-aggregate
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              { owner, repo, per_page: 100 },
+              (res) => res.data.artifacts
+            );
+            const candidates = artifacts
+              .filter(a => a.name === 'jacoco-aggregate' && !a.expired)
+              .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+            if (candidates.length === 0) {
+              core.info('No jacoco-aggregate artifact found. Proceeding without it.');
+              return;
+            }
+            const a = candidates[0];
+            const res = await github.rest.actions.downloadArtifact({
+              owner,
+              repo,
+              artifact_id: a.id,
+              archive_format: 'zip'
+            });
+            require('fs').writeFileSync('jacoco-aggregate.zip', Buffer.from(res.data));
+            core.setOutput('downloaded', 'true');
+
+      - name: Unpack coverage artifact (if present)
         run: |
-          # Skip jacoco check in this job; we publish docs+coverage only
-          mvn -B -q verify -DskipTests -Djacoco.skip=true || true
+          if [ -f jacoco-aggregate.zip ]; then
+            unzip -o jacoco-aggregate.zip -d coverage-artifacts
+          fi
           mkdir -p docs/coverage
-          cp -R target/site/jacoco-aggregate/* docs/coverage/ || true
-          # Generate coverage badge/summary (handles missing jacoco.xml gracefully)
-          python3 tools/coverage_badge.py target/site/jacoco-aggregate/jacoco.xml docs/coverage || true
+
+      - name: Build docs coverage folder and badge
+        run: |
+          # Keep docs build fast; do not run tests here
+          mvn -B -q verify -DskipTests -Djacoco.skip=true || true
+          # Prefer artifact coverage if present, else local aggregate (likely missing)
+          XML=$(find coverage-artifacts -type f -path "*jacoco-aggregate*" -name jacoco.xml | head -n 1 || true)
+          if [ -z "$XML" ]; then XML=target/site/jacoco-aggregate/jacoco.xml; fi
+          # Copy any aggregate assets (if available)
+          cp -R target/site/jacoco-aggregate/* docs/coverage/ 2>/dev/null || true
+          # Generate badge/summary (script writes N/A if XML is missing)
+          python3 tools/coverage_badge.py "$XML" docs/coverage || true
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Build with Jekyll (docs/ as source)
