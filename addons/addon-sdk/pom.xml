@@ -153,7 +153,7 @@
                     </limit>
                   </limits>
                 </rule>
-                <!-- Middleware currently has fewer tests; enforce reasonable floor -->
+                <!-- Middleware coverage threshold -->
                 <rule>
                   <element>PACKAGE</element>
                   <includes>
@@ -163,7 +163,7 @@
                     <limit>
                       <counter>INSTRUCTION</counter>
                       <value>COVEREDRATIO</value>
-                      <minimum>0.40</minimum>
+                      <minimum>0.50</minimum>
                     </limit>
                   </limits>
                 </rule>
