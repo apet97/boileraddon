@@ -20,6 +20,9 @@ help:
 	@echo "  test                       - Run all tests"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
 	@echo "  run-rules                  - Run the rules addon locally"
+	@echo "  rules-apply                - Run rules with RULES_APPLY_CHANGES=true"
+	@echo "  rules-seed-demo            - Seed a demo rule and dry-run test"
+	@echo "  rules-webhook-sim          - Simulate a signed webhook locally"
 	@echo "  manifest-url               - Print the current manifest URL"
 	@echo "  clean                      - Clean all build artifacts"
 	@echo ""
@@ -139,6 +142,13 @@ run-rules:
 	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/rules \
 	java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar
 
+# Run rules and actually apply changes (idempotent updates)
+rules-apply:
+	@echo "Starting Rules Add-on with RULES_APPLY_CHANGES=true..."
+	RULES_APPLY_CHANGES=true \
+	ADDON_PORT=8080 ADDON_BASE_URL=$(ADDON_BASE_URL) \
+	java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar
+
 docker-run:
 	@echo "Building Docker image for $(TEMPLATE)..."
 	docker build \
@@ -192,3 +202,11 @@ manifest-url:
 	else \
 		echo "Manifest URL: $(ADDON_BASE_URL)/manifest.json"; \
 	fi
+
+# Seed a demo rule and exercise /api/test
+rules-seed-demo:
+	@bash scripts/rules-demo.sh
+
+# Simulate a signed webhook request for local testing
+rules-webhook-sim:
+	@bash scripts/rules-webhook-sim.sh

@@ -114,3 +114,24 @@ make validate           # basic manifest checks
 pip install jsonschema  # once
 make schema-validate    # strong schema checks
 ```
+## Local demo and webhook simulation
+
+Seed a demo rule and exercise a dry‑run evaluation (no side effects):
+
+```
+export WORKSPACE_ID=your-workspace-id
+make rules-seed-demo
+```
+
+If you want to apply actions on real webhooks locally, start the add‑on with `RULES_APPLY_CHANGES=true`, preload the installation token (or simulate one), and send a signed webhook:
+
+```
+export WORKSPACE_ID=your-workspace-id
+export CLOCKIFY_INSTALLATION_TOKEN=raw-installation-jwt
+
+# Run with apply-changes enabled (use your ngrok url if exposing externally)
+RULES_APPLY_CHANGES=true ADDON_BASE_URL=http://localhost:8080/rules make run-rules
+
+# In another terminal, simulate a signed webhook
+make rules-webhook-sim
+```
