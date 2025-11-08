@@ -68,6 +68,9 @@ For production, persist installation tokens. This boilerplate includes docs and 
 Examples:
 
 ```
+# Enable request logging (headers scrubbed)
+export ADDON_REQUEST_LOGGING=true
+
 # Start a local Postgres (optional)
 docker compose -f docker-compose.dev.yml up -d
 

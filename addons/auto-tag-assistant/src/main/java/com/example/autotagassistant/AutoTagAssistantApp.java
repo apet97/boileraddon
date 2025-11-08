@@ -108,6 +108,13 @@ public class AutoTagAssistantApp {
             System.out.println("CORS enabled for origins: " + cors);
         }
 
+        // Optional request logging (headers scrubbed): ADDON_REQUEST_LOGGING=true
+        if ("true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_REQUEST_LOGGING", "false"))
+                || "1".equals(System.getenv().getOrDefault("ADDON_REQUEST_LOGGING", "0"))) {
+            server.addFilter(new com.clockify.addon.sdk.middleware.RequestLoggingFilter());
+            System.out.println("Request logging enabled (sensitive headers redacted)");
+        }
+
         System.out.println("=".repeat(80));
         System.out.println("Auto-Tag Assistant Add-on Starting");
         System.out.println("=".repeat(80));
