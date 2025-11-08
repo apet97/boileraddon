@@ -193,6 +193,8 @@ CREATE USER addon_user WITH ENCRYPTED PASSWORD 'your-secure-password';
 GRANT SELECT, INSERT, UPDATE, DELETE ON addon_tokens TO addon_user;
 ```
 
+For a comprehensive PostgreSQL setup guide (Docker, pooling, migrations, security), see docs/POSTGRESQL_GUIDE.md.
+
 ### MySQL Schema
 
 ```sql

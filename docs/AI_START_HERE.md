@@ -110,5 +110,5 @@ Docs: docs/SECURITY_CHECKLIST.md, docs/PRODUCTION-DEPLOYMENT.md
 - Make Targets: docs/MAKE_TARGETS.md
 - Quick Reference: docs/QUICK-REFERENCE.md
 - Request/Response Examples: docs/REQUEST-RESPONSE-EXAMPLES.md
+- PostgreSQL Guide: docs/POSTGRESQL_GUIDE.md
 - Original Dev Docs snapshot: dev-docs-marketplace-cake-snapshot/
-
