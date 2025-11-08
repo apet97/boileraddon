@@ -1,6 +1,27 @@
 # Clockify Add-on Boilerplate
 
-A clean, **truly self-contained** boilerplate for building Clockify add-ons with **ZERO external authentication required**. Uses an in-repo SDK module with **Maven Central dependencies ONLY** - no GitHub Packages, no private artifacts, no hidden prerequisites.
+![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
+![Java](https://img.shields.io/badge/Java-17+-informational)
+![Maven](https://img.shields.io/badge/Maven-3.6+-informational)
+[![Coverage (Pages)](https://img.shields.io/badge/Coverage-Pages-blue)](https://apet97.github.io/boileraddon/)
+
+A clean, **self-contained** boilerplate for building Clockify add‑ons with **Maven Central dependencies only** — no private repos, no external SDK installs. It ships a lightweight in‑repo SDK (routing, middleware, security), a production‑ready Rules add‑on, and an Auto‑Tag example.
+
+Quick links
+- Quick Start (Local): docs/QUICK_START_LOCAL.md
+- Ngrok Testing: docs/NGROK_TESTING.md
+- SDK Overview: docs/SDK_OVERVIEW.md
+- Parameters Reference: docs/CLOCKIFY_PARAMETERS.md
+- Rules Add‑on: docs/ADDON_RULES.md
+- Architecture: docs/ARCHITECTURE.md
+
+Table of contents
+- Requirements
+- Quickstart (Rules + Auto‑Tag)
+- Why this boilerplate
+- Documentation
+- Coverage & CI
+- Troubleshooting
 
 ## 🚀 New: Production-Ready Improvements
 
@@ -495,6 +516,22 @@ After cloning and building, verify:
 * [Quick Start (Local)](docs/QUICK_START_LOCAL.md) – Minimal steps to run add-ons locally
 * [Clockify Parameters](docs/CLOCKIFY_PARAMETERS.md) – Manifest fields, headers, webhooks, and env flags.
 * [Overtime Add-on (PM)](docs/ADDON_OVERTIME.md) – Product spec for an overtime policy add-on.
+
+## Why this boilerplate
+- Zero external SDK installs — everything lives in the repo.
+- Exact‑match routing with a tiny servlet runtime, easy to reason about.
+- Consolidated security utilities (TokenStore, signature validation) and middleware.
+- Production‑ready Rules add‑on (automation) and Auto‑Tag example.
+- Strong docs optimized for AI and humans; SHA‑pinned briefings.
+
+## Coverage & CI
+- Coverage site (aggregate JaCoCo): https://apet97.github.io/boileraddon/
+- CI runs validate + build + tests on every push/PR.
+
+## Troubleshooting
+- If you change ports, ensure `ADDON_PORT` and `ADDON_BASE_URL` align.
+- Runtime manifest omits `$schema`; `tools/validate-manifest.py` checks this.
+- Webhook header is `clockify-webhook-signature`; verify before processing.
 
 ## Troubleshooting
 
