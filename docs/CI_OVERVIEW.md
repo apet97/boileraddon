@@ -27,10 +27,17 @@ This repository runs three workflows:
   - Secure workflow that runs `mvn -Pflyway flyway:migrate` reading credentials from repository secrets.
   - Provide `DB_URL`, `DB_USER`, and `DB_PASSWORD` as GitHub Secrets before triggering.
 
+Additional fast check
+- smoke.yml — lightweight smoke tests
+  - Runs only the minimal SmokeIT tests that boot each add‑on and curl /health and /metrics
+  - JDK 17 via actions/setup-java
+  - Command: `mvn -pl addons/auto-tag-assistant,addons/rules,addons/overtime -am -Dtest=*SmokeIT test`
+
 Local equivalents
 - Manifests: `python3 tools/validate-manifest.py`
 - addon-sdk tests: `mvn -e -pl addons/addon-sdk -am test`
 - Full reactor (tests + coverage): `mvn -e -fae verify`
+ - Smoke only: `make smoke` or `mvn -e -pl addons/auto-tag-assistant,addons/rules,addons/overtime -am -Dtest=*SmokeIT test`
 
 Troubleshooting
 - Ensure Java 17 for both Maven and the forked test JVM.

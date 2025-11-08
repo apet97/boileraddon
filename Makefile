@@ -19,6 +19,7 @@ help:
 	@echo "  dev                        - Build and run the template add-on using .env"
 	@echo "  docker-run                 - Build and run an add-on inside Docker (override TEMPLATE=...)"
 	@echo "  test                       - Run all tests"
+	@echo "  smoke                      - Run smoke tests (/health, /metrics)"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
 	@echo "  run-rules                  - Run the rules addon locally"
 	@echo "  rules-apply                - Run rules with RULES_APPLY_CHANGES=true"
@@ -369,3 +370,9 @@ new-addon:
 		exit 1; \
 	fi
 	@bash scripts/new-addon.sh $(NAME) "$(DISPLAY)"
+
+# Run only smoke tests quickly (no full reactor)
+smoke:
+	@mvn -q -e -DtrimStackTrace=false \
+	  -pl addons/auto-tag-assistant,addons/rules,addons/overtime -am \
+	  -Dtest=*SmokeIT test

@@ -23,6 +23,16 @@ mvn -e -DtrimStackTrace=false -pl addons/addon-sdk -Dtest=PathSanitizerTest#test
 mvn -e -DtrimStackTrace=false -fae verify
 ```
 
+### Smoke tests (fast uptime check)
+
+Smoke tests boot each add‑on on a random port and verify that `/health` and `/metrics` respond with 200.
+
+- Run all smoke tests:
+  - `make smoke`
+  - or `mvn -e -pl addons/auto-tag-assistant,addons/rules,addons/overtime -am -Dtest=*SmokeIT test`
+
+These tests are also executed in CI via `.github/workflows/smoke.yml` for quick feedback on basic runtime wiring.
+
 ## Coverage gates
 
 JaCoCo is bound so `verify` always has execution data. Coverage thresholds are intentionally scoped to tested packages so we can iterate without blocking.

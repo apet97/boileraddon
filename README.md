@@ -1,6 +1,7 @@
 # Clockify Add-on Boilerplate
 
 ![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
+[![Smoke](https://github.com/apet97/boileraddon/actions/workflows/smoke.yml/badge.svg)](https://github.com/apet97/boileraddon/actions/workflows/smoke.yml)
 [![Validate](https://github.com/apet97/boileraddon/actions/workflows/validate.yml/badge.svg)](https://github.com/apet97/boileraddon/actions/workflows/validate.yml)
 [![Docs](https://github.com/apet97/boileraddon/actions/workflows/jekyll-gh-pages.yml/badge.svg)](https://github.com/apet97/boileraddon/actions/workflows/jekyll-gh-pages.yml)
 ![Java](https://img.shields.io/badge/Java-17+-informational)
@@ -19,6 +20,7 @@ Quick links
 - Build Environment (Java 17): docs/BUILD_ENVIRONMENT.md
 - Make Targets: docs/MAKE_TARGETS.md
 - CI Overview: docs/CI_OVERVIEW.md
+  - Smoke tests: .github/workflows/smoke.yml (fast /health and /metrics)
 - Security Checklist: docs/SECURITY_CHECKLIST.md
 - AI Zero‑Shot Playbook: docs/AI_ZERO_SHOT_PLAYBOOK.md
 - AI START HERE: docs/AI_START_HERE.md
