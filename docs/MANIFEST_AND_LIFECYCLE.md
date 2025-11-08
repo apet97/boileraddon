@@ -110,6 +110,25 @@ Register a custom endpoint for the settings page in your add‑on code:
 addon.registerCustomEndpoint("/settings", new SettingsController());
 ```
 
+Rules (Admins‑only sidebar) — programmatic snippet:
+
+```java
+ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+    .key("rules")
+    .name("Rules")
+    .baseUrl(System.getenv("ADDON_BASE_URL"))
+    .minimalSubscriptionPlan("FREE")
+    .scopes(new String[]{
+        "TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ", "TAG_WRITE", "PROJECT_READ"
+    })
+    .build();
+
+// Admins‑only sidebar component
+manifest.getComponents().add(
+    new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Rules", "ADMINS")
+);
+```
+
 ### Webhook Selection
 
 Subscribe only to the events your add‑on needs and route them to a path you own:

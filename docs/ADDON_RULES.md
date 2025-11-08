@@ -46,6 +46,27 @@ ngrok http 8080
 # Install in Clockify using: https://<ngrok-domain>/rules/manifest.json
 ```
 
+## Manifest (Admins‑only component)
+
+```java
+ClockifyManifest manifest = ClockifyManifest
+    .v1_3Builder()
+    .key("rules")
+    .name("Rules")
+    .baseUrl(baseUrl)
+    .minimalSubscriptionPlan("FREE")
+    .scopes(new String[]{
+        "TIME_ENTRY_READ", "TIME_ENTRY_WRITE",
+        "TAG_READ", "TAG_WRITE", "PROJECT_READ"
+    })
+    .build();
+
+// Admins‑only sidebar component
+manifest.getComponents().add(
+    new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Rules", "ADMINS")
+);
+```
+
 Optional runtime safeguards:
 - Security headers: `export ADDON_FRAME_ANCESTORS="'self' https://*.clockify.me"`
 - Rate limiting: `export ADDON_RATE_LIMIT=10` and `export ADDON_LIMIT_BY=ip|workspace`

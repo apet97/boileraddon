@@ -46,7 +46,7 @@ Quick index for contributors and AI agents.
 ## Add‑on Modules
 - Template — addons/_template-addon/README.md
 - Auto‑Tag Assistant — addons/auto-tag-assistant/README.md
-- Rules — addons/rules/README.md
+- Rules — addons/rules/README.md (Settings sidebar is ADMINS‑only; see docs/MANIFEST_AND_LIFECYCLE.md for the component snippet)
 - Overtime — addons/overtime/README.md
 
 ## Original Developer Docs Snapshot
