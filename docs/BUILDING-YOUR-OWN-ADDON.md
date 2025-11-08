@@ -58,7 +58,7 @@ Clockify sends workspace-specific credentials and environment hints. Treat them 
 
 Once your add-on logic is ready:
 
-1. Validate manifests with `python3 tools/validate-manifest.py <path-to-manifest.json>`.
+1. Validate manifests with `python3 tools/validate-manifest.py`. The script now walks every `addons/*/manifest.json` file by default, so newly added modules are checked automatically (pass an explicit path only if you need to validate a specific file).
 2. Deploy to a stable host (cloud VM, container platform, or serverless Java runtime).
 3. Configure HTTPS (ngrok is fine for local demos; use a production-grade TLS endpoint for customers).
 4. Reinstall the add-on in Clockify using the production manifest URL and monitor lifecycle/webhook logs for any issues.

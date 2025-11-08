@@ -35,8 +35,7 @@ setup:
 # Validate manifest files
 validate:
 	@echo "Validating manifest files..."
-	@python3 tools/validate-manifest.py addons/_template-addon/manifest.json
-	@python3 tools/validate-manifest.py addons/auto-tag-assistant/manifest.json
+	@python3 tools/validate-manifest.py
 	@echo "✓ All manifests valid"
 
 # Build everything (templates + addons) - NO SDK build needed!
