@@ -90,6 +90,22 @@ curl -s -X POST http://localhost:8080/rules/api/test \
 ## Notes
 - The demo logs matched actions; in production, call Clockify APIs to apply changes and ensure idempotence (e.g., don’t re‑add existing tags).
 
+### Applying actions (example)
+
+Use the SDK `ClockifyHttpClient` with the stored workspace token:
+
+```java
+var wk = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).orElseThrow();
+var http = new com.clockify.addon.sdk.http.ClockifyHttpClient(wk.apiBaseUrl());
+
+// Example: add a tag to a time entry (pseudo-path; consult API-COOKBOOK for exact endpoint)
+String body = "{\"tagIds\":[\"" + tagId + "\"]}";
+var resp = http.putJson("/v1/workspaces/" + workspaceId + "/time-entries/" + timeEntryId, wk.token(), body, java.util.Map.of());
+if (resp.statusCode() / 100 != 2) {
+  // handle error, retry logic embedded for 429/5xx
+}
+```
+
 ```
 make validate           # basic manifest checks
 pip install jsonschema  # once

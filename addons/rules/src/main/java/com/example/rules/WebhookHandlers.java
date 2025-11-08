@@ -91,12 +91,118 @@ public class WebhookHandlers {
                         return createResponse(eventType, "no_match", new ArrayList<>());
                     }
 
-                    // For demo, we log the actions that would be applied
-                    // In production, you would call the Clockify API here to apply changes
-                    logger.info("Would apply {} actions for time entry", actionsToApply.size());
-                    logActions(actionsToApply);
+                    // Apply actions idempotently using SDK HTTP client
+                    var wkOpt = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
+                    if (wkOpt.isEmpty()) {
+                        logger.warn("Missing installation token for workspace {} — skipping mutations", workspaceId);
+                        return createResponse(eventType, "missing_token", new ArrayList<>());
+                    }
 
-                    return createResponse(eventType, "actions_logged", actionsToApply);
+                    var wk = wkOpt.get();
+                    ClockifyClient api = new ClockifyClient(wk.apiBaseUrl(), wk.token());
+
+                    // Read existing entry and tags once, then apply changes in-memory and PUT once if needed
+                    com.fasterxml.jackson.databind.node.ObjectNode entry = api.getTimeEntry(workspaceId, timeEntry.path("id").asText());
+                    com.fasterxml.jackson.databind.JsonNode tagsArray = api.getTags(workspaceId);
+                    java.util.Map<String, String> tagsByNorm = ClockifyClient.mapTagsByNormalizedName(tagsArray);
+
+                    boolean changed = false;
+                    com.fasterxml.jackson.databind.node.ObjectNode patch = objectMapper.createObjectNode();
+                    // seed patch with current tagIds for unified updates when needed
+                    var patchTagIds = objectMapper.createArrayNode();
+                    boolean patchHasTags = false;
+
+                    for (Action action : actionsToApply) {
+                        String type = action.getType();
+                        java.util.Map<String, String> args = action.getArgs();
+                        if (type == null) continue;
+
+                        switch (type) {
+                            case "add_tag": {
+                                String tagName = args != null ? args.getOrDefault("tag", args.get("name")) : null;
+                                if (tagName == null || tagName.isBlank()) break;
+                                String norm = ClockifyClient.normalizeTagName(tagName);
+                                String tagId = tagsByNorm.get(norm);
+                                if (tagId == null) {
+                                    // create tag then map it
+                                    var created = api.createTag(workspaceId, tagName);
+                                    tagId = created.has("id") ? created.get("id").asText() : null;
+                                    if (tagId != null) tagsByNorm.put(norm, tagId);
+                                }
+                                if (tagId != null) {
+                                    // ensure tagIds array; gather from current entry or patch-in-progress
+                                    java.util.Set<String> current = new java.util.LinkedHashSet<>();
+                                    if (entry.has("tagIds") && entry.get("tagIds").isArray()) {
+                                        entry.get("tagIds").forEach(n -> { if (n.isTextual()) current.add(n.asText()); });
+                                    }
+                                    if (!patchHasTags && patch.has("tagIds")) {
+                                        patch.get("tagIds").forEach(n -> { if (n.isTextual()) current.add(n.asText()); });
+                                    }
+                                    if (current.add(tagId)) {
+                                        patchTagIds.removeAll();
+                                        current.forEach(patchTagIds::add);
+                                        patch.set("tagIds", patchTagIds);
+                                        patchHasTags = true;
+                                        changed = true;
+                                    }
+                                }
+                                break;
+                            }
+                            case "remove_tag": {
+                                String tagName = args != null ? args.getOrDefault("tag", args.get("name")) : null;
+                                if (tagName == null || tagName.isBlank()) break;
+                                String norm = ClockifyClient.normalizeTagName(tagName);
+                                String tagId = tagsByNorm.get(norm);
+                                if (tagId != null) {
+                                    java.util.Set<String> current = new java.util.LinkedHashSet<>();
+                                    if (entry.has("tagIds") && entry.get("tagIds").isArray()) {
+                                        entry.get("tagIds").forEach(n -> { if (n.isTextual()) current.add(n.asText()); });
+                                    }
+                                    if (!patchHasTags && patch.has("tagIds")) {
+                                        patch.get("tagIds").forEach(n -> { if (n.isTextual()) current.add(n.asText()); });
+                                    }
+                                    if (current.remove(tagId)) {
+                                        patchTagIds.removeAll();
+                                        current.forEach(patchTagIds::add);
+                                        patch.set("tagIds", patchTagIds);
+                                        patchHasTags = true;
+                                        changed = true;
+                                    }
+                                }
+                                break;
+                            }
+                            case "set_description": {
+                                String value = args != null ? args.get("value") : null;
+                                if (value != null && !value.equals(entry.path("description").asText())) {
+                                    patch.put("description", value);
+                                    changed = true;
+                                }
+                                break;
+                            }
+                            case "set_billable": {
+                                String value = args != null ? args.get("value") : null;
+                                if (value != null) {
+                                    boolean desired = "true".equalsIgnoreCase(value) || "1".equals(value);
+                                    boolean current = entry.path("billable").asBoolean(false);
+                                    if (desired != current) {
+                                        patch.put("billable", desired);
+                                        changed = true;
+                                    }
+                                }
+                                break;
+                            }
+                            default:
+                                // Unknown action type — skip
+                                break;
+                        }
+                    }
+
+                    if (changed) {
+                        api.updateTimeEntry(workspaceId, timeEntry.path("id").asText(), patch);
+                        return createResponse(eventType, "actions_applied", actionsToApply);
+                    } else {
+                        return createResponse(eventType, "no_changes", new ArrayList<>());
+                    }
 
                 } catch (Exception e) {
                     logger.error("Error processing webhook", e);
