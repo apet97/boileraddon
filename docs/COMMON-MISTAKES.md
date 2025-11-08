@@ -387,7 +387,7 @@ public HttpResponse handleWebhook(HttpServletRequest request) {
 **✅ Correct**:
 ```java
 public HttpResponse handleWebhook(HttpServletRequest request) {
-    String signature = request.getHeader("x-clockify-signature");
+    String signature = request.getHeader("clockify-webhook-signature");
     String body = readRequestBody(request);
 
     // Validate signature
@@ -401,7 +401,7 @@ public HttpResponse handleWebhook(HttpServletRequest request) {
 }
 ```
 
-**Detection**: Check if webhook handler validates `x-clockify-signature` header
+**Detection**: Check if webhook handler validates `clockify-webhook-signature` header
 
 **Symptoms**:
 - Security vulnerability
@@ -827,7 +827,7 @@ System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "DEBUG");
 ```bash
 curl -X POST http://localhost:8080/my-addon/webhook \
   -H "Content-Type: application/json" \
-  -H "x-clockify-signature: sha256=test" \
+  -H "clockify-webhook-signature: sha256=test" \
   -d '{"event": "TIMER_STOPPED", "workspaceId": "test", "timeEntryId": "test"}'
 ```
 

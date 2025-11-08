@@ -129,7 +129,7 @@ All component URLs receive a `jwt` query parameter with user context.
 ```
 
 **All webhooks include**:
-- `x-clockify-signature` header (MUST validate!)
+- `clockify-webhook-signature` header (MUST validate!)
 - `x-clockify-workspace-id` header
 - JSON body with event data
 
@@ -362,7 +362,7 @@ conn.setRequestMethod("GET");
 
 ### Validate Webhook Signature
 ```java
-String signature = request.getHeader("x-clockify-signature");
+String signature = request.getHeader("clockify-webhook-signature");
 String rawBody = readRequestBody(request);
 if (!signatureValidator.validate(rawBody, signature)) {
     return HttpResponse.unauthorized();

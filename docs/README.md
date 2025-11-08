@@ -231,7 +231,7 @@ conn.setRequestProperty("Content-Type", "application/json");
 ### Validate Webhook Signature
 
 ```java
-String signature = request.getHeader("x-clockify-signature");
+String signature = request.getHeader("clockify-webhook-signature");
 String rawBody = readRequestBody(request);
 if (!signatureValidator.validate(rawBody, signature)) {
     return HttpResponse.unauthorized();

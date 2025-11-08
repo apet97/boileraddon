@@ -240,7 +240,7 @@ public class WebhookSignatureValidator {
     /**
      * Validates webhook signature.
      * @param payload Raw request body as string
-     * @param signature Value of x-clockify-signature header
+     * @param signature Value of clockify-webhook-signature header
      * @return true if signature is valid
      */
     public boolean validateSignature(String payload, String signature) {
@@ -300,7 +300,7 @@ public HttpResponse handleWebhook(HttpRequest request) {
     String rawBody = request.getBodyAsString();
 
     // 2. Get signature header
-    String signature = request.getHeader("x-clockify-signature");
+   String signature = request.getHeader("clockify-webhook-signature");
 
     // 3. Validate
     if (!signatureValidator.validateSignature(rawBody, signature)) {

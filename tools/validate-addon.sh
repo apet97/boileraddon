@@ -216,8 +216,8 @@ if [ -f "$ADDON_DIR/manifest.json" ]; then
     fi
 fi
 
-# Check for webhook signature validation
-if ! grep -r "x-clockify-signature" "$ADDON_DIR/src/" 2>/dev/null | grep -q "validate\|verify"; then
+# Check for webhook signature validation (legacy and current header names)
+if ! grep -rE "clockify-webhook-signature|x-clockify-signature" "$ADDON_DIR/src/" 2>/dev/null | grep -q "validate\|verify"; then
     warning "May not be validating webhook signatures (security risk)"
 fi
 

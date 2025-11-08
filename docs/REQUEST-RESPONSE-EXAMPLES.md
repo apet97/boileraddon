@@ -24,7 +24,7 @@ When a user installs your addon, Clockify sends a POST request to your lifecycle
 POST /your-addon/lifecycle/installed HTTP/1.1
 Host: your-server.com
 Content-Type: application/json
-x-clockify-signature: sha256=abc123...
+clockify-webhook-signature: sha256=abc123...
 
 {
   "event": "INSTALLED",
@@ -79,7 +79,7 @@ When a user uninstalls your addon.
 POST /your-addon/lifecycle/deleted HTTP/1.1
 Host: your-server.com
 Content-Type: application/json
-x-clockify-signature: sha256=def456...
+clockify-webhook-signature: sha256=def456...
 
 {
   "event": "DELETED",
@@ -132,7 +132,7 @@ Triggered when a new time entry is created.
 POST /your-addon/webhooks/new-time-entry HTTP/1.1
 Host: your-server.com
 Content-Type: application/json
-x-clockify-signature: sha256=ghi789...
+clockify-webhook-signature: sha256=ghi789...
 x-clockify-workspace-id: 68adfddad138cb5f24c63b22
 
 {
@@ -183,7 +183,7 @@ Triggered when a user starts a new timer.
 POST /your-addon/webhooks/timer-started HTTP/1.1
 Host: your-server.com
 Content-Type: application/json
-x-clockify-signature: sha256=jkl012...
+clockify-webhook-signature: sha256=jkl012...
 x-clockify-workspace-id: 68adfddad138cb5f24c63b22
 
 {
@@ -233,7 +233,7 @@ Triggered when a running timer is stopped.
 POST /your-addon/webhooks/timer-stopped HTTP/1.1
 Host: your-server.com
 Content-Type: application/json
-x-clockify-signature: sha256=mno345...
+clockify-webhook-signature: sha256=mno345...
 x-clockify-workspace-id: 68adfddad138cb5f24c63b22
 
 {
@@ -284,7 +284,7 @@ Triggered when a time entry is modified.
 POST /your-addon/webhooks/time-entry-updated HTTP/1.1
 Host: your-server.com
 Content-Type: application/json
-x-clockify-signature: sha256=pqr678...
+clockify-webhook-signature: sha256=pqr678...
 x-clockify-workspace-id: 68adfddad138cb5f24c63b22
 
 {
@@ -349,7 +349,7 @@ Triggered when a time entry is deleted.
 POST /your-addon/webhooks/time-entry-deleted HTTP/1.1
 Host: your-server.com
 Content-Type: application/json
-x-clockify-signature: sha256=stu901...
+clockify-webhook-signature: sha256=stu901...
 x-clockify-workspace-id: 68adfddad138cb5f24c63b22
 
 {
