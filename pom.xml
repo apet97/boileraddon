@@ -25,6 +25,7 @@
         <module>addons/addon-sdk</module>
         <module>addons/auto-tag-assistant</module>
         <module>addons/rules</module>
+        <module>addons/overtime</module>
 </modules>
 
     <build>

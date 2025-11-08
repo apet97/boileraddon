@@ -15,6 +15,7 @@ help:
 	@echo "  build-template             - Build only the _template-addon module"
 	@echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
 	@echo "  build-rules                - Build only the rules addon"
+	@echo "  build-overtime             - Build only the overtime addon"
 	@echo "  dev                        - Build and run the template add-on using .env"
 	@echo "  docker-run                 - Build and run an add-on inside Docker (override TEMPLATE=...)"
 	@echo "  test                       - Run all tests"
@@ -89,6 +90,12 @@ build-rules:
 	@echo "Building rules addon..."
 	mvn -q -f addons/rules/pom.xml clean package -DskipTests
 	@echo "✓ Rules built: addons/rules/target/rules-0.1.0-jar-with-dependencies.jar"
+
+# Build overtime only
+build-overtime:
+	@echo "Building overtime addon..."
+	mvn -q -f addons/overtime/pom.xml clean package -DskipTests
+	@echo "✓ Overtime built: addons/overtime/target/overtime-0.1.0-jar-with-dependencies.jar"
 
 # No longer needed - kept for backward compatibility
 install:
@@ -211,6 +218,16 @@ rules-seed-demo:
 # Simulate a signed webhook request for local testing
 rules-webhook-sim:
 	@bash scripts/rules-webhook-sim.sh
+
+# Overtime run target
+run-overtime:
+	@echo "Starting Overtime Add-on..."
+	@echo "================================"
+	@echo "Base URL: http://localhost:8080/overtime"
+	@echo "Manifest: http://localhost:8080/overtime/manifest.json"
+	@echo "================================"
+	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/overtime \
+	java -jar addons/overtime/target/overtime-0.1.0-jar-with-dependencies.jar
 
 # Run Rules using .env.rules (similar to dev target for template)
 dev-rules: build-rules
