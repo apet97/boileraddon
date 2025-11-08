@@ -135,16 +135,11 @@ addons/auto-tag-assistant/
     ├── ManifestController.java
     ├── SettingsController.java
     ├── WebhookHandlers.java
-    ├── security/
-    │   └── JwtTokenDecoder.java
-    └── sdk/
-        ├── AddonServlet.java
-        ├── ClockifyAddon.java
-        ├── ClockifyManifest.java
-        ├── EmbeddedServer.java
-        ├── HttpResponse.java
-        └── RequestHandler.java
+    └── security/
+        └── JwtTokenDecoder.java
 ```
+
+Note: The SDK runtime, middleware, and security utilities live under `addons/addon-sdk` and are imported via `com.clockify.addon.sdk.*`. This module depends on that SDK for routing, filters, token storage, and webhook signature validation.
 
 ## Troubleshooting
 

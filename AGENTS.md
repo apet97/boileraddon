@@ -24,13 +24,13 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
 ## Repo Map (AI‑useful)
 - SDK core: `addons/addon-sdk/src/main/java/com/clockify/addon/sdk/**`
   - HTTP routing: `AddonServlet`, `ClockifyAddon`, `EmbeddedServer`
-  - Security/filters: `middleware/*` (RateLimiter, SecurityHeadersFilter, CorsFilter)
+  - Middleware: `middleware/*` (RateLimiter, SecurityHeadersFilter, CorsFilter)
+  - Security: `security/*` (TokenStore, WebhookSignatureValidator)
   - Path safety: `util/PathSanitizer`
 - Demo add-on: `addons/auto-tag-assistant/**`
   - Entrypoint/wiring: `AutoTagAssistantApp.java`
   - Controllers: `ManifestController`, `SettingsController`, `WebhookHandlers`, `LifecycleHandlers`
-  - Security utils: `security/`
-  - Demo token store: `TokenStore` (in‑memory)
+  - Module security: `security/JwtTokenDecoder.java` (JWT claims helper)
 - Template: `addons/_template-addon/**` (use for scaffolding new add‑ons)
 - Docs: `docs/**` (Architecture, DB token store, Briefings workflow)
 - Briefings: `_briefings/**` (pin to SHA; verify with `make briefings-verify`)

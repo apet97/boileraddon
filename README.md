@@ -480,6 +480,7 @@ After cloning and building, verify:
 ## Documentation
 
 * [Architecture Overview](docs/ARCHITECTURE.md) – SDK modules, routing, claim handling, and endpoint registration flow.
+* [SDK Overview](docs/SDK_OVERVIEW.md) – Routing core, middleware, and consolidated security utilities.
 * [Building Your Own Add-on](docs/BUILDING-YOUR-OWN-ADDON.md) – Copy/rename checklist, manifest customization, token storage, and deployment guidance.
 
 ## Troubleshooting
