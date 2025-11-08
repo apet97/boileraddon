@@ -45,6 +45,10 @@ Notes:
 bash scripts/run-rules.sh --use-ngrok --apply
 ```
 - Dev bypass (for local debug only): `ADDON_SKIP_SIGNATURE_VERIFY=true` (not needed in Developer; webhooks are signed and accepted).
+ - Security defaults: the run script applies safe defaults so the UI is only embeddable in Clockify and CORS is restricted to Clockify origins:
+   - `ADDON_FRAME_ANCESTORS='self' https://*.clockify.me`
+   - `ADDON_CORS_ORIGINS=https://app.clockify.me,https://developer.clockify.me`
+   - `ADDON_CORS_ALLOW_CREDENTIALS=false` (override to true if your flow needs it)
 
 ## 4) Install in Clockify Developer
 - Open Developer (e.g., https://developer.clockify.me)

@@ -92,11 +92,37 @@ echo "Manifest: ${BASE_URL}/manifest.json"
 echo "Rules API: ${BASE_URL}/api/rules"
 echo "================================"
 
+# Security defaults: lock embedding to Clockify and restrict CORS to Clockify origins unless overridden
+FRAME_ANCESTORS_DEFAULT="'self' https://*.clockify.me"
+if [[ -z "${ADDON_FRAME_ANCESTORS:-}" ]]; then
+  ADDON_FRAME_ANCESTORS="$FRAME_ANCESTORS_DEFAULT"
+  echo "Security: ADDON_FRAME_ANCESTORS not set → defaulting to: $ADDON_FRAME_ANCESTORS"
+else
+  echo "Security: ADDON_FRAME_ANCESTORS is set → $ADDON_FRAME_ANCESTORS"
+fi
+
+CORS_DEFAULT="https://app.clockify.me,https://developer.clockify.me"
+if [[ -z "${ADDON_CORS_ORIGINS:-}" ]]; then
+  ADDON_CORS_ORIGINS="$CORS_DEFAULT"
+  echo "Security: ADDON_CORS_ORIGINS not set → defaulting to: $ADDON_CORS_ORIGINS"
+else
+  echo "Security: ADDON_CORS_ORIGINS is set → $ADDON_CORS_ORIGINS"
+fi
+# Credentials default to false (safe). Override by exporting ADDON_CORS_ALLOW_CREDENTIALS=true if needed.
+ADDON_CORS_ALLOW_CREDENTIALS=${ADDON_CORS_ALLOW_CREDENTIALS:-false}
+echo "Security: ADDON_CORS_ALLOW_CREDENTIALS=${ADDON_CORS_ALLOW_CREDENTIALS}"
+
 if [[ "$APPLY" == "true" ]]; then
   echo "RULES_APPLY_CHANGES=true (mutations enabled)"
   RULES_APPLY_CHANGES=true ADDON_PORT="$PORT" ADDON_BASE_URL="$BASE_URL" \
+    ADDON_FRAME_ANCESTORS="$ADDON_FRAME_ANCESTORS" \
+    ADDON_CORS_ORIGINS="$ADDON_CORS_ORIGINS" \
+    ADDON_CORS_ALLOW_CREDENTIALS="$ADDON_CORS_ALLOW_CREDENTIALS" \
     java -jar "$JAR"
 else
   ADDON_PORT="$PORT" ADDON_BASE_URL="$BASE_URL" \
+    ADDON_FRAME_ANCESTORS="$ADDON_FRAME_ANCESTORS" \
+    ADDON_CORS_ORIGINS="$ADDON_CORS_ORIGINS" \
+    ADDON_CORS_ALLOW_CREDENTIALS="$ADDON_CORS_ALLOW_CREDENTIALS" \
     java -jar "$JAR"
 fi

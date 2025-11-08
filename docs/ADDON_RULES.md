@@ -126,6 +126,10 @@ curl -s -X POST http://localhost:8080/rules/api/test \
 
 - Install After Start: Start the add‑on and confirm the Base URL banner matches your ngrok URL, then install the manifest. Installing first can cache an old URL and cause 401/404s.
 - Only inside Clockify: Configure security so the UI is embeddable only in Clockify (see `ADDON_FRAME_ANCESTORS`) and allow CORS only for Clockify origins.
+ - Helper defaults: `scripts/run-rules.sh` sets security defaults automatically when not provided:
+   - `ADDON_FRAME_ANCESTORS='self' https://*.clockify.me`
+   - `ADDON_CORS_ORIGINS=https://app.clockify.me,https://developer.clockify.me`
+   - `ADDON_CORS_ALLOW_CREDENTIALS=false` (you can override if needed)
 - Signatures: Developer webhooks are signed. The validator accepts `clockify-webhook-signature`, `x-clockify-webhook-signature` (case variants), and Developer’s JWT header `Clockify-Signature` by default. Toggle JWT acceptance with `ADDON_ACCEPT_JWT_SIGNATURE=true|false` (default: true). If your environment still 401s, use the dev bypass below to prove E2E and share one sample header so we can adapt.
 - Dev bypass: To test end‑to‑end without signature problems and apply changes:
   - `ADDON_SKIP_SIGNATURE_VERIFY=true RULES_APPLY_CHANGES=true bash scripts/run-rules.sh --base-url "https://<ngrok>/rules"`
