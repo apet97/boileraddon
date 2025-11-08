@@ -17,7 +17,7 @@ if [[ -z "$WS" || -z "$SECRET" ]]; then
   exit 1
 fi
 
-BODY='{"workspaceId":"'"$WS"'","event":"TIME_ENTRY_CREATED","timeEntry":{"id":"e1","description":"Client meeting","tagIds":[]}}'
+BODY='{"workspaceId":"'"$WS"'","event":"NEW_TIME_ENTRY","timeEntry":{"id":"e1","description":"Client meeting","tagIds":[]}}'
 
 # Compute HMAC via Python for consistency
 sig_hex=$(BODY="$BODY" CLOCKIFY_INSTALLATION_TOKEN="$SECRET" python3 - << 'PY'

@@ -91,6 +91,7 @@ build-auto-tag-assistant:
 # Build rules only
 build-rules:
 	@echo "Building rules addon..."
+	mvn -q -e -DskipTests -pl addons/addon-sdk -am install
 	mvn -q -f addons/rules/pom.xml clean package -DskipTests
 	@echo "✓ Rules built: addons/rules/target/rules-0.1.0-jar-with-dependencies.jar"
 
