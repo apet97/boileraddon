@@ -1,8 +1,20 @@
 # Clockify Webhook Automation Flows (IFTTT Style)
 
-This document maps Clockify webhook triggers (If…) to native Clockify API actions (Then…), using only official endpoints. It’s suitable as a basis for a Figma automation canvas or an integration runbook. Field hints show required path/body parameters.
+This document maps Clockify webhook triggers (If…) to native Clockify API actions (Then…), using only official endpoints. It's suitable as a basis for a Figma automation canvas or an integration runbook. Field hints show required path/body parameters.
 
 Note: All endpoints are relative to the Clockify API base (e.g., `https://api.clockify.me/api/v1`). Preload entity caches in the Rules add‑on to map human names to IDs (projects, tags, clients, users, tasks).
+
+## IFTTT Builder Integration
+
+The Rules add-on now includes an IFTTT builder at `/rules/ifttt` that:
+- Automatically loads webhook triggers from `Clockify_Webhook_JSON_Samples.md`
+- Dynamically populates available actions from the Clockify OpenAPI spec (`dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json`)
+- Supports placeholder templating with `{{field.path}}` syntax for dynamic values
+- Generates live HTTP previews of composed actions
+
+**Catalog Endpoints:**
+- `GET /rules/api/catalog/triggers` — returns all webhook events with descriptions and sample fields
+- `GET /rules/api/catalog/actions` — returns all OpenAPI endpoints grouped by tag, with parameter schemas
 
 ## Time Entry Events
 

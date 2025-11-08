@@ -155,6 +155,61 @@ curl -s -X POST http://localhost:8080/rules/api/test \
   - `ADDON_CORS_ORIGINS=https://app.clockify.me,https://developer.clockify.me`
   - `ADDON_CORS_ALLOW_CREDENTIALS=false` (you can override if needed)
 
+## IFTTT Builder (Advanced Automations)
+
+The Rules add-on now includes an IFTTT-style automation builder at `/rules/ifttt` that lets you:
+
+- **Pick Any Webhook Trigger**: Select from all Clockify webhook events (not just time entries)
+  - Time tracking: NEW_TIME_ENTRY, TIME_ENTRY_UPDATED, TIMER_STOPPED, etc.
+  - Projects: NEW_PROJECT, PROJECT_UPDATED, PROJECT_DELETED
+  - Clients, Tags, Tasks, Users, and more
+
+- **Compose Custom API Actions**: Build actions using any Clockify API endpoint
+  - Endpoints are loaded dynamically from the OpenAPI spec
+  - Create dynamic forms with required/optional fields
+  - Use placeholder templating: `{{field.path}}` to insert values from the webhook payload
+  - Examples: `{{timeEntry.id}}`, `{{project.name}}`, `{{user.email}}`
+
+- **Filter with Conditions**: Add optional filter conditions to limit when actions fire
+  - JSON path conditions: `jsonPathContains`, `jsonPathEquals`
+  - Support for dotted paths like `project.name`, `user.id`, etc.
+
+- **See Live Previews**: View HTTP method, path, and body for each action before saving
+
+### IFTTT API Endpoints
+
+- `GET /rules/api/catalog/triggers` — list all available webhook triggers
+- `GET /rules/api/catalog/actions` — list all Clockify API endpoints (from OpenAPI spec)
+- `GET /rules/ifttt` — IFTTT builder UI
+
+### Example IFTTT Rule
+
+```json
+{
+  "name": "Auto-tag billable client projects",
+  "enabled": true,
+  "trigger": {
+    "event": "NEW_TIME_ENTRY",
+    "conditions": [
+      {"type": "jsonPathContains", "path": "project.clientName", "value": "ACME"}
+    ]
+  },
+  "actions": [
+    {
+      "type": "openapi_call",
+      "endpoint": {
+        "method": "PUT",
+        "path": "/v1/workspaces/{{workspaceId}}/time-entries/{{id}}"
+      },
+      "body": {
+        "billable": true,
+        "tagIds": ["tag-billable-id"]
+      }
+    }
+  ]
+}
+```
+
 ## Supported Conditions and Actions (Rules engine)
 
 - Conditions
@@ -164,6 +219,7 @@ curl -s -X POST http://localhost:8080/rules/api/test \
   - projectNameContains
   - clientIdEquals, clientNameContains
   - isBillable (true/false)
+  - **jsonPathContains, jsonPathEquals** (IFTTT: query any payload field with dotted paths)
 
 - Actions
   - add_tag, remove_tag (by name; creates tag if missing)
@@ -171,6 +227,7 @@ curl -s -X POST http://localhost:8080/rules/api/test \
   - set_billable (true/false)
   - set_project_by_id, set_project_by_name (name resolved via cache)
   - set_task_by_id, set_task_by_name (name resolved under current or newly set project via cache)
+  - **openapi_call** (IFTTT: execute any Clockify API endpoint with placeholder resolution)
 - Signatures: Developer webhooks are signed. The validator accepts `clockify-webhook-signature`, `x-clockify-webhook-signature` (case variants), and Developer’s JWT header `Clockify-Signature` by default. Toggle JWT acceptance with `ADDON_ACCEPT_JWT_SIGNATURE=true|false` (default: true). If your environment still 401s, use the dev bypass below to prove E2E and share one sample header so we can adapt.
 - Dev bypass: To test end‑to‑end without signature problems and apply changes:
   - `ADDON_SKIP_SIGNATURE_VERIFY=true RULES_APPLY_CHANGES=true bash scripts/run-rules.sh --base-url "https://<ngrok>/rules"`

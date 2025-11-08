@@ -72,6 +72,10 @@ public class Evaluator {
                 return evaluateClientNameContains(condition, context);
             case "isBillable":
                 return evaluateIsBillable(condition, context);
+            case "jsonPathContains":
+                return evaluateJsonPathContains(condition, context);
+            case "jsonPathEquals":
+                return evaluateJsonPathEquals(condition, context);
             default:
                 logger.warn("Unknown condition type: {}", type);
                 return false;
@@ -220,5 +224,79 @@ public class Evaluator {
             default:
                 return matches;
         }
+    }
+
+    /**
+     * Evaluate a generic JSON path condition for IFTTT rules.
+     * Supports simple dotted paths like "description", "project.name", "user.id".
+     * No heavy JSON path parser; simple field walker for common cases.
+     */
+    private boolean evaluateJsonPathContains(Condition condition, TimeEntryContext context) {
+        String path = condition.getPath();
+        String value = condition.getValue();
+
+        if (path == null || value == null) {
+            return false;
+        }
+
+        String actualValue = extractJsonPathValue(context, path);
+        if (actualValue == null) {
+            return false;
+        }
+
+        boolean contains = actualValue.toLowerCase().contains(value.toLowerCase());
+        return applyOperator(condition.getOperator(), contains);
+    }
+
+    private boolean evaluateJsonPathEquals(Condition condition, TimeEntryContext context) {
+        String path = condition.getPath();
+        String value = condition.getValue();
+
+        if (path == null || value == null) {
+            return false;
+        }
+
+        String actualValue = extractJsonPathValue(context, path);
+        if (actualValue == null) {
+            return false;
+        }
+
+        boolean equals = actualValue.equalsIgnoreCase(value);
+        return applyOperator(condition.getOperator(), equals);
+    }
+
+    /**
+     * Extract a value from the time entry JSON using a dotted path.
+     * Examples: "description", "project.name", "user.id", "billable"
+     */
+    private String extractJsonPathValue(TimeEntryContext context, String path) {
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+
+        com.fasterxml.jackson.databind.JsonNode node = context.getTimeEntry();
+        String[] parts = path.split("\\.");
+
+        for (String part : parts) {
+            if (node == null || node.isMissingNode()) {
+                return null;
+            }
+            node = node.path(part);
+        }
+
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+
+        // Return as text
+        if (node.isTextual()) {
+            return node.asText();
+        } else if (node.isBoolean()) {
+            return String.valueOf(node.asBoolean());
+        } else if (node.isNumber()) {
+            return String.valueOf(node.asLong());
+        }
+
+        return null;
     }
 }

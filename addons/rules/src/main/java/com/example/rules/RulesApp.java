@@ -93,6 +93,11 @@ public class RulesApp {
         // Convenience: serve settings at root as well (direct browsing to /rules)
         addon.registerCustomEndpoint("/", settings);
 
+        // GET /rules/ifttt - IFTTT builder page
+        IftttController ifttt = new IftttController();
+        addon.registerCustomEndpoint("/ifttt", ifttt);
+        addon.registerCustomEndpoint("/ifttt/", ifttt);
+
         // Rules CRUD API
         addon.registerCustomEndpoint("/api/rules", request -> {
             String method = request.getMethod();
@@ -190,6 +195,26 @@ public class RulesApp {
             }
         });
 
+        // GET /rules/api/catalog/triggers — list all webhook triggers
+        addon.registerCustomEndpoint("/api/catalog/triggers", request -> {
+            try {
+                com.fasterxml.jackson.databind.JsonNode json = com.example.rules.spec.TriggersCatalog.triggersToJson();
+                return HttpResponse.ok(json.toString(), "application/json");
+            } catch (Exception e) {
+                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+            }
+        });
+
+        // GET /rules/api/catalog/actions — list all OpenAPI endpoints
+        addon.registerCustomEndpoint("/api/catalog/actions", request -> {
+            try {
+                com.fasterxml.jackson.databind.JsonNode json = com.example.rules.spec.OpenAPISpecLoader.endpointsToJson();
+                return HttpResponse.ok(json.toString(), "application/json");
+            } catch (Exception e) {
+                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+            }
+        });
+
         // GET /rules/status — runtime status (token present, modes)
         addon.registerCustomEndpoint("/status", request -> {
             try {
@@ -216,8 +241,11 @@ public class RulesApp {
         // POST /rules/lifecycle/installed & /lifecycle/deleted - Lifecycle events
         LifecycleHandlers.register(addon, rulesStore);
 
-        // POST /rules/webhook - Handle time entry events
+        // POST /rules/webhook - Handle time entry events (legacy + new actions)
         WebhookHandlers.register(addon, rulesStore);
+
+        // Register dynamic webhook handlers for IFTTT-style rules (all events)
+        DynamicWebhookHandlers.registerDynamicEvents(addon, rulesStore);
 
         // Preload local secrets for development
         preloadLocalSecrets();
