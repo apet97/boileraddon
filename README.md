@@ -155,6 +155,7 @@ make run-auto-tag-assistant
 Notes:
 - The filter replies 204 for valid preflight and sets `Vary: Origin`.
 - Credentials are not allowed by default.
+- Wildcards for subdomains are supported, e.g. `https://*.example.com` (matches `https://app.example.com` but not the bare `https://example.com`).
 
 ### Coverage
 
