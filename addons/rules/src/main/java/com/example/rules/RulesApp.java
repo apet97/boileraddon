@@ -143,6 +143,53 @@ public class RulesApp {
             }
         });
 
+        // GET /rules/api/cache/data?workspaceId=... — expanded snapshot for autocompletes
+        addon.registerCustomEndpoint("/api/cache/data", request -> {
+            try {
+                String ws = request.getParameter("workspaceId");
+                if (ws == null || ws.isBlank()) return HttpResponse.error(400, "{\"error\":\"workspaceId required\"}", "application/json");
+                var snap = com.example.rules.cache.WorkspaceCache.get(ws);
+                var om = new com.fasterxml.jackson.databind.ObjectMapper();
+                var root = om.createObjectNode();
+                root.put("workspaceId", ws);
+                var tagsArr = om.createArrayNode();
+                snap.tagsById.forEach((id, name) -> {
+                    var n = om.createObjectNode(); n.put("id", id); n.put("name", name); tagsArr.add(n);
+                });
+                var projectsArr = om.createArrayNode();
+                snap.projectsById.forEach((id, name) -> { var n = om.createObjectNode(); n.put("id", id); n.put("name", name); projectsArr.add(n); });
+                var clientsArr = om.createArrayNode();
+                snap.clientsById.forEach((id, name) -> { var n = om.createObjectNode(); n.put("id", id); n.put("name", name); clientsArr.add(n); });
+                var usersArr = om.createArrayNode();
+                snap.usersById.forEach((id, name) -> { var n = om.createObjectNode(); n.put("id", id); n.put("name", name); usersArr.add(n); });
+
+                var tasksArr = om.createArrayNode();
+                // We only have taskNamesById and tasks grouped by project name norm; include projectName when resolvable
+                // Build map projectNameNorm -> projectName
+                java.util.Map<String, String> projectNameByNorm = new java.util.HashMap<>();
+                snap.projectsById.forEach((id, name) -> projectNameByNorm.put(name == null ? "" : name.trim().toLowerCase(java.util.Locale.ROOT), name));
+                snap.tasksByProjectNameNorm.forEach((projectNorm, tmap) -> {
+                    String pName = projectNameByNorm.getOrDefault(projectNorm, projectNorm);
+                    tmap.forEach((taskNorm, taskId) -> {
+                        var n = om.createObjectNode();
+                        n.put("id", taskId);
+                        n.put("name", snap.taskNamesById.getOrDefault(taskId, taskNorm));
+                        n.put("projectName", pName);
+                        tasksArr.add(n);
+                    });
+                });
+
+                root.set("tags", tagsArr);
+                root.set("projects", projectsArr);
+                root.set("clients", clientsArr);
+                root.set("users", usersArr);
+                root.set("tasks", tasksArr);
+                return HttpResponse.ok(root.toString(), "application/json");
+            } catch (Exception e) {
+                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+            }
+        });
+
         // GET /rules/status — runtime status (token present, modes)
         addon.registerCustomEndpoint("/status", request -> {
             try {

@@ -28,6 +28,7 @@ public final class WorkspaceCache {
         public final Map<String, String> usersById;
         public final Map<String, String> usersByNameNorm; // nameNorm/emailNorm -> id
         public final Map<String, Map<String, String>> tasksByProjectNameNorm; // projectNameNorm -> (taskNameNorm -> id)
+        public final Map<String, String> taskNamesById; // id -> display name
 
         Snapshot(Map<String, String> tagsById,
                  Map<String, String> tagsByNameNorm,
@@ -37,12 +38,14 @@ public final class WorkspaceCache {
                  Map<String, String> clientsByNameNorm,
                  Map<String, String> usersById,
                  Map<String, String> usersByNameNorm,
-                 Map<String, Map<String, String>> tasksByProjectNameNorm) {
+                 Map<String, Map<String, String>> tasksByProjectNameNorm,
+                 Map<String, String> taskNamesById) {
             this.tagsById = tagsById; this.tagsByNameNorm = tagsByNameNorm;
             this.projectsById = projectsById; this.projectsByNameNorm = projectsByNameNorm;
             this.clientsById = clientsById; this.clientsByNameNorm = clientsByNameNorm;
             this.usersById = usersById; this.usersByNameNorm = usersByNameNorm;
             this.tasksByProjectNameNorm = tasksByProjectNameNorm;
+            this.taskNamesById = taskNamesById;
         }
     }
 
@@ -117,6 +120,7 @@ public final class WorkspaceCache {
             }
 
             Map<String, Map<String, String>> tasksByProjectNameNorm = new ConcurrentHashMap<>();
+            Map<String, String> taskNamesById = new ConcurrentHashMap<>();
             for (Map.Entry<String, String> e : projectsById.entrySet()) {
                 String pid = e.getKey(); String pname = e.getValue();
                 String pnorm = norm(pname);
@@ -124,7 +128,12 @@ public final class WorkspaceCache {
                 Map<String, String> tmap = new ConcurrentHashMap<>();
                 if (tasks != null && tasks.isArray()) {
                     for (JsonNode t : tasks) {
-                        if (t.has("id") && t.has("name")) tmap.put(norm(t.get("name").asText("")), t.get("id").asText());
+                        if (t.has("id") && t.has("name")) {
+                            String id = t.get("id").asText();
+                            String name = t.get("name").asText("");
+                            tmap.put(norm(name), id);
+                            taskNamesById.put(id, name);
+                        }
                     }
                 }
                 tasksByProjectNameNorm.put(pnorm, tmap);
@@ -139,7 +148,8 @@ public final class WorkspaceCache {
                     Collections.unmodifiableMap(clientsByNameNorm),
                     Collections.unmodifiableMap(usersById),
                     Collections.unmodifiableMap(usersByNameNorm),
-                    deepUnmodifiable(tasksByProjectNameNorm)
+                    deepUnmodifiable(tasksByProjectNameNorm),
+                    Collections.unmodifiableMap(taskNamesById)
             );
             CACHE.computeIfAbsent(workspaceId, k -> new Cache()).snapshot = snap;
             return snap;
@@ -156,7 +166,7 @@ public final class WorkspaceCache {
     }
 
     private static Snapshot emptySnapshot() {
-        return new Snapshot(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
+        return new Snapshot(Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     private static Map<String, Map<String, String>> deepUnmodifiable(Map<String, Map<String, String>> m) {
@@ -165,4 +175,3 @@ public final class WorkspaceCache {
         return Collections.unmodifiableMap(out);
     }
 }
-

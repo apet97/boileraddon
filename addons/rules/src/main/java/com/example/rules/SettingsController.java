@@ -54,7 +54,24 @@ public class SettingsController implements RequestHandler {
     <p class=\"muted\">Install the manifest after the server is running so the Developer workspace sends webhooks to this exact URL. For signed webhooks, leave signature bypass OFF; while testing, turn it ON with <code>ADDON_SKIP_SIGNATURE_VERIFY=true</code>.</p>
   </div>
 
-  <div class=\"section\">
+  <div class=\"section\"> 
+    <h2>Workspace Data</h2>
+    <div class=\"row\">
+      <button class=\"secondary\" type=\"button\" onclick=\"loadCache()\">Load Data</button>
+      <button class=\"secondary\" type=\"button\" onclick=\"refreshCache()\">Refresh Cache</button>
+      <span id=\"cacheMsg\" class=\"muted\"></span>
+    </div>
+    <div class=\"row\"><span id=\"cacheCounts\" class=\"muted\">(no data)</span></div>
+    <datalist id=\"dl-tags\"></datalist>
+    <datalist id=\"dl-projects\"></datalist>
+    <datalist id=\"dl-project-ids\"></datalist>
+    <datalist id=\"dl-clients\"></datalist>
+    <datalist id=\"dl-users\"></datalist>
+    <datalist id=\"dl-tasks\"></datalist>
+    <datalist id=\"dl-task-ids\"></datalist>
+  </div>
+
+  <div class=\"section\"> 
     <h2>Create / Update Rule</h2>
     <div class=\"row\">
       <label>Workspace ID</label>
@@ -136,6 +153,13 @@ public class SettingsController implements RequestHandler {
     const ACT_TYPES = [
       'add_tag','remove_tag','set_description','set_billable','set_project_by_id','set_project_by_name','set_task_by_id','set_task_by_name'
     ];
+    let CACHE = { tags:[], projects:[], clients:[], users:[], tasks:[] };
+    let MAPS = { tagNameToId:{}, projectNameToId:{}, projectIdToName:{}, clientNameToId:{}, taskNameToId:{}, taskIdToName:{} };
+    function summarize(){ const el=document.getElementById('cacheCounts'); if(!CACHE||!CACHE.tags){ el.textContent='(no data)'; return;} el.textContent=`Tags: ${CACHE.tags.length} • Projects: ${CACHE.projects.length} • Clients: ${CACHE.clients.length} • Users: ${CACHE.users.length} • Tasks: ${CACHE.tasks.length}`; }
+    function fillDatalists(){ const fill=(id,arr,key='name')=>{ const dl=document.getElementById(id); if(!dl)return; dl.innerHTML=''; (arr||[]).forEach(x=>{ const o=document.createElement('option'); o.value=x[key]||''; dl.appendChild(o); }); }; fill('dl-tags',CACHE.tags); fill('dl-projects',CACHE.projects); fill('dl-clients',CACHE.clients); fill('dl-users',CACHE.users); fill('dl-tasks',CACHE.tasks); fill('dl-project-ids',CACHE.projects,'id'); fill('dl-task-ids',CACHE.tasks,'id'); }
+    function rebuildMaps(){ MAPS={ tagNameToId:{}, projectNameToId:{}, projectIdToName:{}, clientNameToId:{}, taskNameToId:{}, taskIdToName:{} }; (CACHE.tags||[]).forEach(t=>{ if(t.name) MAPS.tagNameToId[t.name.toLowerCase()]=t.id; }); (CACHE.projects||[]).forEach(p=>{ if(p.name){ MAPS.projectNameToId[p.name.toLowerCase()]=p.id; MAPS.projectIdToName[p.id]=p.name; }}); (CACHE.clients||[]).forEach(c=>{ if(c.name) MAPS.clientNameToId[c.name.toLowerCase()]=c.id; }); (CACHE.tasks||[]).forEach(t=>{ if(t.name){ MAPS.taskNameToId[t.name.toLowerCase()]=t.id; MAPS.taskIdToName[t.id]=t.name; }}); }
+    async function loadCache(){ const ws=document.getElementById('wsid').value.trim(); const msg=document.getElementById('cacheMsg'); if(!ws){ msg.textContent='workspaceId required'; msg.className='error'; return;} const r=await fetch(baseUrl()+`/api/cache/data?workspaceId=${encodeURIComponent(ws)}`); if(!r.ok){ msg.textContent='Failed to load data'; msg.className='error'; return;} CACHE=await r.json(); msg.textContent='Loaded'; msg.className='ok'; setTimeout(()=>msg.textContent='',2000); rebuildMaps(); fillDatalists(); summarize(); }
+    async function refreshCache(){ const ws=document.getElementById('wsid').value.trim(); const msg=document.getElementById('cacheMsg'); if(!ws){ msg.textContent='workspaceId required'; msg.className='error'; return;} const r=await fetch(baseUrl()+`/api/cache/refresh?workspaceId=${encodeURIComponent(ws)}`,{method:'POST'}); if(r.ok){ msg.textContent='Refreshed'; msg.className='ok'; setTimeout(()=>msg.textContent='',2000); await loadCache(); } else { msg.textContent='Refresh failed'; msg.className='error'; } }
 
     function addCond(pref={}){
       const el = document.createElement('div');
@@ -143,9 +167,13 @@ public class SettingsController implements RequestHandler {
       el.innerHTML = `
         <select class=\"cond-type\">${COND_TYPES.map(t=>`<option value=\"${t}\">${t}</option>`).join('')}</select>
         <select class=\"cond-op\">${OPS.map(o=>`<option value=\"${o}\">${o}</option>`).join('')}</select>
-        <input class=\"cond-val\" type=\"text\" placeholder=\"value\" />
+        <input class=\"cond-val\" type=\"text\" placeholder=\"value\" list=\"\" />
         <button class=\"secondary\" type=\"button\" onclick=\"this.parentElement.remove()\">Remove</button>
       `;
+      const typeSel = el.querySelector('.cond-type'); const valEl = el.querySelector('.cond-val');
+      function syncCondAutocomplete(){ const t=typeSel.value; valEl.removeAttribute('list'); if(t==='hasTag'){ valEl.setAttribute('list','dl-tags'); valEl.placeholder='tag name'; } else if(t==='projectNameContains'){ valEl.setAttribute('list','dl-projects'); valEl.placeholder='project name'; } else if(t==='projectIdEquals'){ valEl.setAttribute('list','dl-projects'); valEl.placeholder='project (auto→id)'; } else if(t==='clientNameContains'){ valEl.setAttribute('list','dl-clients'); valEl.placeholder='client name'; } else if(t==='clientIdEquals'){ valEl.placeholder='client id'; } }
+      typeSel.addEventListener('change', syncCondAutocomplete); syncCondAutocomplete();
+      valEl.addEventListener('change', ()=>{ if(typeSel.value==='projectIdEquals'){ const k=(valEl.value||'').toLowerCase(); if(MAPS.projectNameToId[k]) valEl.value=MAPS.projectNameToId[k]; }});
       if(pref.type) el.querySelector('.cond-type').value = pref.type;
       if(pref.operator) el.querySelector('.cond-op').value = pref.operator;
       if(pref.value) el.querySelector('.cond-val').value = pref.value;
@@ -158,7 +186,7 @@ public class SettingsController implements RequestHandler {
       el.innerHTML = `
         <select class=\"act-type\">${ACT_TYPES.map(t=>`<option value=\"${t}\">${t}</option>`).join('')}</select>
         <input class=\"act-k\" type=\"text\" placeholder=\"arg key (e.g., tag,name,projectId,taskId,value)\" style=\"min-width:240px\"/>
-        <input class=\"act-v\" type=\"text\" placeholder=\"arg value\" style=\"min-width:240px\"/>
+        <input class=\"act-v\" type=\"text\" placeholder=\"arg value\" style=\"min-width:240px\" list=\"\"/>
         <button class=\"secondary\" type=\"button\" onclick=\"this.parentElement.remove()\">Remove</button>
       `;
       // Improve UX: set common arg keys/values when type changes
@@ -171,9 +199,9 @@ public class SettingsController implements RequestHandler {
         else if(t==='set_description'){ kEl.value = kEl.value||'value'; vEl.placeholder='new description'; }
         else if(t==='set_billable'){ kEl.value = kEl.value||'value'; vEl.placeholder='true or false'; if(!vEl.value) vEl.value='true'; }
         else if(t==='set_project_by_id'){ kEl.value = kEl.value||'projectId'; vEl.placeholder='project id'; }
-        else if(t==='set_project_by_name'){ kEl.value = kEl.value||'name'; vEl.placeholder='project name'; }
-        else if(t==='set_task_by_id'){ kEl.value = kEl.value||'taskId'; vEl.placeholder='task id'; }
-        else if(t==='set_task_by_name'){ kEl.value = kEl.value||'name'; vEl.placeholder='task name'; }
+        else if(t==='set_project_by_name'){ kEl.value = kEl.value||'name'; vEl.placeholder='project name'; vEl.setAttribute('list','dl-projects'); }
+        else if(t==='set_task_by_id'){ kEl.value = kEl.value||'taskId'; vEl.placeholder='task id'; vEl.setAttribute('list','dl-task-ids'); }
+        else if(t==='set_task_by_name'){ kEl.value = kEl.value||'name'; vEl.placeholder='task name'; vEl.setAttribute('list','dl-tasks'); }
       }
       typeSel.addEventListener('change', syncActPlaceholders);
       syncActPlaceholders();
@@ -277,7 +305,7 @@ public class SettingsController implements RequestHandler {
       const wsQ = params.get('workspaceId') || params.get('ws');
       const wsS = localStorage.getItem('rules.wsid');
       const ws = wsQ || wsS;
-      if(ws){ document.getElementById('wsid').value = ws; loadRules(); refreshStatus(); }
+      if(ws){ document.getElementById('wsid').value = ws; loadRules(); refreshStatus(); loadCache(); }
     } catch(e) {}
 
     // UX helpers: copy manifest URL and open install page
