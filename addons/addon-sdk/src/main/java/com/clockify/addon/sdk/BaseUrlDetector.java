@@ -9,20 +9,37 @@ import java.util.Optional;
  */
 class BaseUrlDetector {
     Optional<String> detectBaseUrl(HttpServletRequest request) {
-        Optional<String> forwardedProto = headerOrForwarded(request, "proto", "X-Forwarded-Proto", request.getScheme());
-        Optional<String> forwardedHost = headerOrForwarded(request, "host", "X-Forwarded-Host", request.getServerName());
-        Optional<String> forwardedPort = headerOrForwarded(request, "port", "X-Forwarded-Port", Integer.toString(request.getServerPort()));
+        Optional<String> forwardedProto = forwardedHeaderValue(request, "proto")
+            .or(() -> firstHeaderValue(request, "X-Forwarded-Proto"));
+        Optional<String> forwardedHost = forwardedHeaderValue(request, "host")
+            .or(() -> firstHeaderValue(request, "X-Forwarded-Host"));
+        Optional<String> forwardedPort = forwardedHeaderValue(request, "port")
+            .or(() -> firstHeaderValue(request, "X-Forwarded-Port"));
         Optional<String> hostHeader = firstHeaderValue(request, "Host");
 
-        String scheme = forwardedProto.orElse("http");
-        String host = forwardedHost.or(() -> hostHeader).orElse(request.getServerName());
-        String port = forwardedPort.orElse(null);
+        String scheme = forwardedProto.filter(BaseUrlDetector::isNotBlank)
+            .orElseGet(() -> Optional.ofNullable(request.getScheme()).filter(BaseUrlDetector::isNotBlank).orElse("http"));
+        String host = forwardedHost.filter(BaseUrlDetector::isNotBlank)
+            .or(() -> hostHeader)
+            .orElse(request.getServerName());
+        String port = forwardedPort.filter(BaseUrlDetector::isNotBlank).orElse(null);
+
+        boolean hasForwardingInfo = forwardedProto.filter(BaseUrlDetector::isNotBlank).isPresent()
+            || forwardedHost.filter(BaseUrlDetector::isNotBlank).isPresent()
+            || forwardedPort.filter(BaseUrlDetector::isNotBlank).isPresent();
 
         if (host == null || host.isBlank()) {
             return Optional.empty();
         }
 
-        if (port != null && !port.isBlank() && !host.contains(":")) {
+        if ((port == null || port.isBlank()) && !hostContainsPort(host) && !hasForwardingInfo) {
+            int serverPort = request.getServerPort();
+            if (shouldAppendServerPort(scheme, serverPort)) {
+                port = Integer.toString(serverPort);
+            }
+        }
+
+        if (port != null && !port.isBlank() && !hostContainsPort(host)) {
             host = host + ":" + port;
         }
 
@@ -36,18 +53,6 @@ class BaseUrlDetector {
             return Optional.empty();
         }
         return Optional.of(normalized);
-    }
-
-    private Optional<String> headerOrForwarded(HttpServletRequest request, String forwardedKey, String headerName, String fallback) {
-        Optional<String> forwarded = forwardedHeaderValue(request, forwardedKey);
-        if (forwarded.isPresent()) {
-            return forwarded;
-        }
-        Optional<String> header = firstHeaderValue(request, headerName);
-        if (header.isPresent()) {
-            return header;
-        }
-        return Optional.ofNullable(fallback);
     }
 
     private Optional<String> firstHeaderValue(HttpServletRequest request, String headerName) {
@@ -92,5 +97,36 @@ class BaseUrlDetector {
             return Optional.of(value);
         }
         return Optional.empty();
+    }
+
+    private static boolean hostContainsPort(String host) {
+        if (host == null || host.isBlank()) {
+            return false;
+        }
+        if (host.startsWith("[")) {
+            int endBracket = host.indexOf(']');
+            return endBracket > 0 && endBracket + 1 < host.length() && host.charAt(endBracket + 1) == ':';
+        }
+        int firstColon = host.indexOf(':');
+        if (firstColon < 0) {
+            return false;
+        }
+        return host.indexOf(':', firstColon + 1) < 0;
+    }
+
+    private static boolean shouldAppendServerPort(String scheme, int serverPort) {
+        if (serverPort <= 0) {
+            return false;
+        }
+        String normalizedScheme = scheme == null ? "" : scheme.toLowerCase();
+        if (("http".equals(normalizedScheme) && serverPort == 80)
+            || ("https".equals(normalizedScheme) && serverPort == 443)) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean isNotBlank(String value) {
+        return value != null && !value.isBlank();
     }
 }
