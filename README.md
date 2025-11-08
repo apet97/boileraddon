@@ -61,6 +61,26 @@ This boilerplate now includes **comprehensive production enhancements**:
 
 The runtime manifest served at `/auto-tag-assistant/manifest.json` is already schema-compliant and omits `$schema`, so Clockify accepts it without modification.
 
+### Use a database-backed token store (recommended)
+
+For production, persist installation tokens. This boilerplate can switch from in-memory to a database token store using environment variables. If `DB_URL` is set, the app selects `DatabaseTokenStore` automatically.
+
+Examples:
+
+```
+# Start a local Postgres (optional)
+docker compose -f docker-compose.dev.yml up -d
+
+# Export DB env and run
+export DB_URL=jdbc:postgresql://localhost:5432/addons
+export DB_USERNAME=addons
+export DB_PASSWORD=addons
+make run-auto-tag-assistant-db
+```
+
+See also: docs/DATABASE_TOKEN_STORE.md and extras/sql/token_store.sql.
+
+
 ## Auto-Tag Assistant Walkthrough
 
 The sample add-on demonstrates the complete lifecycle:
