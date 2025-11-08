@@ -61,6 +61,18 @@ This boilerplate now includes **comprehensive production enhancements**:
 
 The runtime manifest served at `/auto-tag-assistant/manifest.json` is already schema-compliant and omits `$schema`, so Clockify accepts it without modification.
 
+### Rules add-on (automation)
+
+Build and run the Rules add‑on to define "if … then …" automations for time entries.
+
+```
+make build-rules
+ADDON_BASE_URL=http://localhost:8080/rules make run-rules
+# Install using: http://localhost:8080/rules/manifest.json (or your ngrok https URL)
+```
+
+See docs/ADDON_RULES.md for API, schema, and examples.
+
 ### Use a database-backed token store (recommended)
 
 For production, persist installation tokens. This boilerplate includes docs and a sample schema to implement a `DatabaseTokenStore` in your add-on. The demo module uses an in-memory `TokenStore` by default; wire your own persistent store before going to production.
