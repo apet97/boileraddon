@@ -135,6 +135,15 @@ boileraddon/
 
 This boilerplate ships a **first-party SDK module** instead of relying on external artifacts:
 
+> **Deployment Model**
+> 
+> Every add-on packaged from this repository is expected to run inside its **own JVM/process**. Scaling means starting more JVM
+> instances (or containers) of that add-on behind a load balancer—**not** co-locating multiple add-ons inside a shared servlet.
+> The inline SDK keeps manifests, lifecycle handlers, and token storage as in-memory state tied to a single process. Dropping
+> multiple add-ons into one container blurs those boundaries, forcing you to namespace handler paths, separate manifests, and
+> isolate per-workspace credentials manually. To avoid cross-talk and reduce operational risk, run each add-on as its own
+> deployable unit.
+
 ### Why In-Repo SDK?
 
 **Before (External SDK Problems):**

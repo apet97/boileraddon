@@ -2,6 +2,10 @@
 
 This project ships a fully runnable Clockify add-on plus a minimal inline SDK so you can start building without pulling in external artifacts. The sections below explain how the modules fit together, how requests are routed, how workspace/environment claims are consumed, and how endpoints become available to Clockify.
 
+## Deployment Model
+
+Each add-on built from this boilerplate is intended to run inside its **own JVM/process**. Horizontal scaling is achieved by launching additional identical processes (or containers) of that add-on behind a load balancer. The inline SDK purposely keeps manifests, lifecycle handlers, webhook registries, and workspace token stores as in-memory state that assumes a single add-on per process. Hosting multiple add-ons inside one servlet container means those registries now share memory—you must isolate context paths, manifest builders, handler namespaces, and credential storage by hand to prevent cross-talk. Unless you are prepared to write that extra isolation layer, prefer separate deployable units so every add-on keeps its state boundaries intact.
+
 ## Modules at a Glance
 
 The Auto-Tag Assistant example is implemented inside `addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/` and is split into two layers:
