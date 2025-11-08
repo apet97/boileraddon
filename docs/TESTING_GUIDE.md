@@ -28,8 +28,12 @@ mvn -e -DtrimStackTrace=false -fae verify
 Smoke tests boot each add‑on on a random port and verify that `/health` and `/metrics` respond with 200.
 
 - Run all smoke tests:
-  - `make smoke`
-  - or `mvn -e -pl addons/auto-tag-assistant,addons/rules,addons/overtime -am -Dtest=*SmokeIT test`
+  - `make smoke` (installs sdk locally, then runs per-module SmokeIT)
+  - or:
+    - `mvn -q -pl addons/addon-sdk -am -DskipTests install`
+    - `mvn -e -f addons/auto-tag-assistant/pom.xml -Dtest=*SmokeIT test`
+    - `mvn -e -f addons/rules/pom.xml -Dtest=*SmokeIT test`
+    - `mvn -e -f addons/overtime/pom.xml -Dtest=*SmokeIT test`
 
 These tests are also executed in CI via `.github/workflows/smoke.yml` for quick feedback on basic runtime wiring.
 

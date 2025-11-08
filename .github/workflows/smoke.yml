@@ -16,6 +16,9 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: 'maven'
+      - name: Install addon-sdk locally (dependency for add-ons)
+        run: |
+          mvn -B -q -e -DskipTests -pl addons/addon-sdk -am install
       - name: Run smoke tests (/health and /metrics)
         run: |
           set -e
