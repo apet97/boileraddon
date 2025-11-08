@@ -6,7 +6,7 @@ import com.clockify.addon.sdk.HttpResponse;
 import com.example.rules.engine.Action;
 import com.example.rules.engine.Condition;
 import com.example.rules.engine.Rule;
-import com.example.rules.security.WebhookSignatureValidator;
+import com.clockify.addon.sdk.security.WebhookSignatureValidator;
 import com.example.rules.store.RulesStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,12 +39,12 @@ class WebhookHandlersTest {
         request = Mockito.mock(HttpServletRequest.class);
 
         // Clear token store
-        TokenStore.clear();
+        com.clockify.addon.sdk.security.TokenStore.clear();
     }
 
     @AfterEach
     void tearDown() {
-        TokenStore.clear();
+        com.clockify.addon.sdk.security.TokenStore.clear();
     }
 
     @Test
@@ -53,7 +53,7 @@ class WebhookHandlersTest {
         String authToken = "test-token";
 
         // Setup token store
-        TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
 
         String payload = """
             {
@@ -95,7 +95,7 @@ class WebhookHandlersTest {
         String authToken = "test-token";
 
         // Setup token store
-        TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
 
         // Create a rule
         Condition condition = new Condition("descriptionContains", Condition.Operator.CONTAINS, "meeting", null);
@@ -146,7 +146,7 @@ class WebhookHandlersTest {
         String authToken = "test-token";
 
         // Setup token store
-        TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
 
         String payload = """
             {
@@ -187,7 +187,7 @@ class WebhookHandlersTest {
         String authToken = "test-token";
 
         // Setup token store
-        TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
 
         // Create a rule that won't match
         Condition condition = new Condition("descriptionContains", Condition.Operator.CONTAINS, "meeting", null);
