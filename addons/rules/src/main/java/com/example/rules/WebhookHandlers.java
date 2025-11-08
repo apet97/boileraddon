@@ -6,7 +6,7 @@ import com.example.rules.engine.Action;
 import com.example.rules.engine.Evaluator;
 import com.example.rules.engine.Rule;
 import com.example.rules.engine.TimeEntryContext;
-import com.example.rules.security.WebhookSignatureValidator;
+import com.clockify.addon.sdk.security.WebhookSignatureValidator;
 import com.example.rules.store.RulesStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

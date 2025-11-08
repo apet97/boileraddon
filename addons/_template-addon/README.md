@@ -26,3 +26,30 @@ The application reads from `.env` first and still honors variables exported in y
 7. **Search for TODOs** – follow the TODO comments across controllers to plug in your actual business logic, persistence, and UI.
 
 After renaming, run `mvn clean package -pl <your-module> -am` to produce a `*-jar-with-dependencies.jar` that you can deploy.
+
+## Pattern: add a dry‑run test endpoint
+
+The SDK matches endpoint paths exactly (no wildcards). If you need a utility endpoint to test your logic without side effects,
+register a dedicated path and POST a sample payload to it. For example:
+
+```
+// In your App wiring
+addon.registerCustomEndpoint("/api/test", request -> {
+  if ("POST".equals(request.getMethod())) {
+    // parse request JSON and exercise your logic (do not mutate external state)
+    return HttpResponse.ok("{\"status\":\"ok\"}", "application/json");
+  }
+  return HttpResponse.error(405, "Method not allowed", "application/json");
+});
+```
+
+When designing CRUD endpoints that operate on identifiers, prefer query/body parameters with the exact registered path:
+
+```
+// Register once
+addon.registerCustomEndpoint("/api/items", handler);
+
+// Client deletes by id
+DELETE /api/items?id=<ID>
+// or JSON body {"id":"..."}
+```
