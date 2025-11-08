@@ -80,6 +80,19 @@ public class SettingsController implements RequestHandler {
   </div>
 
   <div class=\"section\">
+    <h2>Quick Test (Dry‑run)</h2>
+    <div class=\"row\">
+      <label>Description</label>
+      <input id=\"testDesc\" type=\"text\" placeholder=\"e.g., Client meeting\" style=\"min-width:260px\" />
+      <label>Project ID</label>
+      <input id=\"testPid\" type=\"text\" placeholder=\"optional\" />
+      <button class=\"secondary\" onclick=\"dryRun()\" type=\"button\">Run</button>
+      <span id=\"testMsg\" class=\"muted\"></span>
+    </div>
+    <p class=\"muted\">Dry‑run evaluates rules and shows matched actions without applying changes.</p>
+  </div>
+
+  <div class=\"section\">
     <h2>Supported Conditions</h2>
     <ul>
       <li><code>descriptionContains</code>, <code>descriptionEquals</code></li>
@@ -134,6 +147,22 @@ public class SettingsController implements RequestHandler {
         <input class=\"act-v\" type=\"text\" placeholder=\"arg value\" style=\"min-width:240px\"/>
         <button class=\"secondary\" type=\"button\" onclick=\"this.parentElement.remove()\">Remove</button>
       `;
+      // Improve UX: set common arg keys/values when type changes
+      const typeSel = el.querySelector('.act-type');
+      const kEl = el.querySelector('.act-k');
+      const vEl = el.querySelector('.act-v');
+      function syncActPlaceholders(){
+        const t = typeSel.value;
+        if(t==='add_tag' || t==='remove_tag'){ kEl.value = kEl.value||'tag'; kEl.placeholder='tag or name'; vEl.placeholder='e.g., billable'; }
+        else if(t==='set_description'){ kEl.value = kEl.value||'value'; vEl.placeholder='new description'; }
+        else if(t==='set_billable'){ kEl.value = kEl.value||'value'; vEl.placeholder='true or false'; if(!vEl.value) vEl.value='true'; }
+        else if(t==='set_project_by_id'){ kEl.value = kEl.value||'projectId'; vEl.placeholder='project id'; }
+        else if(t==='set_project_by_name'){ kEl.value = kEl.value||'name'; vEl.placeholder='project name'; }
+        else if(t==='set_task_by_id'){ kEl.value = kEl.value||'taskId'; vEl.placeholder='task id'; }
+        else if(t==='set_task_by_name'){ kEl.value = kEl.value||'name'; vEl.placeholder='task name'; }
+      }
+      typeSel.addEventListener('change', syncActPlaceholders);
+      syncActPlaceholders();
       if(pref.type) el.querySelector('.act-type').value = pref.type;
       if(pref.k) el.querySelector('.act-k').value = pref.k;
       if(pref.v) el.querySelector('.act-v').value = pref.v;
@@ -148,6 +177,7 @@ public class SettingsController implements RequestHandler {
     async function saveRule(){
       const ws = document.getElementById('wsid').value.trim();
       if(!ws){ document.getElementById('saveMsg').textContent = 'workspaceId is required'; document.getElementById('saveMsg').className='error'; return; }
+      try { localStorage.setItem('rules.wsid', ws); } catch(e) {}
 
       const name = document.getElementById('ruleName').value.trim() || 'Untitled';
       const enabled = document.getElementById('ruleEnabled').checked;
@@ -199,9 +229,29 @@ public class SettingsController implements RequestHandler {
       });
     }
 
-    // Seed one row each
+    async function dryRun(){
+      const ws = document.getElementById('wsid').value.trim();
+      if(!ws){ document.getElementById('testMsg').textContent='workspaceId is required'; document.getElementById('testMsg').className='error'; return; }
+      const desc = document.getElementById('testDesc').value || 'Client meeting';
+      const pid = document.getElementById('testPid').value;
+      const body = { workspaceId: ws, timeEntry: { id:'te1', description: desc, tagIds:[], ...(pid?{projectId:pid}:{}) } };
+      const r = await fetch(baseUrl()+`/api/test`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      const msg = document.getElementById('testMsg');
+      if(!r.ok){ msg.textContent = 'Error: '+(await r.text()); msg.className='error'; return; }
+      const json = await r.json();
+      msg.textContent = `Matched actions: ${json.actionsCount}`; msg.className='ok';
+    }
+
+    // Seed one row each and init workspaceId from storage/query
     addCond({type:'descriptionContains',operator:'CONTAINS'});
     addAct({type:'add_tag',k:'tag',v:'billable'});
+    try {
+      const params = new URLSearchParams(location.search);
+      const wsQ = params.get('workspaceId') || params.get('ws');
+      const wsS = localStorage.getItem('rules.wsid');
+      const ws = wsQ || wsS;
+      if(ws){ document.getElementById('wsid').value = ws; loadRules(); }
+    } catch(e) {}
   </script>
 </body>
 </html>
@@ -210,4 +260,3 @@ public class SettingsController implements RequestHandler {
         return HttpResponse.ok(html, "text/html; charset=utf-8");
     }
 }
-
