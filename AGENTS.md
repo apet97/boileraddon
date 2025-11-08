@@ -97,6 +97,17 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
 - [ ] Docs updated (README or `docs/**`)
 - [ ] Briefings regenerated if needed and links verified
 
+## AI Tasks
+- Use the strict zero‑shot checklist: `docs/AI_ZERO_SHOT_PLAYBOOK.md`.
+- Keep changes surgical. Favor targeted tests over broad refactors.
+- Commit message template:
+  - First line: `fix/feat/docs/ci: concise title`
+  - 1–3 bullets: what changed and why (tie to failing test/validator when applicable)
+  - Proof block with exact commands and outcomes:
+    - `python3 tools/validate-manifest.py` → OK
+    - `mvn -e -pl addons/addon-sdk -am test` → Failures: 0, Errors: 0
+    - `mvn -e -fae verify` → BUILD SUCCESS
+
 ## Quick Commands
 - `make dev-check` — verifies local toolchain (java, mvn, ngrok)
 - `make manifest-url` — prints the install URL

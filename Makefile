@@ -202,6 +202,18 @@ ai-start:
 	@echo "AI Onboarding: /Users/15x/boileraddon/docs/AI_ONBOARDING.md"
 	@echo "AGENTS Guide: /Users/15x/boileraddon/AGENTS.md"
 
+# AI zero-shot cheat sheet (one-screen quick steps)
+ai-cheatsheet:
+	@echo "AI Zero-Shot Playbook — Quick Steps"
+	@echo "1) Toolchain: java -version && mvn -version"
+	@echo "2) Validate: python3 tools/validate-manifest.py"
+	@echo "3) Tests: mvn -e -pl addons/addon-sdk -am test"
+	@echo "   Single test: mvn -e -pl addons/addon-sdk -Dtest=Class#method test"
+	@echo "4) Verify: mvn -e -fae verify"
+	@echo "5) Commit with proof lines (validator OK, tests 0 failures, BUILD SUCCESS)"
+	@echo "6) Optional run: TEMPLATE=auto-tag-assistant make zero-shot-run"
+	@echo "Docs: docs/AI_ZERO_SHOT_PLAYBOOK.md"
+
 # Print the current manifest URL based on ADDON_BASE_URL
 manifest-url:
 	@if [ -z "$(ADDON_BASE_URL)" ]; then \
