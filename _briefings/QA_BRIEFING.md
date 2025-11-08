@@ -1,61 +1,39 @@
-QA & Test Lead Briefing — Clockify Add-on Boilerplate
-Repo commit: 239a31a40da23bfaa7eaf8720120d19723058eb4
+# QA & Test Lead Briefing — Clockify Add-on Boilerplate
+- Repo commit: a487d16c75425f6c14d1c3195459a52bc0991f88
+- Scope for this role:
+  - Define addon MVPs and success metrics ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L20"].
+  - Align supported modules and templates ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27"].
+  - Track build/run workflows for feasibility ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L8-L29"].
+  - Confirm Java 17 + Maven stack ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17"].
 
-Scope for this role:
+- Primary artifacts in repo:
+  - Project README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L40
+  - Maven modules https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27
+  - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
-Own automated test execution via Maven, Makefile, and GitHub Actions workflow.
+- How to do your job:
+  - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
+  - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
+  - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26
+  - Validate manifests before delivery https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L41-L45
+  - Note dependency policy: Maven Central only https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L30-L31
 
-Validate scaffolding flow using smoke-test script and manifest schema checks.
+- Critical decisions already made:
+  - Language/runtime: Java 17 and Maven https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17
+  - Packaging via shaded JARs https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L54-L56
 
-Expand coverage on manifest/lifecycle/webhook controllers and SDK utilities.
+- Open questions and risks:
+  - Owner | Issue | Link
+  - PM | Marketplace submission steps — not documented | https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L1
 
-Verify production-readiness features (rate limiting, token storage, HTTP client) through targeted tests.
+- Commands or APIs you will call (if any):
+```
+make build
+make run-auto-tag-assistant
+```
+  - Source: https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L47-L56 https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L21
 
-Primary artifacts in repo:
-
-GitHub Actions workflow
-
-Smoke-test script for scaffolds
-
-ManifestController unit test
-
-How to do your job:
-
-Run make test locally to execute scaffold smoke test and Maven unit tests; ensure command remains green before merges.
-
-Monitor GitHub Actions validate (manifest check) and build-and-test jobs for regressions; enforce blocking on failures.
-
-Use scripts/test-new-addon.sh to validate new scaffolds automatically and ensure manifest fields/labels are rewritten correctly.
-
-Expand unit tests for controllers (manifest, lifecycle, webhook) referencing existing patterns in Auto-Tag Assistant tests.
-
-Validate rate limiting, token normalization, and HTTP client behaviors with targeted tests to uphold Improvements Summary guarantees.
-
-Require manifest schema validation as part of test plans for any new add-on modules.
-
-Collect coverage artifacts from CI (upload-artifact steps) for reporting and set thresholds for future enforcement.
-
-Critical decisions already made:
-
-CI pipeline uploads test and coverage artifacts; QA should rely on these outputs for gating releases.
-
-Improvements Summary commits to higher-quality tests (ConfigValidator, PathSanitizer); QA is expected to extend this coverage.
-
-Scaffold smoke test is part of make test and must stay healthy before shipping new templates.
-
-Open questions and risks:
-
-Owner	Source	Link
-QA Lead	Template lifecycle handler lacks automated persistence tests; define acceptance criteria once persistence implementation lands.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/_template-addon/src/main/java/com/example/templateaddon/LifecycleHandlers.java#L14-L66
-QA Lead	Auto lifecycle handler logs TODO on missing auth token; add test coverage for malformed installations to prevent silent failures.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/LifecycleHandlers.java#L47-L63
-Commands or APIs you will call (if any):
-
-make test
-
-References:
-
-GitHub Actions workflow for CI expectations.
-
-Smoke-test script for scaffold validation.
-
-Improvements Summary testing commitments.
+- References:
+  - README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L80
+  - Makefile https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L80
+  - POM https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L1-L29

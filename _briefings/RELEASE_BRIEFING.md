@@ -1,61 +1,39 @@
-DevOps/Release Briefing — Clockify Add-on Boilerplate
-Repo commit: 239a31a40da23bfaa7eaf8720120d19723058eb4
+# DevOps/Release Briefing — Clockify Add-on Boilerplate
+- Repo commit: a487d16c75425f6c14d1c3195459a52bc0991f88
+- Scope for this role:
+  - Define addon MVPs and success metrics ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L20"].
+  - Align supported modules and templates ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27"].
+  - Track build/run workflows for feasibility ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L8-L29"].
+  - Confirm Java 17 + Maven stack ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17"].
 
-Scope for this role:
+- Primary artifacts in repo:
+  - Project README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L40
+  - Maven modules https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27
+  - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
-Manage build pipelines, artifact packaging, and runtime images (Dockerfile & Make targets).
+- How to do your job:
+  - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
+  - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
+  - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26
+  - Validate manifests before delivery https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L41-L45
+  - Note dependency policy: Maven Central only https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L30-L31
 
-Enforce CI workflow stages, artifact uploads, and release verification steps.
+- Critical decisions already made:
+  - Language/runtime: Java 17 and Maven https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17
+  - Packaging via shaded JARs https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L54-L56
 
-Implement production deployment guidance (env vars, TLS, database, monitoring).
+- Open questions and risks:
+  - Owner | Issue | Link
+  - PM | Marketplace submission steps — not documented | https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L1
 
-Align release notes with Improvements Summary and CHANGELOG for stakeholder communication.
+- Commands or APIs you will call (if any):
+```
+make build
+make run-auto-tag-assistant
+```
+  - Source: https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L47-L56 https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L21
 
-Primary artifacts in repo:
-
-Dockerfile
-
-Makefile docker-run target
-
-Production Deployment Guide
-
-How to do your job:
-
-Use multi-stage Dockerfile to build selected add-on module and produce lightweight runtime image; set ADDON_DIR/DEFAULT_BASE_URL build args per release target.
-
-Provide make docker-run and ADDON_BASE_URL environment variables during release smoke tests to ensure manifest matches external URL.
-
-Enforce CI workflow (validate + build/test) before tagging releases; capture uploaded artifacts for release packaging.
-
-Follow Production Deployment Guide for env variable provisioning, webhook secret rotation, and TLS configuration in staging/prod.
-
-Provision PostgreSQL/MySQL schemas or managed secrets according to DatabaseTokenStore recommendations before deploying.
-
-Reference Docker Compose / Kubernetes templates when automating infrastructure rollouts; adapt health checks and restart policies accordingly.
-
-Coordinate release notes with Improvements Summary and CHANGELOG to highlight new capabilities and dependencies.
-
-Critical decisions already made:
-
-Release images are built via multi-stage Dockerfile using Maven builder then Temurin JRE runtime.
-
-CI pipeline compiles, tests, and uploads artifacts automatically; release must consume those outputs.
-
-Production deployments must include TLS, database-backed token storage, rate limiting, and monitoring per guide.
-
-Open questions and risks:
-
-Owner	Source	Link
-DevOps	Template manifest still points to localhost base URL; ensure release process rewrites baseUrl for production builds.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/_template-addon/manifest.json#L7-L28
-DevOps	Auto lifecycle handler logs TODO on missing auth token; document fallback actions in runbooks before production launch.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/LifecycleHandlers.java#L47-L63
-Commands or APIs you will call (if any):
-
-docker build --build-arg ADDON_DIR=addons/auto-tag-assistant -t clockify-addon-auto-tag .
-
-References:
-
-Dockerfile build stages.
-
-Production deployment guide (env, database, orchestration).
-
-CI workflow for release gates.
+- References:
+  - README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L80
+  - Makefile https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L80
+  - POM https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L1-L29

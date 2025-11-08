@@ -1,61 +1,39 @@
-Addon Engineer Briefing — Clockify Add-on Boilerplate
-Repo commit: 239a31a40da23bfaa7eaf8720120d19723058eb4
+# Addon Engineer (Feature Dev) Briefing — Clockify Add-on Boilerplate
+- Repo commit: a487d16c75425f6c14d1c3195459a52bc0991f88
+- Scope for this role:
+  - Define addon MVPs and success metrics ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L20"].
+  - Align supported modules and templates ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27"].
+  - Track build/run workflows for feasibility ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L8-L29"].
+  - Confirm Java 17 + Maven stack ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17"].
 
-Scope for this role:
+- Primary artifacts in repo:
+  - Project README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L40
+  - Maven modules https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27
+  - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
-Clone and customize add-ons using scaffold script and template guidance.
+- How to do your job:
+  - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
+  - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
+  - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26
+  - Validate manifests before delivery https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L41-L45
+  - Note dependency policy: Maven Central only https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L30-L31
 
-Implement manifest, lifecycle, webhook, and settings controllers with inline SDK helpers.
+- Critical decisions already made:
+  - Language/runtime: Java 17 and Maven https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17
+  - Packaging via shaded JARs https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L54-L56
 
-Manage workspace tokens, API calls, and webhook signature verification paths.
+- Open questions and risks:
+  - Owner | Issue | Link
+  - PM | Marketplace submission steps — not documented | https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L1
 
-Follow Quickstart/Makefile workflow for local development, ngrok exposure, and Clockify installation.
+- Commands or APIs you will call (if any):
+```
+make build
+make run-auto-tag-assistant
+```
+  - Source: https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L47-L56 https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L21
 
-Primary artifacts in repo:
-
-Building Your Own Add-on guide
-
-Scaffold script new-addon.sh
-
-Auto-Tag Assistant implementation
-
-How to do your job:
-
-Run scripts/new-addon.sh to clone the template, rewrite packages, and register the module in the parent build.
-
-Update manifest builder within your App class to set key, name, scopes, components, webhooks, and lifecycle endpoints.
-
-Replace template TODOs for lifecycle persistence and webhook processing with production logic; store tokens via TokenStore (or your persistent implementation).
-
-Validate manifests using the provided Python script before installing or committing.
-
-Run the add-on locally via Makefile/Quickstart, expose with ngrok, and install in Clockify for end-to-end testing.
-
-Implement webhook signature validation and API calls using ClockifyHttpClient and WebhookSignatureValidator patterns.
-
-Decode JWT claims when your UI or webhooks require environment-specific URLs, using JwtTokenDecoder helpers.
-
-Critical decisions already made:
-
-Runtime manifest is generated programmatically and must stay schema-compliant without $schema field; helper SDK updates manifest automatically.
-
-Token storage defaults to in-memory for demos, but production expects persistent storage following guide recommendations.
-
-Local workflow uses Makefile + ngrok to mirror Clockify installation flow; documentation assumes this path for support.
-
-Open questions and risks:
-
-Owner	Source	Link
-Addon Engineer	Template manifest description still TODO—update before publishing derived add-ons.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/_template-addon/manifest.json#L2-L18
-Addon Engineer	Template settings and webhook handlers contain TODO placeholders; implement real UI and business logic for any shipped add-on.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/_template-addon/src/main/java/com/example/templateaddon/SettingsController.java#L10-L32
-Commands or APIs you will call (if any):
-
-scripts/new-addon.sh my-addon "My Add-on"
-
-References:
-
-Building Your Own Add-on guide.
-
-Scaffold script for automation.
-
-Auto-Tag Assistant README for architecture and troubleshooting.
+- References:
+  - README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L80
+  - Makefile https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L80
+  - POM https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L1-L29

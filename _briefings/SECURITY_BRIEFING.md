@@ -1,61 +1,39 @@
-Security & Privacy Lead Briefing — Clockify Add-on Boilerplate
-Repo commit: 239a31a40da23bfaa7eaf8720120d19723058eb4
+# Security & Privacy Lead Briefing — Clockify Add-on Boilerplate
+- Repo commit: a487d16c75425f6c14d1c3195459a52bc0991f88
+- Scope for this role:
+  - Define addon MVPs and success metrics ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L20"].
+  - Align supported modules and templates ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27"].
+  - Track build/run workflows for feasibility ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L8-L29"].
+  - Confirm Java 17 + Maven stack ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17"].
 
-Scope for this role:
+- Primary artifacts in repo:
+  - Project README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L40
+  - Maven modules https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27
+  - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
-Enforce environment variable validation, secrets management, and webhook hardening guidance.
+- How to do your job:
+  - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
+  - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
+  - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26
+  - Validate manifests before delivery https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L41-L45
+  - Note dependency policy: Maven Central only https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L30-L31
 
-Validate token storage approach, JWT decoding, and signature verification implementation.
+- Critical decisions already made:
+  - Language/runtime: Java 17 and Maven https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17
+  - Packaging via shaded JARs https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L54-L56
 
-Review rate limiting, input sanitization, and HTTP client timeout strategies for abuse prevention.
+- Open questions and risks:
+  - Owner | Issue | Link
+  - PM | Marketplace submission steps — not documented | https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L1
 
-Ensure compliance with Clockify environment separation and regional endpoints.
+- Commands or APIs you will call (if any):
+```
+make build
+make run-auto-tag-assistant
+```
+  - Source: https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L47-L56 https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L21
 
-Primary artifacts in repo:
-
-Production Deployment Guide — security section
-
-WebhookSignatureValidator.java
-
-JwtTokenDecoder.java
-
-How to do your job:
-
-Enforce .env setup with strong webhook secret generation and validate config via ConfigValidator.
-
-Mandate DatabaseTokenStore (or equivalent) in production to prevent credential loss and enable audit trails.
-
-Require webhook signature verification path using installation tokens and base64-safe comparison.
-
-Ensure JWT environment claims are parsed and normalized before routing requests to region-specific APIs.
-
-Validate rate limiter deployment (per-IP/workspace) and align with upstream proxies or distributed caches.
-
-Confirm HTTP client applies timeouts, retries, and rate-limit handling for safe API interactions.
-
-Implement HTTPS-only connectors, security headers, and HSTS policies across environments.
-
-Critical decisions already made:
-
-Security hardening now includes path sanitization, rate limiting, config validation, and signature checks as baseline features.
-
-Production guide mandates TLS, credential rotation, and database-backed token storage.
-
-Webhook processing validates signatures against stored installation tokens before proceeding.
-
-Open questions and risks:
-
-Owner	Source	Link
-Engineering Lead	Template lifecycle handler still lacks real persistence logic; security review needed once storage mechanism is chosen.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/_template-addon/src/main/java/com/example/templateaddon/LifecycleHandlers.java#L14-L55
-Engineering Lead	Auto add-on logs a TODO when auth token missing; determine fallback handling to avoid webhook bypass.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/LifecycleHandlers.java#L47-L63
-Commands or APIs you will call (if any):
-
-openssl rand -hex 32
-
-References:
-
-Production deployment security checklist.
-
-Webhook signature validator implementation.
-
-JWT decoder guidance.
+- References:
+  - README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L80
+  - Makefile https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L80
+  - POM https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L1-L29

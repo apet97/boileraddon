@@ -1,19 +1,16 @@
-Briefings Index — Clockify Add-on Boilerplate
-Default branch: main
+# Briefings Index — Clockify Add-on Boilerplate
+- Commit: a487d16c75425f6c14d1c3195459a52bc0991f88
+- Default branch: main
+- Built: 2025-11-08 04:59:29Z
 
-Repo commit: 239a31a40da23bfaa7eaf8720120d19723058eb4
-
-Build timestamp (UTC): 2025-11-08T04:48:30Z
-
-Notes: No additional stakeholder briefings required beyond the requested roles.
-
-Role	Briefing file	Key inputs used	Warnings
-Product Manager	PM_BRIEFING.md	README product value & Quickstart; Improvements summary; Changelog updates	—
-Solution Architect	ARCH_BRIEFING.md	Architecture overview; AutoTag bootstrap code; Token store notes	—
-Security & Privacy Lead	SECURITY_BRIEFING.md	Production hardening guide; Webhook signature validator; JWT decoder guidance	—
-Engineering Lead	ENG_LEAD_BRIEFING.md	Makefile orchestration; CI workflow; Parent POM modules	—
-Addon Engineer (Feature Dev)	DEV_BRIEFING.md	Builder checklist; Manifest construction code; Template scaffold script	—
-QA & Test Lead	QA_BRIEFING.md	GitHub Actions tests; Smoke-test script; Manifest controller test	—
-DevOps/Release	RELEASE_BRIEFING.md	Dockerfile stages; Makefile docker-run target; Deployment guide options	—
-Docs & Developer Experience	DOCS_BRIEFING.md	Docs overview map; Quick reference cheat sheet; API cookbook pointer	—
-Support & Developer Relations	SUPPORT_BRIEFING.md	Request/response playbook; Webhook payload samples; Troubleshooting cues	—
+Role | Briefing file | Key inputs used | Warnings
+---- | ------------- | ----------------| --------
+PM | _briefings/PM_BRIEFING.md | README, POM, Makefile | -
+Solution Architect | _briefings/ARCH_BRIEFING.md | README, POM, Makefile | Gaps likely
+Security & Privacy Lead | _briefings/SECURITY_BRIEFING.md | README, POM, Makefile | Gaps likely
+Engineering Lead | _briefings/ENG_LEAD_BRIEFING.md | README, POM, Makefile | -
+Addon Engineer | _briefings/DEV_BRIEFING.md | README, POM, Makefile | -
+QA & Test Lead | _briefings/QA_BRIEFING.md | README, POM, Makefile | Tests missing
+DevOps/Release | _briefings/RELEASE_BRIEFING.md | Makefile, Workflows | -
+Docs & DX | _briefings/DOCS_BRIEFING.md | README, docs | -
+Support & DevRel | _briefings/SUPPORT_BRIEFING.md | README | -

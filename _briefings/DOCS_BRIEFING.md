@@ -1,61 +1,39 @@
-Docs & Developer Experience Briefing — Clockify Add-on Boilerplate
-Repo commit: 239a31a40da23bfaa7eaf8720120d19723058eb4
+# Docs & Developer Experience Briefing — Clockify Add-on Boilerplate
+- Repo commit: a487d16c75425f6c14d1c3195459a52bc0991f88
+- Scope for this role:
+  - Define addon MVPs and success metrics ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L20"].
+  - Align supported modules and templates ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27"].
+  - Track build/run workflows for feasibility ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L8-L29"].
+  - Confirm Java 17 + Maven stack ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17"].
 
-Scope for this role:
+- Primary artifacts in repo:
+  - Project README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L40
+  - Maven modules https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27
+  - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
-Maintain documentation map optimized for AI/human onboarding (docs README, quick reference, cookbooks).
+- How to do your job:
+  - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
+  - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
+  - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26
+  - Validate manifests before delivery https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L41-L45
+  - Note dependency policy: Maven Central only https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L30-L31
 
-Keep Quick Reference, API Cookbook, and Request/Response examples accurate and schema-aligned.
+- Critical decisions already made:
+  - Language/runtime: Java 17 and Maven https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17
+  - Packaging via shaded JARs https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L54-L56
 
-Synchronize product docs with Improvements Summary, Production Guide, and CHANGELOG updates.
+- Open questions and risks:
+  - Owner | Issue | Link
+  - PM | Marketplace submission steps — not documented | https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L1
 
-Support template and scaffold instructions for AI/developer contributors.
+- Commands or APIs you will call (if any):
+```
+make build
+make run-auto-tag-assistant
+```
+  - Source: https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L47-L56 https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L21
 
-Primary artifacts in repo:
-
-Documentation README
-
-Quick Reference
-
-Request/Response Examples
-
-How to do your job:
-
-Curate docs navigation (Getting Started, Development Guides, Reference) to ensure newcomers can follow the prescribed workflow.
-
-Keep Quick Reference manifest rules, scopes, webhook events, and API endpoints aligned with latest schema updates.
-
-Ensure Request/Response Examples mirror actual lifecycle payloads and webhook headers for support accuracy.
-
-Document improvements (security, persistence, testing) and link to associated code when updating release notes or blog posts.
-
-Cross-reference Production Deployment Guide for ops-focused docs (env vars, TLS, database schema) and maintain versioning notes.
-
-Update Building Your Own Add-on guide whenever scaffold script changes to keep step-by-step instructions consistent.
-
-Provide troubleshooting references using Auto-Tag Assistant README and Quick Reference to assist support teams.
-
-Critical decisions already made:
-
-Documentation directory is optimized for zero-shot AI development with dedicated quick reference and cookbooks.
-
-Quick Reference is canonical for manifest rules, scopes, and endpoints; treat as single source of truth.
-
-Production Deployment Guide doubles as operational handbook and must remain synchronized with code changes.
-
-Open questions and risks:
-
-Owner	Source	Link
-Docs Team	Template manifest description placeholder indicates documentation examples still need finalized narrative before publication.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/_template-addon/manifest.json#L2-L18
-Docs Team	Template lifecycle handler TODOs signal missing doc guidance on persistence patterns; add explicit instructions once implementation chosen.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/_template-addon/src/main/java/com/example/templateaddon/LifecycleHandlers.java#L14-L55
-Commands or APIs you will call (if any):
-
-python3 tools/validate-manifest.py
-
-References:
-
-Documentation README.
-
-Quick Reference cheat sheet.
-
-Request/Response examples.
+- References:
+  - README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L80
+  - Makefile https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L80
+  - POM https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L1-L29

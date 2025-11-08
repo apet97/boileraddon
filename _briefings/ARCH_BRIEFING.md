@@ -1,61 +1,39 @@
-Solution Architect Briefing — Clockify Add-on Boilerplate
-Repo commit: 239a31a40da23bfaa7eaf8720120d19723058eb4
+# Solution Architect Briefing — Clockify Add-on Boilerplate
+- Repo commit: a487d16c75425f6c14d1c3195459a52bc0991f88
+- Scope for this role:
+  - Define addon MVPs and success metrics ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L20"].
+  - Align supported modules and templates ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27"].
+  - Track build/run workflows for feasibility ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L8-L29"].
+  - Confirm Java 17 + Maven stack ["https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17"].
 
-Scope for this role:
+- Primary artifacts in repo:
+  - Project README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L40
+  - Maven modules https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L19-L27
+  - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
-Validate module boundaries between application code and inline SDK runtime.
+- How to do your job:
+  - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
+  - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
+  - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26
+  - Validate manifests before delivery https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L41-L45
+  - Note dependency policy: Maven Central only https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L30-L31
 
-Ensure deployment model assumptions (single add-on per JVM, context path isolation) are upheld in target environments.
+- Critical decisions already made:
+  - Language/runtime: Java 17 and Maven https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L13-L17
+  - Packaging via shaded JARs https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L54-L56
 
-Govern manifest, lifecycle, and webhook registration flows for new add-ons.
+- Open questions and risks:
+  - Owner | Issue | Link
+  - PM | Marketplace submission steps — not documented | https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L1
 
-Advise on environment claim handling and token persistence strategy.
+- Commands or APIs you will call (if any):
+```
+make build
+make run-auto-tag-assistant
+```
+  - Source: https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L47-L56 https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L21
 
-Primary artifacts in repo:
-
-Architecture Overview
-
-AutoTagAssistantApp bootstrap logic
-
-TokenStore reference implementation
-
-How to do your job:
-
-Review module responsibilities (app vs inline SDK) to design compliant extensions or integrations.
-
-Confirm AddonServlet/EmbeddedServer usage when planning deployment topologies; ensure context paths stay unique.
-
-Verify manifest builder flow in AutoTagAssistantApp when introducing additional components or scopes.
-
-Enforce token persistence design—swap demo TokenStore for DatabaseTokenStore in multi-node deployments.
-
-Ensure lifecycle/webhook registration keeps manifest synchronized via ClockifyAddon helpers in any custom modules.
-
-Validate environment claims extraction through JwtTokenDecoder before routing traffic to regional APIs.
-
-Align deployment architecture with Production guide’s security, scaling, and monitoring sections when specifying hosting patterns.
-
-Critical decisions already made:
-
-Each add-on runs best as a dedicated process; shared servlet containers require additional isolation work.
-
-Runtime manifest is constructed programmatically and must remain in sync with registered endpoints.
-
-TokenStore currently defaults to in-memory storage; production deployments should replace it with persistent storage per guide recommendations.
-
-Open questions and risks:
-
-Owner	Source	Link
-Engineering Lead	Template lifecycle handlers still log instead of persisting credentials; formalize storage contract for new add-ons.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/_template-addon/src/main/java/com/example/templateaddon/LifecycleHandlers.java#L14-L55
-Engineering Lead	RateLimiter defaults to IP-based throttling; confirm production profile for workspace-level limiting and distributed caches.	https://github.com/apet97/boileraddon/blob/239a31a40da23bfaa7eaf8720120d19723058eb4/addons/addon-sdk/src/main/java/com/clockify/addon/sdk/middleware/RateLimiter.java#L18-L188
-Commands or APIs you will call (if any):
-
-ITokenStore tokenStore = DatabaseTokenStore.fromEnvironment();
-
-References:
-
-Architecture overview.
-
-AutoTagAssistantApp manifest bootstrap.
-
-Production deployment guide for security and scaling.
+- References:
+  - README https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/README.md#L1-L80
+  - Makefile https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L80
+  - POM https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L1-L29
