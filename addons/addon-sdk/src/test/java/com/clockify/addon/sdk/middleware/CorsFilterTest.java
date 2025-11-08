@@ -65,5 +65,23 @@ class CorsFilterTest {
         verify(resp).setHeader("Access-Control-Allow-Origin", "https://app.clockify.me");
         verify(chain).doFilter(any(ServletRequest.class), any(ServletResponse.class));
     }
-}
 
+    @Test
+    void nullOriginPassesThroughWithoutCorsHeaders() throws Exception {
+        CorsFilter filter = new CorsFilter("https://app.clockify.me", false);
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        HttpServletResponse resp = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+
+        when(req.getMethod()).thenReturn("GET");
+        when(req.getHeader("Origin")).thenReturn(null);
+
+        filter.doFilter(req, resp, chain);
+
+        // Vary is still added for caches
+        verify(resp).addHeader("Vary", "Origin");
+        // No Access-Control-Allow-Origin header set
+        verify(resp, never()).setHeader(eq("Access-Control-Allow-Origin"), anyString());
+        verify(chain).doFilter(any(ServletRequest.class), any(ServletResponse.class));
+    }
+}

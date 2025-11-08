@@ -48,5 +48,22 @@ class SecurityHeadersFilterTest {
         verify(resp).setHeader(eq("Strict-Transport-Security"), anyString());
         verify(chain).doFilter(any(ServletRequest.class), any(ServletResponse.class));
     }
-}
 
+    @Test
+    void doesNotSetCspWhenFrameAncestorsUnset() throws Exception {
+        SecurityHeadersFilter filter = new SecurityHeadersFilter(null);
+
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        HttpServletResponse resp = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+
+        when(req.isSecure()).thenReturn(false);
+        when(req.getHeader("X-Forwarded-Proto")).thenReturn(null);
+
+        filter.doFilter(req, resp, chain);
+
+        verify(resp, never()).setHeader(eq("Content-Security-Policy"), anyString());
+        verify(resp, never()).setHeader(eq("Strict-Transport-Security"), anyString());
+        verify(chain).doFilter(any(ServletRequest.class), any(ServletResponse.class));
+    }
+}
