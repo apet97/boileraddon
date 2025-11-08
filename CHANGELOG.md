@@ -154,8 +154,8 @@ See Git history for earlier changes.
    TokenStore.save(workspaceId, token, baseUrl);
 
    // After - Use interface
-   import com.clockify.addon.sdk.storage.ITokenStore;
-   import com.clockify.addon.sdk.storage.DatabaseTokenStore;
+   import com.clockify.addon.sdk.security.TokenStoreSPI;
+   import com.clockify.addon.sdk.security.DatabaseTokenStore;
 
    ITokenStore tokenStore = DatabaseTokenStore.fromEnvironment();
    tokenStore.save(workspaceId, token, baseUrl);

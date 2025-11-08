@@ -286,7 +286,7 @@ mvn test
 
 #### Validation
 ```java
-import com.clockify.addon.sdk.config.ConfigValidator;
+import com.clockify.addon.sdk.ConfigValidator;
 
 Map<String, String> env = System.getenv();
 ConfigValidator.AddonConfig config = ConfigValidator.validateAddonConfig(env);
@@ -295,7 +295,7 @@ ConfigValidator.AddonConfig config = ConfigValidator.validateAddonConfig(env);
 
 #### Database Storage
 ```java
-import com.clockify.addon.sdk.storage.DatabaseTokenStore;
+import com.clockify.addon.sdk.security.DatabaseTokenStore;
 
 ITokenStore tokenStore = DatabaseTokenStore.fromEnvironment();
 tokenStore.save(workspaceId, authToken, apiBaseUrl);

@@ -69,7 +69,7 @@ openssl rand -hex 32
 The SDK includes automatic configuration validation that fails fast with helpful errors:
 
 ```java
-import com.clockify.addon.sdk.config.ConfigValidator;
+import com.clockify.addon.sdk.ConfigValidator;
 
 Map<String, String> env = System.getenv();
 ConfigValidator.AddonConfig config = ConfigValidator.validateAddonConfig(env);
@@ -84,7 +84,7 @@ ConfigValidator.AddonConfig config = ConfigValidator.validateAddonConfig(env);
 Replace in-memory token storage with persistent database storage:
 
 ```java
-import com.clockify.addon.sdk.storage.DatabaseTokenStore;
+import com.clockify.addon.sdk.security.DatabaseTokenStore;
 
 // From environment variables
 ITokenStore tokenStore = DatabaseTokenStore.fromEnvironment();
