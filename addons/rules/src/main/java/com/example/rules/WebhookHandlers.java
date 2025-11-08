@@ -122,22 +122,21 @@ public class WebhookHandlers {
     }
 
     private static void logActions(List<Action> actions) {
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("📋 Actions to Apply:");
-        System.out.println("=".repeat(80));
-
-        for (Action action : actions) {
-            System.out.println("  Type: " + action.getType());
-            if (action.getArgs() != null) {
-                action.getArgs().forEach((key, value) ->
-                        System.out.println("    " + key + ": " + value)
-                );
-            }
+        if (actions == null || actions.isEmpty()) {
+            logger.info("No actions to apply");
+            return;
         }
-
-        System.out.println("=".repeat(80));
-        System.out.println("ℹ️  Note: In production, these actions would be applied via Clockify API");
-        System.out.println("=".repeat(80) + "\n");
+        StringBuilder sb = new StringBuilder();
+        sb.append("Actions to apply (demo)\n");
+        for (Action action : actions) {
+            sb.append("  type=").append(action.getType());
+            if (action.getArgs() != null && !action.getArgs().isEmpty()) {
+                sb.append(", args=").append(action.getArgs());
+            }
+            sb.append('\n');
+        }
+        sb.append("Note: In production, apply via Clockify API");
+        logger.info(sb.toString());
     }
 
     private static HttpResponse createResponse(String eventType, String status, List<Action> actions)
