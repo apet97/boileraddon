@@ -57,12 +57,17 @@ public class WebhookHandlers {
                     String workspaceId = extractWorkspaceId(payload);
                     String eventType = payload.has("event") ? payload.get("event").asText() : event;
 
-                    // Verify webhook signature
-                    WebhookSignatureValidator.VerificationResult verificationResult =
-                            WebhookSignatureValidator.verify(request, workspaceId);
-                    if (!verificationResult.isValid()) {
-                        logger.warn("Webhook signature verification failed for workspace {}", workspaceId);
-                        return verificationResult.response();
+                    // Verify webhook signature (allow opt-out in dev)
+                    boolean skipSig = "true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_SKIP_SIGNATURE_VERIFY", "false"));
+                    if (!skipSig) {
+                        WebhookSignatureValidator.VerificationResult verificationResult =
+                                WebhookSignatureValidator.verify(request, workspaceId);
+                        if (!verificationResult.isValid()) {
+                            logger.warn("Webhook signature verification failed for workspace {}", workspaceId);
+                            return verificationResult.response();
+                        }
+                    } else {
+                        logger.info("ADDON_SKIP_SIGNATURE_VERIFY=true — skipping webhook signature verification (DEV ONLY)");
                     }
 
                     logger.info("Webhook event received: {} for workspace {}", eventType, workspaceId);
