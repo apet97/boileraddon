@@ -155,12 +155,14 @@ Notes:
 - The filter replies 204 for valid preflight and sets `Vary: Origin`.
 - Credentials are not allowed by default.
 
-### Coverage report
+### Coverage
 
-CI generates an aggregate JaCoCo coverage site and uploads it as an artifact. A workflow also publishes it to GitHub Pages (if enabled for this repo).
+CI generates an aggregate JaCoCo coverage site and uploads it as an artifact. The Pages job also publishes the coverage site and a badge generated from the aggregate report (when available).
 
 - Pages URL: https://apet97.github.io/boileraddon/
-- Artifact: `jacoco-aggregate` in the build run
+- Coverage site: https://apet97.github.io/boileraddon/coverage/
+- Badge: embedded at the top of this README (falls back to N/A if no aggregate report exists for the push)
+- JSON summary: https://apet97.github.io/boileraddon/coverage/summary.json
 
 Build status: ![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
 
