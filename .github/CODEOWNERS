@@ -1,0 +1,7 @@
+# Default owners
+* @apet97
+
+# Enforce reviews for add-ons and SDK
+addons/** @apet97
+.tools/** @apet97
+scripts/** @apet97
