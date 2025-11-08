@@ -4,6 +4,7 @@ import com.example.autotagassistant.sdk.AddonServlet;
 import com.example.autotagassistant.sdk.EmbeddedServer;
 import com.example.autotagassistant.sdk.ClockifyAddon;
 import com.example.autotagassistant.sdk.ClockifyManifest;
+import com.example.autotagassistant.TokenStore;
 
 /**
  * Auto-Tag Assistant Add-on
@@ -59,6 +60,8 @@ public class AutoTagAssistantApp {
         // POST /auto-tag-assistant/webhook - Handle time entry events
         WebhookHandlers.register(addon);
 
+        preloadLocalSecrets();
+
         // Health check
         addon.registerCustomEndpoint("/health", request ->
                 com.example.autotagassistant.sdk.HttpResponse.ok("Auto-Tag Assistant is running"));
@@ -88,6 +91,22 @@ public class AutoTagAssistantApp {
         System.out.println("=".repeat(80));
 
         server.start(port);
+    }
+
+    private static void preloadLocalSecrets() {
+        String workspaceId = System.getenv("CLOCKIFY_WORKSPACE_ID");
+        String installationToken = System.getenv("CLOCKIFY_INSTALLATION_TOKEN");
+        if (workspaceId == null || workspaceId.isBlank() || installationToken == null || installationToken.isBlank()) {
+            return;
+        }
+
+        String apiBaseUrl = System.getenv().getOrDefault("CLOCKIFY_API_BASE_URL", "https://api.clockify.me/api");
+        try {
+            TokenStore.save(workspaceId, installationToken, apiBaseUrl);
+            System.out.println("Preloaded installation token for workspace " + workspaceId);
+        } catch (Exception e) {
+            System.err.println("Failed to preload local installation token: " + e.getMessage());
+        }
     }
 
     static String sanitizeContextPath(String baseUrl) {

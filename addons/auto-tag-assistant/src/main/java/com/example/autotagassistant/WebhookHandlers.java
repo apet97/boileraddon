@@ -2,6 +2,7 @@ package com.example.autotagassistant;
 
 import com.example.autotagassistant.sdk.ClockifyAddon;
 import com.example.autotagassistant.sdk.HttpResponse;
+import com.example.autotagassistant.security.WebhookSignatureValidator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -54,6 +56,12 @@ public class WebhookHandlers {
                     String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
                     String workspaceDisplayId = workspaceId != null ? workspaceId : "unknown";
                     String eventType = payload.has("event") ? payload.get("event").asText() : event;
+
+                    WebhookSignatureValidator.VerificationResult verificationResult = WebhookSignatureValidator.verify(request,
+                        workspaceId);
+                    if (!verificationResult.isValid()) {
+                        return verificationResult.response();
+                    }
 
                     System.out.println("\n" + "=".repeat(80));
                     System.out.println("WEBHOOK EVENT: " + eventType);
@@ -504,9 +512,16 @@ public class WebhookHandlers {
             return (JsonNode) cachedJson;
         }
 
+        String rawBody = ensureRawBodyCached(request);
+        JsonNode json = objectMapper.readTree(rawBody);
+        request.setAttribute("clockify.jsonBody", json);
+        return json;
+    }
+
+    private static String ensureRawBodyCached(HttpServletRequest request) throws IOException {
         Object cachedBody = request.getAttribute("clockify.rawBody");
         if (cachedBody instanceof String) {
-            return objectMapper.readTree((String) cachedBody);
+            return (String) cachedBody;
         }
 
         StringBuilder sb = new StringBuilder();
@@ -516,7 +531,10 @@ public class WebhookHandlers {
                 sb.append(line);
             }
         }
-        return objectMapper.readTree(sb.toString());
+
+        String body = sb.toString();
+        request.setAttribute("clockify.rawBody", body);
+        return body;
     }
 
     private static final class TagSuggestionResult {
