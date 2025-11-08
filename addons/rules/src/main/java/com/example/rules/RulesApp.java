@@ -110,6 +110,29 @@ public class RulesApp {
         // POST /rules/api/test — dry-run evaluation (no side effects)
         addon.registerCustomEndpoint("/api/test", rulesController.testRules());
 
+        // GET /rules/status — runtime status (token present, modes)
+        addon.registerCustomEndpoint("/status", request -> {
+            try {
+                String ws = request.getParameter("workspaceId");
+                boolean tokenPresent = false;
+                if (ws != null && !ws.isBlank()) {
+                    tokenPresent = com.clockify.addon.sdk.security.TokenStore.get(ws).isPresent();
+                }
+                boolean apply = "true".equalsIgnoreCase(System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false"));
+                boolean skipSig = "true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_SKIP_SIGNATURE_VERIFY", "false"));
+                String json = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
+                        .put("workspaceId", ws == null ? "" : ws)
+                        .put("tokenPresent", tokenPresent)
+                        .put("applyChanges", apply)
+                        .put("skipSignatureVerify", skipSig)
+                        .put("baseUrl", baseUrl)
+                        .toString();
+                return HttpResponse.ok(json, "application/json");
+            } catch (Exception e) {
+                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+            }
+        });
+
         // POST /rules/lifecycle/installed & /lifecycle/deleted - Lifecycle events
         LifecycleHandlers.register(addon, rulesStore);
 

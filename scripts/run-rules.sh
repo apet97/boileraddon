@@ -35,6 +35,14 @@ discover_ngrok() {
 
 sanitize_base() {
   local in="$1"
+  # Trim leading/trailing whitespace
+  in="${in##*( )}"; in="${in%%*( )}"
+  # Guard against spaces anywhere in URL
+  if printf '%s' "$in" | grep -qE '\\s'; then
+    echo "ERROR: Base URL contains spaces: '$in'" >&2
+    echo "Hint: copy-paste without spaces, e.g. --base-url \"https://<sub>.ngrok-free.app/rules\"" >&2
+    exit 2
+  fi
   in="${in%/manifest.json}"
   in="${in%/}"
   if [[ "$in" != */rules ]]; then in="$in/rules"; fi
@@ -92,4 +100,3 @@ else
   ADDON_PORT="$PORT" ADDON_BASE_URL="$BASE_URL" \
     java -jar "$JAR"
 fi
-

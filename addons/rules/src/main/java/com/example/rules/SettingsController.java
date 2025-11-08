@@ -49,6 +49,7 @@ public class SettingsController implements RequestHandler {
       <span class=\"pill\">Signature bypass: %s</span>
       <span class=\"pill\">Base: %s</span>
     </div>
+    <div class=\"row\"><span id=\"tokenStatus\" class=\"muted\">Token: (checking...)</span></div>
     <p class=\"muted\">Install the manifest after the server is running so the Developer workspace sends webhooks to this exact URL. For signed webhooks, leave signature bypass OFF; while testing, turn it ON with <code>ADDON_SKIP_SIGNATURE_VERIFY=true</code>.</p>
   </div>
 
@@ -261,12 +262,21 @@ public class SettingsController implements RequestHandler {
     // Seed one row each and init workspaceId from storage/query
     addCond({type:'descriptionContains',operator:'CONTAINS'});
     addAct({type:'add_tag',k:'tag',v:'billable'});
+    async function refreshStatus(){
+      const ws = document.getElementById('wsid').value.trim();
+      if(!ws){ document.getElementById('tokenStatus').textContent='Token: workspaceId not set'; return; }
+      const r = await fetch(baseUrl()+`/status?workspaceId=${encodeURIComponent(ws)}`);
+      if(!r.ok){ document.getElementById('tokenStatus').textContent='Token: status unavailable'; return; }
+      const j = await r.json();
+      document.getElementById('tokenStatus').textContent = 'Token: ' + (j.tokenPresent?'PRESENT':'MISSING');
+    }
+
     try {
       const params = new URLSearchParams(location.search);
       const wsQ = params.get('workspaceId') || params.get('ws');
       const wsS = localStorage.getItem('rules.wsid');
       const ws = wsQ || wsS;
-      if(ws){ document.getElementById('wsid').value = ws; loadRules(); }
+      if(ws){ document.getElementById('wsid').value = ws; loadRules(); refreshStatus(); }
     } catch(e) {}
   </script>
 </body>
