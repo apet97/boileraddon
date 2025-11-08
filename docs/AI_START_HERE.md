@@ -97,6 +97,7 @@ Recipes and scope help: docs/MANIFEST_RECIPES.md, docs/PERMISSIONS_MATRIX.md
 ## CI & Coverage
 - build-and-test runs tests on Temurin 17, uploads jacoco-aggregate; Pages fetches the artifact and generates coverage badge.
 - Pages deploy runs after build-and-test succeeds on main.
+ - smoke runs fast /health and /metrics checks on each add‑on.
 
 Docs: docs/CI_OVERVIEW.md
 
@@ -105,6 +106,14 @@ Docs: docs/CI_OVERVIEW.md
 - `/metrics` — Prometheus scrape (Micrometer registry); not listed in manifest
 
 Docs: docs/PRODUCTION-DEPLOYMENT.md#monitoring--observability, docs/SDK_OVERVIEW.md
+
+## Validations (quick list)
+- Manifests: `python3 tools/validate-manifest.py`
+- Smoke tests: `make smoke` (or `mvn -e -pl addons/auto-tag-assistant,addons/rules,addons/overtime -am -Dtest=*SmokeIT test`)
+- Module tests: `mvn -e -pl addons/addon-sdk -am test`
+- Full verify (coverage): `mvn -e -fae verify`
+
+Toolchain: Maven forks tests with Java 17 via Toolchains. Ensure `~/.m2/toolchains.xml` provides a JDK 17 (see docs/BUILD_ENVIRONMENT.md) if your host JDK is newer.
 
 ## Security Checklist (Minimum)
 - Validate webhook signatures (HMAC-SHA256).
