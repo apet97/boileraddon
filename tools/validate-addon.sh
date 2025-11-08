@@ -128,9 +128,14 @@ if grep -r "Authorization.*Bearer" "$ADDON_DIR/src/" 2>/dev/null | grep -v ".cla
     grep -rn "Authorization.*Bearer" "$ADDON_DIR/src/" 2>/dev/null | head -5
 fi
 
-# Check for token storage in INSTALLED handler
-if ! grep -r "installationToken" "$ADDON_DIR/src/" 2>/dev/null | grep -q "save\|put\|store"; then
-    warning "May not be storing installation token from INSTALLED event"
+# Check for token storage in INSTALLED handler (installationToken|authToken)
+if ! grep -rE "installationToken|authToken" "$ADDON_DIR/src/" 2>/dev/null | grep -q "TokenStore\.save\|save\|put\|store"; then
+    warning "May not be storing installation token from INSTALLED event (installationToken|authToken + save)"
+fi
+
+# Check for lifecycle handler registration
+if ! grep -r "registerLifecycleHandler" "$ADDON_DIR/src/" 2>/dev/null | grep -q "INSTALLED\|DELETED"; then
+    warning "Lifecycle handlers (INSTALLED/DELETED) may not be registered"
 fi
 
 # Check for hardcoded secrets

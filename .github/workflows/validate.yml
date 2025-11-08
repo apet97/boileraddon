@@ -69,3 +69,22 @@ jobs:
           name: coverage-reports
           path: |
             **/target/site/jacoco/**/*
+
+
+  lifecycle-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Validate addons via script (manifest, lifecycle, security)
+        run: |
+          bash tools/validate-addon.sh addons/_template-addon || true
+          bash tools/validate-addon.sh addons/auto-tag-assistant || true
+          bash tools/validate-addon.sh addons/rules || true
+          bash tools/validate-addon.sh addons/overtime || true
