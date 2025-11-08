@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-import json, sys, os
+import glob
+import json
+import os
+import sys
 from jsonschema import validate, Draft7Validator
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -8,9 +11,16 @@ with open(schema_path, 'r', encoding='utf-8') as f:
     schema = json.load(f)
 
 errors = 0
-targets = sys.argv[1:] or [
-    'addons/_template-addon/manifest.json'
-]
+targets = sys.argv[1:]
+
+if not targets:
+    manifests = sorted(
+        glob.glob(os.path.join(root, 'addons', '*', 'manifest.json'))
+    )
+    if not manifests:
+        print("No manifests found under addons/. Nothing to validate.")
+        sys.exit(0)
+    targets = [os.path.relpath(path, root) for path in manifests]
 
 for rel in targets:
     path = os.path.join(root, rel)
