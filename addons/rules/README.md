@@ -9,6 +9,8 @@
 
 Automation add-on that applies rule-driven actions to time entries (e.g., tagging entries that match conditions). Includes lifecycle handlers, a settings page, and webhook processing.
 
+See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Matrix](../../docs/PERMISSIONS_MATRIX.md) for choosing plan/scopes and wiring routes.
+
 ## Quick Start
 
 ```

@@ -2,8 +2,8 @@ package com.clockify.addon.sdk.metrics;
 
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
-import io.micrometer.prometheus.PrometheusConfig;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.micrometer.prometheusmetrics.PrometheusConfig;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -23,4 +23,3 @@ public class MetricsHandler implements RequestHandler {
         return HttpResponse.ok(scrape, "text/plain; version=0.0.4; charset=utf-8");
     }
 }
-

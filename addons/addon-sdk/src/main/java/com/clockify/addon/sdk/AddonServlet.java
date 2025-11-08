@@ -7,6 +7,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
+import com.clockify.addon.sdk.metrics.MetricsHandler;
 
 import java.io.IOException;
 import java.util.Map;
@@ -183,6 +186,11 @@ public class AddonServlet extends HttpServlet {
         try {
             json = readAndCacheJsonBody(req);
         } catch (IOException e) {
+            // metrics: invalid payload
+            Counter.builder("webhook_errors_total")
+                    .tag("reason", "invalid_json")
+                    .register(MetricsHandler.registry())
+                    .increment();
             String errorBody = objectMapper.createObjectNode()
                     .put("message", "Invalid JSON payload")
                     .put("details", e.getMessage())
@@ -201,6 +209,10 @@ public class AddonServlet extends HttpServlet {
 
         if (event == null) {
             if (json == null) {
+                Counter.builder("webhook_errors_total")
+                        .tag("reason", "missing_body")
+                        .register(MetricsHandler.registry())
+                        .increment();
                 return HttpResponse.error(400, "Missing request body");
             }
             if (json.has("event")) {
@@ -215,15 +227,41 @@ public class AddonServlet extends HttpServlet {
         }
 
         if (event == null) {
+            Counter.builder("webhook_errors_total")
+                    .tag("reason", "missing_event")
+                    .register(MetricsHandler.registry())
+                    .increment();
             return HttpResponse.error(400, "Missing webhook event type");
         }
 
         RequestHandler handler = handlers.get(event);
         if (handler != null) {
-            return handler.handle(req);
+            // metrics: count + duration per event/path
+            String path = req.getPathInfo() != null ? req.getPathInfo() : "/";
+            Timer.Sample sample = Timer.start(MetricsHandler.registry());
+            Counter.builder("webhook_requests_total")
+                    .tag("event", event)
+                    .tag("path", path)
+                    .register(MetricsHandler.registry())
+                    .increment();
+            HttpResponse response;
+            try {
+                response = handler.handle(req);
+            } finally {
+                Timer timer = Timer.builder("webhook_request_seconds")
+                        .tag("event", event)
+                        .tag("path", path)
+                        .register(MetricsHandler.registry());
+                sample.stop(timer);
+            }
+            return response;
         }
 
         logger.warn("No handler registered for webhook event: {}", event);
+        Counter.builder("webhook_not_handled_total")
+                .tag("event", event)
+                .register(MetricsHandler.registry())
+                .increment();
         return HttpResponse.ok("Webhook event received but not handled: " + event);
     }
 

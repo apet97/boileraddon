@@ -9,6 +9,8 @@
 
 A Clockify add-on that automatically manages tags on time entries, ensuring every entry is categorized correctly. For a deep dive into the inline SDK and routing flow that power this example, see [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md).
 
+See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Matrix](../../docs/PERMISSIONS_MATRIX.md) when customizing plan/scopes/components.
+
 ## Overview
 
 **Auto-Tag Assistant** listens to time entry lifecycle events (start, stop, create, update) and inspects the `tagIds` array. When required tags are missing, the add-on can propose defaults, call the Clockify API to apply tags, or nudge the user through the settings sidebar.

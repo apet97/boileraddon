@@ -9,6 +9,8 @@
 
 Policy add-on that enforces or audits overtime rules on time entries. Demonstrates lifecycle handlers, webhooks, and a minimal settings UI.
 
+See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Matrix](../../docs/PERMISSIONS_MATRIX.md) to tailor plan/scopes/components for your deployment.
+
 ## Quick Start
 
 ```
