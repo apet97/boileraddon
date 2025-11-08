@@ -63,7 +63,7 @@ The runtime manifest served at `/auto-tag-assistant/manifest.json` is already sc
 
 ### Use a database-backed token store (recommended)
 
-For production, persist installation tokens. This boilerplate can switch from in-memory to a database token store using environment variables. If `DB_URL` is set, the app selects `DatabaseTokenStore` automatically.
+For production, persist installation tokens. This boilerplate includes docs and a sample schema to implement a `DatabaseTokenStore` in your add-on. The demo module uses an in-memory `TokenStore` by default; wire your own persistent store before going to production.
 
 Examples:
 
