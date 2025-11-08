@@ -101,6 +101,13 @@ public class AutoTagAssistantApp {
             }
         }
 
+        // Optional CORS allowlist via env: ADDON_CORS_ORIGINS (comma-separated origins)
+        String cors = System.getenv("ADDON_CORS_ORIGINS");
+        if (cors != null && !cors.isBlank()) {
+            server.addFilter(new com.clockify.addon.sdk.middleware.CorsFilter(cors));
+            System.out.println("CORS enabled for origins: " + cors);
+        }
+
         System.out.println("=".repeat(80));
         System.out.println("Auto-Tag Assistant Add-on Starting");
         System.out.println("=".repeat(80));

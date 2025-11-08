@@ -88,6 +88,30 @@ See also: docs/DATABASE_TOKEN_STORE.md and extras/sql/token_store.sql.
   - `export ADDON_RATE_LIMIT=10` (requests/sec)
   - `export ADDON_LIMIT_BY=ip` (or `workspace`)
 
+### CORS support (optional)
+
+Enable a strict allowlist of origins by setting `ADDON_CORS_ORIGINS` to a comma-separated list. The demo app will enable CORS only for matching `Origin` values and short-circuit valid preflight requests.
+
+Examples:
+
+```
+export ADDON_CORS_ORIGINS=https://app.clockify.me,https://example.com
+make run-auto-tag-assistant
+```
+
+Notes:
+- The filter replies 204 for valid preflight and sets `Vary: Origin`.
+- Credentials are not allowed by default.
+
+### Coverage report
+
+CI generates an aggregate JaCoCo coverage site and uploads it as an artifact. A workflow also publishes it to GitHub Pages (if enabled for this repo).
+
+- Pages URL: https://apet97.github.io/boileraddon/
+- Artifact: `jacoco-aggregate` in the build run
+
+Build status: ![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
+
 
 ## Auto-Tag Assistant Walkthrough
 
