@@ -5,6 +5,14 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.eclipse.jetty.servlet.FilterHolder;
+
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
 
 /**
  * Convenience wrapper around Jetty for local development of Clockify add-ons.
@@ -22,6 +30,7 @@ public class EmbeddedServer {
     private static final Logger logger = LoggerFactory.getLogger(EmbeddedServer.class);
     private final AddonServlet servlet;
     private final String contextPath;
+    private final List<Filter> filters = new ArrayList<>();
     private Server server;
 
     public EmbeddedServer(AddonServlet servlet) {
@@ -40,6 +49,13 @@ public class EmbeddedServer {
         context.setContextPath(contextPath);
         server.setHandler(context);
 
+        // Register any configured filters
+        if (!filters.isEmpty()) {
+            for (Filter f : filters) {
+                context.addFilter(new FilterHolder(f), "/*", EnumSet.of(DispatcherType.REQUEST));
+            }
+        }
+
         ServletHolder servletHolder = new ServletHolder(servlet);
         context.addServlet(servletHolder, "/*");
 
@@ -53,5 +69,13 @@ public class EmbeddedServer {
             server.stop();
             logger.info("Server stopped");
         }
+    }
+
+    /**
+     * Add a servlet filter to the embedded server. Call before start().
+     */
+    public EmbeddedServer addFilter(Filter filter) {
+        this.filters.add(filter);
+        return this;
     }
 }

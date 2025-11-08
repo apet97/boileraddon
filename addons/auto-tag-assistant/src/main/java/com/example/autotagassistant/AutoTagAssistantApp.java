@@ -85,6 +85,21 @@ public class AutoTagAssistantApp {
         // Start embedded Jetty server
         AddonServlet servlet = new AddonServlet(addon);
         EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+        // Always add basic security headers; configure frame-ancestors via ADDON_FRAME_ANCESTORS
+        server.addFilter(new com.clockify.addon.sdk.middleware.SecurityHeadersFilter());
+
+        // Optional rate limiter via env: ADDON_RATE_LIMIT (double, requests/sec), ADDON_LIMIT_BY (ip|workspace)
+        String rateLimit = System.getenv("ADDON_RATE_LIMIT");
+        if (rateLimit != null && !rateLimit.isBlank()) {
+            try {
+                double permits = Double.parseDouble(rateLimit.trim());
+                String limitBy = System.getenv().getOrDefault("ADDON_LIMIT_BY", "ip");
+                server.addFilter(new com.clockify.addon.sdk.middleware.RateLimiter(permits, limitBy));
+                System.out.println("RateLimiter enabled: " + permits + "/sec by " + limitBy);
+            } catch (NumberFormatException nfe) {
+                System.err.println("Invalid ADDON_RATE_LIMIT value. Expected number, got: " + rateLimit);
+            }
+        }
 
         System.out.println("=".repeat(80));
         System.out.println("Auto-Tag Assistant Add-on Starting");

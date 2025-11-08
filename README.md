@@ -80,6 +80,14 @@ make run-auto-tag-assistant-db
 
 See also: docs/DATABASE_TOKEN_STORE.md and extras/sql/token_store.sql.
 
+### Optional runtime safeguards
+
+- Security headers: enabled by default; set CSP frame-ancestors via `ADDON_FRAME_ANCESTORS`.
+  - Example: `export ADDON_FRAME_ANCESTORS="'self' https://*.clockify.me"`
+- Rate limiting: enable via env to throttle by IP or workspace.
+  - `export ADDON_RATE_LIMIT=10` (requests/sec)
+  - `export ADDON_LIMIT_BY=ip` (or `workspace`)
+
 
 ## Auto-Tag Assistant Walkthrough
 

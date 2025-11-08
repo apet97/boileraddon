@@ -36,3 +36,12 @@ jobs:
         with:
           name: jacoco-reports
           path: '**/target/site/jacoco/**'
+
+      - name: Aggregate coverage (JaCoCo)
+        run: mvn -B -q verify -DskipTests
+      - name: Upload aggregate coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-aggregate
+          path: target/site/jacoco-aggregate/**
