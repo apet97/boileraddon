@@ -76,8 +76,9 @@ class WebhookHandlersTest {
     void handlerAppliesTagsWhenProjectNameNestedStructurePresent() throws Exception {
         String workspaceId = "workspace-id";
         String timeEntryId = "time-entry-id";
-        String tagsPath = String.format("/workspaces/%s/tags", workspaceId);
-        String timeEntryPath = String.format("/workspaces/%s/time-entries/%s", workspaceId, timeEntryId);
+        String apiPrefix = "/api/v1";
+        String tagsPath = String.format("%s/workspaces/%s/tags", apiPrefix, workspaceId);
+        String timeEntryPath = String.format("%s/workspaces/%s/time-entries/%s", apiPrefix, workspaceId, timeEntryId);
 
         AtomicBoolean updateCalled = new AtomicBoolean(false);
         AtomicReference<String> lastPutBody = new AtomicReference<>();
@@ -128,7 +129,7 @@ class WebhookHandlersTest {
 
         server.start();
 
-        String baseUrl = "http://localhost:" + port;
+        String baseUrl = "http://localhost:" + port + "/api";
         TokenStore.save(workspaceId, "token-value", baseUrl);
 
         ClockifyManifest manifest = ClockifyManifest
