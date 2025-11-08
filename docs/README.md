@@ -29,6 +29,7 @@ Quick index for contributors and AI agents.
 ## Security & Deployment
 - Security Checklist — docs/SECURITY_CHECKLIST.md
 - Production Deployment — docs/PRODUCTION-DEPLOYMENT.md
+- PostgreSQL Guide — docs/POSTGRESQL_GUIDE.md
 
 ## Add‑on Modules
 - Template — addons/_template-addon/README.md
@@ -38,4 +39,3 @@ Quick index for contributors and AI agents.
 
 ## Original Developer Docs Snapshot
 - dev-docs-marketplace-cake-snapshot/
-

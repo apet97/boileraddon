@@ -25,6 +25,7 @@ Quick links
 - Docs Index: docs/README.md
 - Manifest & Lifecycle: docs/MANIFEST_AND_LIFECYCLE.md
 - Parameters Reference: docs/CLOCKIFY_PARAMETERS.md
+- PostgreSQL Guide: docs/POSTGRESQL_GUIDE.md
 - Rules Add‑on: docs/ADDON_RULES.md
 - Architecture: docs/ARCHITECTURE.md
 
