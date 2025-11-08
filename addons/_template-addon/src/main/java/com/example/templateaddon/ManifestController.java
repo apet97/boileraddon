@@ -1,8 +1,8 @@
 package com.example.templateaddon;
 
-import com.example.templateaddon.sdk.ClockifyManifest;
-import com.example.templateaddon.sdk.HttpResponse;
-import com.example.templateaddon.sdk.RequestHandler;
+import com.clockify.addon.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.RequestHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import jakarta.servlet.http.HttpServletRequest;
