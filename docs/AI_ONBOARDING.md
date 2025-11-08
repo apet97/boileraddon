@@ -1,6 +1,6 @@
 # AI Onboarding — Clockify Add-on Boilerplate
 
-Use this guide to start building immediately. It’s optimized for AI agents and junior contributors. For a condensed, action-only version, see docs/ZERO_SHOT.md.
+Use this guide to start building immediately. It’s optimized for AI agents and junior contributors. For a strict, action‑only checklist, see docs/AI_ZERO_SHOT_PLAYBOOK.md (preferred for zero‑shot).
 
 Important: Build with Java 17
 - Ensure your environment runs Maven on JDK 17 and the forked test JVM is also 17.
@@ -23,6 +23,11 @@ Optional deep dives:
 ```bash
 make dev-check            # verifies java, maven, ngrok
 make build-template       # or: make build
+```
+
+If Java is not 17:
+```
+echo "Install JDK 17 and set JAVA_HOME or configure ~/.m2/toolchains.xml"
 ```
 
 ## 3) Run the demo add-on
@@ -70,6 +75,12 @@ make schema-validate
 ```bash
 mvn -q -pl addons/addon-sdk -am test   # start narrow and expand
 # See CI for coverage thresholds; aggregate site is uploaded as artifact and to Pages
+```
+
+To prove the forked JVM version in Surefire:
+```
+mvn -pl addons/addon-sdk -am test -Dprint.jvm.version=true
+# Look for: FORK JVM: 17.x
 ```
 
 ## 7) Docs + briefings

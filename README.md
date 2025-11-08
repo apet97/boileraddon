@@ -19,6 +19,7 @@ Quick links
 - Make Targets: docs/MAKE_TARGETS.md
 - CI Overview: docs/CI_OVERVIEW.md
 - Security Checklist: docs/SECURITY_CHECKLIST.md
+- AI Zero‑Shot Playbook: docs/AI_ZERO_SHOT_PLAYBOOK.md
 - Parameters Reference: docs/CLOCKIFY_PARAMETERS.md
 - Rules Add‑on: docs/ADDON_RULES.md
 - Architecture: docs/ARCHITECTURE.md
