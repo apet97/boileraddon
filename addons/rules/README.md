@@ -1,0 +1,46 @@
+# Rules Add-on
+
+Automation add-on that applies rule-driven actions to time entries (e.g., tagging entries that match conditions). Includes lifecycle handlers, a settings page, and webhook processing.
+
+## Quick Start
+
+```
+mvn -q -pl addons/rules -am package -DskipTests
+ADDON_BASE_URL=http://localhost:8080/rules java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar
+# In another terminal:
+ngrok http 8080
+# Restart with HTTPS base URL
+ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar
+# Install using: https://YOUR.ngrok-free.app/rules/manifest.json
+```
+
+## Manifest (Scopes and Plan)
+
+Rules needs to read and optionally modify time entries, and it uses tags. By default it targets the FREE plan; raise the minimum plan and adapt scopes as needed.
+
+```java
+ClockifyManifest manifest = ClockifyManifest
+    .v1_3Builder()
+    .key("rules")
+    .name("Rules")
+    .baseUrl(baseUrl)
+    .minimalSubscriptionPlan("FREE")
+    .scopes(new String[]{
+        "TIME_ENTRY_READ", "TIME_ENTRY_WRITE",
+        "TAG_READ", "TAG_WRITE"
+    })
+    .build();
+```
+
+Register UI and endpoints in your app wiring; the runtime manifest is served at `/{addon}/manifest.json` and stays synchronized:
+
+```java
+addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
+addon.registerCustomEndpoint("/settings", new SettingsController());
+addon.registerLifecycleHandler("INSTALLED", handler);
+addon.registerLifecycleHandler("DELETED",   handler);
+addon.registerWebhookHandler("NEW_TIME_ENTRY", "/webhooks/entries", handler);
+```
+
+See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQUEST-RESPONSE-EXAMPLES.md for full HTTP exchanges.
+

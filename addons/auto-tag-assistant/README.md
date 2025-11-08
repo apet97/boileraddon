@@ -168,4 +168,28 @@ See the parent repository for licensing details.
 
 ## Support
 
+---
+
+## Manifest (Scopes and Plan)
+
+Auto‑Tag Assistant requires time entry and tag permissions. By default it targets the FREE plan, and you can raise the minimum plan or adjust scopes as needed.
+
+Programmatic manifest (excerpt):
+
+```java
+ClockifyManifest manifest = ClockifyManifest
+    .v1_3Builder()
+    .key("auto-tag-assistant")
+    .name("Auto-Tag Assistant")
+    .baseUrl(baseUrl)
+    .minimalSubscriptionPlan("FREE")         // Options: FREE, BASIC, STANDARD, PRO, ENTERPRISE
+    .scopes(new String[]{                     // Adjust to match your needs
+        "TIME_ENTRY_READ", "TIME_ENTRY_WRITE",
+        "TAG_READ", "TAG_WRITE"
+    })
+    .build();
+```
+
+Runtime manifest is served at `/{addon}/manifest.json` and auto‑updates as you register lifecycle, webhook, and UI component routes. See docs/MANIFEST_AND_LIFECYCLE.md for details.
+
 Questions? Open an issue in the root repository.

@@ -247,6 +247,21 @@ manifest-url:
 		echo "Manifest URL: $(ADDON_BASE_URL)/manifest.json"; \
 	fi
 
+# Pretty-print the runtime manifest (requires curl; jq optional)
+manifest-print:
+	@URL="$(ADDON_BASE_URL)"; \
+	if [ -z "$$URL" ]; then \
+	  URL="http://localhost:$(ADDON_PORT)/$(TEMPLATE)"; \
+	  echo "ADDON_BASE_URL not set; defaulting to $$URL"; \
+	fi; \
+	URL="$$URL/manifest.json"; \
+	echo "Fetching $$URL ..."; \
+	if command -v jq >/dev/null 2>&1; then \
+	  curl -fsSL "$$URL" | jq .; \
+	else \
+	  curl -fsSL "$$URL" || true; \
+	fi
+
 # Zero-shot run helper: build selected addon and run it with sensible defaults
 zero-shot-run:
 	@if [ -z "$(TEMPLATE)" ]; then \
