@@ -4,6 +4,7 @@ import com.example.autotagassistant.sdk.ClockifyAddon;
 import com.example.autotagassistant.sdk.ClockifyManifest;
 import com.example.autotagassistant.sdk.HttpResponse;
 import com.example.autotagassistant.sdk.RequestHandler;
+import com.example.autotagassistant.security.WebhookSignatureValidator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -158,6 +159,8 @@ class WebhookHandlersTest {
         project.put("name", "Omega Project");
 
         TestWebhookRequest request = new TestWebhookRequest("POST", payload);
+        request.setHeader(WebhookSignatureValidator.SIGNATURE_HEADER,
+            WebhookSignatureValidator.computeSignature("token-value", payload.toString()));
         HttpResponse response = handler.handle(request);
 
         assertEquals(200, response.getStatusCode());
@@ -175,6 +178,69 @@ class WebhookHandlersTest {
 
         JsonNode putRequestJson = OBJECT_MAPPER.readTree(Objects.requireNonNull(lastPutBody.get()));
         assertEquals("tag-omega", putRequestJson.withArray("tagIds").get(0).asText());
+    }
+
+    @Test
+    void webhookRejectsMissingSignature() throws Exception {
+        String workspaceId = "workspace-id";
+
+        TokenStore.save(workspaceId, "token-value", "https://api.clockify.me/api");
+
+        ClockifyManifest manifest = ClockifyManifest
+            .v1_3Builder()
+            .key("auto-tag-assistant")
+            .name("Auto-Tag Assistant")
+            .description("Automatically detects and suggests tags for time entries")
+            .baseUrl("https://example.com/auto-tag-assistant")
+            .minimalSubscriptionPlan("FREE")
+            .scopes(new String[]{"TIME_ENTRY_READ"})
+            .build();
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        WebhookHandlers.register(addon);
+
+        RequestHandler handler = addon.getWebhookHandlers().get("NEW_TIME_ENTRY");
+
+        ObjectNode payload = OBJECT_MAPPER.createObjectNode();
+        payload.put("workspaceId", workspaceId);
+        payload.putObject("timeEntry").put("id", "ignored");
+
+        TestWebhookRequest request = new TestWebhookRequest("POST", payload);
+        HttpResponse response = handler.handle(request);
+
+        assertEquals(401, response.getStatusCode());
+        assertEquals("Missing webhook signature header", response.getBody());
+    }
+
+    @Test
+    void webhookRejectsInvalidSignature() throws Exception {
+        String workspaceId = "workspace-id";
+
+        TokenStore.save(workspaceId, "token-value", "https://api.clockify.me/api");
+
+        ClockifyManifest manifest = ClockifyManifest
+            .v1_3Builder()
+            .key("auto-tag-assistant")
+            .name("Auto-Tag Assistant")
+            .description("Automatically detects and suggests tags for time entries")
+            .baseUrl("https://example.com/auto-tag-assistant")
+            .minimalSubscriptionPlan("FREE")
+            .scopes(new String[]{"TIME_ENTRY_READ"})
+            .build();
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        WebhookHandlers.register(addon);
+
+        RequestHandler handler = addon.getWebhookHandlers().get("NEW_TIME_ENTRY");
+
+        ObjectNode payload = OBJECT_MAPPER.createObjectNode();
+        payload.put("workspaceId", workspaceId);
+        payload.putObject("timeEntry").put("id", "ignored");
+
+        TestWebhookRequest request = new TestWebhookRequest("POST", payload);
+        request.setHeader(WebhookSignatureValidator.SIGNATURE_HEADER, "bogus");
+        HttpResponse response = handler.handle(request);
+
+        assertEquals(403, response.getStatusCode());
+        assertEquals("Invalid webhook signature", response.getBody());
     }
 
     private static void respondWithJson(HttpExchange exchange, int statusCode, String body) throws IOException {
@@ -209,6 +275,15 @@ class WebhookHandlersTest {
             this.method = method;
             this.body = body.toString();
             attributes.put("clockify.jsonBody", body);
+            attributes.put("clockify.rawBody", this.body);
+        }
+
+        void setHeader(String name, String value) {
+            if (value == null) {
+                headers.remove(name);
+            } else {
+                headers.put(name, value);
+            }
         }
 
         @Override
@@ -569,4 +644,3 @@ class WebhookHandlersTest {
         }
     }
 }
-
