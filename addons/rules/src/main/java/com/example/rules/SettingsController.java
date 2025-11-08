@@ -170,8 +170,10 @@ public class SettingsController implements RequestHandler {
     }
 
     function baseUrl(){
-      const url = new URL(window.location.href);
-      return url.origin + url.pathname.replace(/\\/settings$/, '');
+      const u = new URL(window.location.href);
+      // Remove trailing /settings or /settings/ and any trailing slash
+      let p = u.pathname.replace(/\/settings\/?$/, '').replace(/\/$/, '');
+      return u.origin + p;
     }
 
     async function saveRule(){
