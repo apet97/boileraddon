@@ -2,6 +2,8 @@
 
 This module is a copy-ready starting point for building a new Clockify add-on with Jetty and Jackson. Use it as a template by duplicating the folder and renaming the identifiers that ship with the scaffold.
 
+> 🚀 Quick start: run `scripts/new-addon.sh my-addon "My Add-on"` from the repo root to clone this module automatically. The script requires `perl`, `jq`, and `python3` and updates Maven coordinates, package names, and the parent `pom.xml` for you.
+
 ## How to copy and rename
 
 1. **Copy the folder** – duplicate `addons/_template-addon` to your new add-on folder name (for example `addons/my-addon`).

@@ -4,7 +4,11 @@ Use this repository as a starting point for your production add-on. Follow the c
 
 ## 1. Copy & Rename Checklist
 
-1. **Duplicate the module** – Copy either `addons/auto-tag-assistant/` (full example) or `addons/_template-addon/` (minimal skeleton) into a new directory such as `addons/<your-addon>/`. The legacy scaffold remains available under `templates/java-basic-addon/` if you need it for reference.
+1. **Duplicate the module** – Prefer the automated scaffold:
+   ```bash
+   scripts/new-addon.sh my-addon "My Add-on"
+   ```
+   The helper script (requires `perl`, `jq`, and `python3`) copies the template module, rewrites the Maven coordinates, updates package/class names, and wires the new module into the parent build. If you need to customize the process manually, copy either `addons/auto-tag-assistant/` (full example) or `addons/_template-addon/` (minimal skeleton) into a new directory such as `addons/<your-addon>/`. The legacy scaffold remains available under `templates/java-basic-addon/` if you need it for reference.
 2. **Update package names** – Replace `com.example.autotagassistant` with your own reversed domain in both source directories and `pom.xml`.
 3. **Rename entry points** – Rename `AutoTagAssistantApp` (or the template’s `Main` class) and adjust the `mainClass` in the module POM.
 4. **Adjust artifact IDs** – Update `<artifactId>` in the copied `pom.xml` so the generated JAR name matches your add-on key.
