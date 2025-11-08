@@ -1,4 +1,5 @@
-# Auto-Tag Assistant
+# Auto-Tag Assistant  
+[AI START HERE](../../docs/AI_START_HERE.md)
 
 A Clockify add-on that automatically manages tags on time entries, ensuring every entry is categorized correctly. For a deep dive into the inline SDK and routing flow that power this example, see [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md).
 

@@ -1,4 +1,5 @@
-# Overtime Add-on
+# Overtime Add-on  
+[AI START HERE](../../docs/AI_START_HERE.md)
 
 Policy add-on that enforces or audits overtime rules on time entries. Demonstrates lifecycle handlers, webhooks, and a minimal settings UI.
 

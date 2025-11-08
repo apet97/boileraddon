@@ -1,4 +1,5 @@
-# `_template-addon`
+# `_template-addon`  
+[AI START HERE](../../docs/AI_START_HERE.md)
 
 This module is a copy-ready starting point for building a new Clockify add-on with Jetty and Jackson. It includes:
 

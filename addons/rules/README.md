@@ -1,4 +1,5 @@
-# Rules Add-on
+# Rules Add-on  
+[AI START HERE](../../docs/AI_START_HERE.md)
 
 Automation add-on that applies rule-driven actions to time entries (e.g., tagging entries that match conditions). Includes lifecycle handlers, a settings page, and webhook processing.
 
