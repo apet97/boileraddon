@@ -74,7 +74,7 @@ public class SettingsController implements RequestHandler {
                     <ul>
                         <li><code>GET /api/rules</code> - List all rules</li>
                         <li><code>POST /api/rules</code> - Create or update a rule</li>
-                        <li><code>DELETE /api/rules/{id}</code> - Delete a rule</li>
+                        <li><code>DELETE /api/rules?id={id}</code> - Delete a rule</li>
                         <li><code>POST /api/test</code> - Test rules against sample data</li>
                     </ul>
                 </div>
