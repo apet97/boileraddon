@@ -73,6 +73,13 @@ fi
 NAME_RAW="$1"
 DISPLAY_NAME="${2:-Template Add-on}"
 
+# Derive a PascalCase prefix for the generated Java application class
+NAME_CLASS_SOURCE=$(echo "$NAME_RAW" | tr -cd '[:alnum:]_-')
+CLASS_PREFIX=$(echo "$NAME_CLASS_SOURCE" | tr '_-' ' ' | awk '{for (i = 1; i <= NF; i++) { if ($i != "") { printf "%s%s", toupper(substr($i, 1, 1)), substr($i, 2); } }}')
+if [ -z "$CLASS_PREFIX" ]; then
+  CLASS_PREFIX="Addon"
+fi
+
 if [ -z "$BASE_PATH" ]; then
   BASE_PATH="$NAME_RAW"
 fi
@@ -82,9 +89,9 @@ BASE_PATH="${BASE_PATH#/}"
 BASE_PATH="${BASE_PATH%/}"
 
 # Sanitize names for different contexts
-PKG_NAME=$(echo "$NAME_RAW" | tr -cd '[:alnum:]-_' | tr '-' '_')
-ARTIFACT_ID=$(echo "$NAME_RAW" | tr -cd '[:alnum:]-_.')
-KEY=$(echo "$NAME_RAW" | tr -cd '[:alnum:].-_' | tr '_' '-')
+PKG_NAME=$(echo "$NAME_RAW" | tr -cd '[:alnum:]_-' | tr '-' '_')
+ARTIFACT_ID=$(echo "$NAME_RAW" | tr -cd '[:alnum:]_.-')
+KEY=$(echo "$NAME_RAW" | tr -cd '[:alnum:]._-' | tr '_' '-')
 
 SRC_DIR="addons/_template-addon"
 DST_DIR="addons/$NAME_RAW"
@@ -108,6 +115,7 @@ echo "Creating new add-on: $NAME_RAW"
 echo "  Package name: com.example.${PKG_NAME}"
 echo "  Artifact ID:  $ARTIFACT_ID"
 echo "  Manifest key: $KEY"
+echo "  Main class:   ${CLASS_PREFIX}App"
 echo "  Base URL:     $BASE_URL"
 echo ""
 
@@ -135,6 +143,12 @@ mkdir -p "$DST_DIR/src/main/java/$DST_PKG_PATH"
 cp -R "$DST_DIR/src/main/java/$SRC_PKG_PATH"/* "$DST_DIR/src/main/java/$DST_PKG_PATH"/
 rm -rf "$DST_DIR/src/main/java/$SRC_PKG_PATH"
 
+CLASS_FILE_OLD="$DST_DIR/src/main/java/$DST_PKG_PATH/TemplateAddonApp.java"
+CLASS_FILE_NEW="$DST_DIR/src/main/java/$DST_PKG_PATH/${CLASS_PREFIX}App.java"
+if [ -f "$CLASS_FILE_OLD" ]; then
+  mv "$CLASS_FILE_OLD" "$CLASS_FILE_NEW"
+fi
+
 if [ -d "$DST_DIR/src/test/java" ]; then
   mkdir -p "$DST_DIR/src/test/java/$DST_PKG_PATH"
   if [ -d "$DST_DIR/src/test/java/$SRC_PKG_PATH" ]; then
@@ -144,22 +158,36 @@ if [ -d "$DST_DIR/src/test/java" ]; then
 fi
 
 if command -v perl >/dev/null 2>&1; then
-  find "$DST_DIR/src" -type f -name '*.java' -exec perl -pi -e "s/com\\.example\\.templateaddon/com.example.${PKG_NAME}/g; s/_template-addon/${NAME_RAW}/g" {} +
+  PKG_NAME="$PKG_NAME" NAME_RAW="$NAME_RAW" CLASS_PREFIX="$CLASS_PREFIX" DISPLAY_NAME="$DISPLAY_NAME" \
+    find "$DST_DIR/src" -type f \( -name '*.java' -o -name '*.html' \) -exec perl -pi -e 's/com\.example\.templateaddon/com.example.$ENV{PKG_NAME}/g; s/_template-addon/$ENV{NAME_RAW}/g; s/TemplateAddonApp/$ENV{CLASS_PREFIX}App/g; s{Template Add-on}{$ENV{DISPLAY_NAME}}g; s{Template add-on}{$ENV{DISPLAY_NAME}}g' {} +
+  if [ -f "$DST_DIR/README.md" ]; then
+    CLASS_PREFIX="$CLASS_PREFIX" DISPLAY_NAME="$DISPLAY_NAME" perl -pi -e 's/TemplateAddonApp/$ENV{CLASS_PREFIX}App/g; s{Template Add-on}{$ENV{DISPLAY_NAME}}g; s{Template add-on}{$ENV{DISPLAY_NAME}}g' "$DST_DIR/README.md"
+  fi
 elif command -v python3 >/dev/null 2>&1; then
-  python3 - "$DST_DIR" "$PKG_NAME" "$NAME_RAW" <<'PY'
+  python3 - "$DST_DIR" "$PKG_NAME" "$NAME_RAW" "$CLASS_PREFIX" "$DISPLAY_NAME" <<'PY'
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])
-pkg = sys.argv[2]
-name = sys.argv[3]
-for path in root.rglob('*.java'):
-    text = path.read_text()
-    text = text.replace('com.example.templateaddon', f'com.example.{pkg}')
-    text = text.replace('_template-addon', name)
-    path.write_text(text)
+pkg, name, prefix, display = sys.argv[2:]
+targets = {'.java', '.html'}
+for path in root.rglob('*'):
+    if path.suffix in targets:
+        text = path.read_text()
+        text = text.replace('com.example.templateaddon', f'com.example.{pkg}')
+        text = text.replace('_template-addon', name)
+        text = text.replace('TemplateAddonApp', f'{prefix}App')
+        text = text.replace('Template Add-on', display)
+        text = text.replace('Template add-on', display)
+        path.write_text(text)
+    elif path.name == 'README.md':
+        text = path.read_text()
+        text = text.replace('TemplateAddonApp', f'{prefix}App')
+        text = text.replace('Template Add-on', display)
+        text = text.replace('Template add-on', display)
+        path.write_text(text)
 PY
 else
   echo "Warning: Unable to rewrite Java packages automatically (missing perl/python3)." >&2
-  echo "         Update occurrences of 'com.example.templateaddon' and '_template-addon' manually." >&2
+  echo "         Update occurrences of 'com.example.templateaddon', '_template-addon', 'TemplateAddonApp', and 'Template Add-on' manually." >&2
 fi
 
 # Update manifest.json
@@ -171,11 +199,11 @@ if command -v jq >/dev/null 2>&1; then
     --arg key "$KEY" \
     --arg name "$DISPLAY_NAME" \
     --arg url "$BASE_URL" \
-    '.key=$key | .name=$name | .baseUrl=$url' \
+    '.key=$key | .name=$name | .baseUrl=$url | (.components[]? | select(has("label") and ((.label | ascii_downcase) == "template add-on")) | .label=$name)' \
     "$DST_DIR/manifest.json" > "$DST_DIR/manifest.json.tmp" && mv "$DST_DIR/manifest.json.tmp" "$DST_DIR/manifest.json"
 else
   # Fallback to sed (less reliable but works)
-  sed -i.bak "s#\"key\": \".*\"#\"key\": \"$KEY\"#g; s#\"name\": \".*\"#\"name\": \"$DISPLAY_NAME\"#g; s#\"baseUrl\": \".*\"#\"baseUrl\": \"$BASE_URL\"#g" "$DST_DIR/manifest.json"
+  sed -i.bak "s#\"key\": \".*\"#\"key\": \"$KEY\"#g; s#\"name\": \".*\"#\"name\": \"$DISPLAY_NAME\"#g; s#\"baseUrl\": \".*\"#\"baseUrl\": \"$BASE_URL\"#g; s#\"label\": \"Template Add-on\"#\"label\": \"$DISPLAY_NAME\"#g; s#\"label\": \"Template add-on\"#\"label\": \"$DISPLAY_NAME\"#g" "$DST_DIR/manifest.json"
   rm -f "$DST_DIR/manifest.json.bak"
 fi
 
@@ -188,9 +216,9 @@ EOF
 # Update main class reference in pom.xml
 echo "Updating main class reference..."
 if command -v perl >/dev/null 2>&1; then
-  perl -0777 -pe "s#<mainClass>com.example.templateaddon.TemplateAddonApp</mainClass>#<mainClass>com.example.${PKG_NAME}.TemplateAddonApp</mainClass>#" -i "$DST_DIR/pom.xml"
+  perl -0777 -pe "s#<mainClass>com.example.templateaddon.TemplateAddonApp</mainClass>#<mainClass>com.example.${PKG_NAME}.${CLASS_PREFIX}App</mainClass>#" -i "$DST_DIR/pom.xml"
 else
-  sed -i.bak "s#<mainClass>com.example.templateaddon.TemplateAddonApp</mainClass>#<mainClass>com.example.${PKG_NAME}.TemplateAddonApp</mainClass>#g" "$DST_DIR/pom.xml"
+  sed -i.bak "s#<mainClass>com.example.templateaddon.TemplateAddonApp</mainClass>#<mainClass>com.example.${PKG_NAME}.${CLASS_PREFIX}App</mainClass>#g" "$DST_DIR/pom.xml"
   rm -f "$DST_DIR/pom.xml.bak"
 fi
 

@@ -75,6 +75,7 @@ install:
 # Run tests
 test:
 	@echo "Running tests..."
+	@bash scripts/test-new-addon.sh
 	mvn test
 	@echo "✓ Tests passed"
 
