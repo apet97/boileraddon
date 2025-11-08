@@ -26,12 +26,23 @@ A clean, **truly self-contained** boilerplate for building Clockify add-ons with
    ngrok http 8080
    ```
    Copy the HTTPS forwarding domain that ngrok prints (for example `https://abc123.ngrok-free.app`).
-4. **Run the Auto-Tag Assistant example with the ngrok URL**
+4. **Run the Auto-Tag Assistant example (choose your runtime)**
+
+   **Native JVM** – keeps everything on your host machine.
    ```bash
    ADDON_PORT=8080 ADDON_BASE_URL=https://abc123.ngrok-free.app/auto-tag-assistant \
    java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
    ```
-   If you already started the JAR before launching ngrok, stop it and restart with the HTTPS domain so the generated manifest
+
+   **Docker container** – builds the selected add-on and runs it with the same environment variables.
+   ```bash
+   ADDON_BASE_URL=https://abc123.ngrok-free.app/auto-tag-assistant make docker-run TEMPLATE=auto-tag-assistant
+   ```
+   `make docker-run` forwards `ADDON_PORT`/`ADDON_BASE_URL`, publishes the selected port (default `8080`), and uses the
+   multi-stage `Dockerfile` to produce a lightweight runtime image. Omit the variables to fall back to
+   `http://localhost:<port>/<addon-name>`.
+
+   If you already started the add-on before launching ngrok, stop it and restart with the HTTPS domain so the generated manifest
    points to the public URL.
 5. **Install in Clockify** – Provide `https://abc123.ngrok-free.app/auto-tag-assistant/manifest.json` when installing a custom add-on in **Admin → Add-ons**.
 

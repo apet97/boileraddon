@@ -1,4 +1,9 @@
-.PHONY: help setup validate build build-template build-auto-tag-assistant run-auto-tag-assistant dev clean test
+.PHONY: help setup validate build build-template build-auto-tag-assistant run-auto-tag-assistant docker-run dev clean test
+
+TEMPLATE ?= _template-addon
+ADDON_PORT ?= 8080
+ADDON_BASE_URL ?= http://localhost:$(ADDON_PORT)/$(TEMPLATE)
+DOCKER_IMAGE ?= clockify-addon-$(TEMPLATE)
 
 # Default target
 help:
@@ -10,6 +15,7 @@ help:
 	@echo "  build-template             - Build only the _template-addon module"
 	@echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
 	@echo "  dev                        - Build and run the template add-on using .env"
+	@echo "  docker-run                 - Build and run an add-on inside Docker (override TEMPLATE=...)"
 	@echo "  test                       - Run all tests"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
 	@echo "  clean                      - Clean all build artifacts"
@@ -89,9 +95,23 @@ run-auto-tag-assistant:
 	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/auto-tag-assistant \
 	java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
 
+docker-run:
+	@echo "Building Docker image for $(TEMPLATE)..."
+	docker build \
+                --build-arg ADDON_DIR=addons/$(TEMPLATE) \
+                --build-arg DEFAULT_BASE_URL=$(ADDON_BASE_URL) \
+                -t $(DOCKER_IMAGE) .
+	@echo "Starting container (Ctrl+C to stop)..."
+	docker run --rm -it \
+                -e ADDON_PORT=$(ADDON_PORT) \
+                -e ADDON_BASE_URL=$(ADDON_BASE_URL) \
+                -e JAVA_OPTS="$(JAVA_OPTS)" \
+                -p $(ADDON_PORT):$(ADDON_PORT) \
+                $(DOCKER_IMAGE)
+
 dev: build-template
 	@if [ ! -f .env ]; then \
-		echo "Missing .env file. Run: cp .env.example .env"; \
+                echo "Missing .env file. Run: cp .env.example .env"; \
 		exit 1; \
 	fi
 	@echo "Starting _template-addon with settings from .env..."

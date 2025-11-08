@@ -1,0 +1,17 @@
+# Build artifacts
+**/target
+**/out
+**/.mvn
+*.log
+
+# Version control
+.git
+.gitignore
+
+# IDE/editor files
+.vscode
+.idea
+*.iml
+
+# Misc
+.env
