@@ -52,6 +52,41 @@ Common error and fix:
   - Verify: `mvn -X -v` prints the Toolchains loaded and lists a 17 JDK.
   - Also ensure your runtime `JAVA_HOME` points to a 17 JDK (or set in shell before running Maven).
 
+### Ready-to-copy toolchains.xml (with OS hints)
+
+Paste this into `~/.m2/toolchains.xml` and uncomment the line that matches your OS/installation path:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<toolchains>
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>17</version>
+    </provides>
+    <configuration>
+      <!-- macOS (Apple JDK selector): pick one installed 17 JDK -->
+      <!-- <jdkHome>/Library/Java/JavaVirtualMachines/jdk-17*.jdk/Contents/Home</jdkHome> -->
+
+      <!-- macOS (Homebrew Temurin/OpenJDK): -->
+      <!-- <jdkHome>/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home</jdkHome> -->
+
+      <!-- Linux (Temurin/Adoptium): -->
+      <!-- <jdkHome>/usr/lib/jvm/temurin-17-jdk</jdkHome> -->
+
+      <!-- Linux (OpenJDK): -->
+      <!-- <jdkHome>/usr/lib/jvm/java-17-openjdk-amd64</jdkHome> -->
+
+      <!-- Windows (Temurin/Adoptium): -->
+      <!-- <jdkHome>C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.\*\\</jdkHome> -->
+
+      <!-- Default (edit this to your absolute JDK 17 path if none of the above apply) -->
+      <jdkHome>/absolute/path/to/your/jdk-17</jdkHome>
+    </configuration>
+  </toolchain>
+</toolchains>
+```
+
 ## 3) Pinned test plugins + JaCoCo binding
 
 - Surefire/Failsafe are pinned to 3.2.5 in the parent POM.
