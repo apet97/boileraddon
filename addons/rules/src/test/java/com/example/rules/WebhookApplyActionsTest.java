@@ -74,7 +74,7 @@ class WebhookApplyActionsTest {
         String payload = """
             {
               "workspaceId": "ws-1",
-              "event": "TIME_ENTRY_CREATED",
+                "event": "NEW_TIME_ENTRY",
               "timeEntry": {"id":"e1","description":"Client meeting","tagIds":[]}
             }
             """;
@@ -119,7 +119,7 @@ class WebhookApplyActionsTest {
         ClockifyAddon addon = new ClockifyAddon(manifest);
         WebhookHandlers.register(addon, store);
 
-        HttpResponse resp = addon.getWebhookHandlers().get("TIME_ENTRY_CREATED").handle(request);
+        HttpResponse resp = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
         assertEquals(200, resp.getStatusCode());
         JsonNode json = mapper.readTree(resp.getBody());
         assertEquals("actions_applied", json.get("status").asText());
@@ -147,4 +147,3 @@ class WebhookApplyActionsTest {
         when(request.getReader()).thenReturn(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(bytes))));
     }
 }
-

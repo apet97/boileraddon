@@ -49,9 +49,9 @@ addon.registerCustomEndpoint("/settings", new SettingsController());
 addon.registerLifecycleHandler("INSTALLED", handler);
 addon.registerLifecycleHandler("DELETED",   handler);
 // Default path ("/webhook"): register time entry events used by Rules
-addon.registerWebhookHandler("TIME_ENTRY_CREATED", handler);
+addon.registerWebhookHandler("NEW_TIME_ENTRY", handler);
 addon.registerWebhookHandler("TIME_ENTRY_UPDATED", handler);
-// Or supply a custom path, e.g.: addon.registerWebhookHandler("TIME_ENTRY_CREATED", "/webhooks/entries", handler);
+// Or supply a custom path, e.g.: addon.registerWebhookHandler("NEW_TIME_ENTRY", "/webhooks/entries", handler);
 ```
 
 See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQUEST-RESPONSE-EXAMPLES.md for full HTTP exchanges.
@@ -64,7 +64,7 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 | `/settings` | Settings UI | `components[]` item with `type: SETTINGS_SIDEBAR`, `url: /settings` |
 | `/lifecycle/installed` | Lifecycle install callback | `lifecycle[]` item `{ type: "INSTALLED", path: "/lifecycle/installed" }` |
 | `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
-| `/webhook` (default) | Time entry webhooks (TIME_ENTRY_CREATED, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
+| `/webhook` (default) | Time entry webhooks (NEW_TIME_ENTRY, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
 | `/health` | Health endpoint (includes DB probe when DB_URL/DB_USER set) | Not listed in manifest |
 | `/metrics` | Prometheus metrics scrape | Not listed in manifest |
 | Custom (e.g. `/webhooks/entries`) | Alternative webhook mount | One `webhooks[]` item per event with `path: "/webhooks/entries"` |
@@ -77,8 +77,8 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 - Scopes (least privilege)
   - Core: `TIME_ENTRY_READ` (evaluate rules), `TIME_ENTRY_WRITE` (apply changes)
   - Helpful: `TAG_READ`, `TAG_WRITE` (when adding/removing tags)
-- Webhook events
-  - `TIME_ENTRY_CREATED`, `TIME_ENTRY_UPDATED`
+- Webhook events (allowed by schema)
+  - `NEW_TIME_ENTRY`, `TIME_ENTRY_UPDATED`
   - Add more only if your rules need additional signals.
 - References
   - Event payloads: docs/REQUEST-RESPONSE-EXAMPLES.md

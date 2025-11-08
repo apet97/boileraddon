@@ -1,10 +1,33 @@
 # Rules Add‑on — Declarative Automations
 
-The Rules add‑on lets admins define “if … then …” automations for Clockify time entries (AND/OR logic).
+The Rules add‑on lets admins define “if … then …” automations for Clockify time entries (AND/OR logic), with a simple no‑code builder available at `/rules/settings`.
 
-- Conditions: descriptionContains, descriptionEquals, hasTag, projectIdEquals, isBillable
-- Actions: add_tag, remove_tag, set_description, set_billable
+- Conditions: descriptionContains, descriptionEquals, hasTag (by ID), projectIdEquals, projectNameContains, clientIdEquals, clientNameContains, isBillable
+- Actions: add_tag, remove_tag, set_description, set_billable, set_project_by_id, set_project_by_name, set_task_by_id, set_task_by_name
 - Manifest key: `rules`; base path: `/rules`
+
+## Zero‑to‑Run
+
+```bash
+# 0) Requirements: Java 17 + Maven; ngrok (optional, for public install)
+java -version && mvn -version
+
+# 1) Build
+make build-rules
+
+# 2) Run locally
+ADDON_BASE_URL=http://localhost:8080/rules make run-rules
+
+# 3) Expose via ngrok (separate terminal)
+ngrok http 8080
+
+# 4) Restart with ngrok base URL (either):
+#   ADDON_BASE_URL=https://<ngrok-domain>/rules make run-rules
+#   bash scripts/run-rules.sh --use-ngrok   # auto‑detects https public URL via 127.0.0.1:4040
+
+# 5) Install in Clockify Developer using:
+#   https://<ngrok-domain>/rules/manifest.json
+```
 
 ## Install and Run
 
@@ -57,16 +80,21 @@ Optional runtime safeguards:
 ### Quick curl examples
 
 ```bash
-# Create/update a rule
+# Create/update a rule (OR logic by default when combinator omitted)
 curl -s -X POST \
   "http://localhost:8080/rules/api/rules?workspaceId=workspace-1" \
   -H 'Content-Type: application/json' \
   -d '{
     "name":"Tag client meetings",
     "enabled":true,
-    "combinator":"AND",
-    "conditions":[{"type":"descriptionContains","operator":"CONTAINS","value":"meeting"}],
-    "actions":[{"type":"add_tag","args":{"tag":"billable"}}]
+    "conditions":[
+      {"type":"descriptionContains","operator":"CONTAINS","value":"meeting"},
+      {"type":"projectNameContains","operator":"CONTAINS","value":"Client"}
+    ],
+    "actions":[
+      {"type":"add_tag","args":{"tag":"billable"}},
+      {"type":"set_billable","args":{"value":"true"}}
+    ]
   }'
 
 # List rules
@@ -75,13 +103,21 @@ curl -s "http://localhost:8080/rules/api/rules?workspaceId=workspace-1"
 # Delete rule by id
 curl -s -X DELETE "http://localhost:8080/rules/api/rules?id=<ID>&workspaceId=workspace-1"
 
-# Dry‑run evaluation (no side effects)
+# Dry‑run evaluation (no side effects). Provide a minimal timeEntry skeleton.
 curl -s -X POST http://localhost:8080/rules/api/test \
   -H 'Content-Type: application/json' \
   -d '{
     "workspaceId":"workspace-1",
-    "timeEntry":{"id":"e1","description":"Client meeting","tagIds":[]}
+    "timeEntry":{"id":"e1","description":"Client meeting","tagIds":[],"projectId":"proj-1"}
   }'
+
+## No‑Code Builder (UI)
+
+- Open: `<BASE>/rules/settings` (e.g., `http://localhost:8080/rules/settings`).
+- Enter your `workspaceId` (required for API calls).
+- Add Conditions from dropdowns; choose AND/OR combinator (optional).
+- Add Actions and provide required args (tag/name, projectId/taskId/value).
+- Click “Save Rule”; use “Existing Rules” to refresh or delete.
 ```
 
 ## Security

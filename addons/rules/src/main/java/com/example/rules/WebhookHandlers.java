@@ -46,7 +46,7 @@ public class WebhookHandlers {
 
         // Register handlers for time entry events
         String[] events = {
-            "TIME_ENTRY_CREATED",
+            "NEW_TIME_ENTRY",
             "TIME_ENTRY_UPDATED"
         };
 
