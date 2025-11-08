@@ -58,6 +58,14 @@ curl http://localhost:8080/auto-tag-assistant/settings
 
 Prefer to start from a blank slate? Use the Java template under `addons/_template-addon/`.
 
+### Configure local environment values
+
+1. Copy the defaults: `cp .env.example .env`
+2. Edit `.env` and adjust `ADDON_PORT` / `ADDON_BASE_URL` to match your local port or tunneling URL.
+3. Start the template add-on: `make dev`
+
+The lightweight loader in the template reads `.env` first and then falls back to real environment variables, so overriding values per shell still works.
+
 ### Scaffold a new add-on
 
 Automate the copy/rename steps with the helper script:

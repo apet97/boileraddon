@@ -4,6 +4,14 @@ This module is a copy-ready starting point for building a new Clockify add-on wi
 
 > 🚀 Quick start: run `scripts/new-addon.sh my-addon "My Add-on"` from the repo root to clone this module automatically. The script requires `perl`, `jq`, and `python3` and updates Maven coordinates, package names, and the parent `pom.xml` for you.
 
+## Local development
+
+1. Copy the environment defaults from the repo root: `cp .env.example .env`
+2. Update `.env` with your preferred `ADDON_PORT` and `ADDON_BASE_URL` values.
+3. Run `make dev` from the repo root to build and launch the template using those settings.
+
+The application reads from `.env` first and still honors variables exported in your shell, so you can temporarily override values without editing the file.
+
 ## How to copy and rename
 
 1. **Copy the folder** – duplicate `addons/_template-addon` to your new add-on folder name (for example `addons/my-addon`).
