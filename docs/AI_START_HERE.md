@@ -30,6 +30,13 @@ TEMPLATE=auto-tag-assistant make zero-shot-run
 #   make rules-up
 # Then install using the printed manifest URL or 'make manifest-url'
 
+Dev shortcuts (when Developer webhooks 401 during setup):
+```
+ADDON_SKIP_SIGNATURE_VERIFY=true RULES_APPLY_CHANGES=true \
+  bash scripts/run-rules.sh --base-url "https://<ngrok-domain>/rules"
+# After confirmed E2E, remove ADDON_SKIP_SIGNATURE_VERIFY and reinstall if needed
+```
+
 # 6) Inspect & validate runtime manifest
 make manifest-print
 make manifest-validate-runtime

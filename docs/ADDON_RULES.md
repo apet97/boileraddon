@@ -24,6 +24,7 @@ ngrok http 8080
 # 4) Restart with ngrok base URL (either):
 #   ADDON_BASE_URL=https://<ngrok-domain>/rules make run-rules
 #   bash scripts/run-rules.sh --use-ngrok   # auto‑detects https public URL via 127.0.0.1:4040
+#   bash scripts/run-rules.sh --base-url "https://<ngrok-domain>/rules"  # reliable fallback (quoted)
 
 # 5) Install in Clockify Developer using:
 #   https://<ngrok-domain>/rules/manifest.json
@@ -118,6 +119,20 @@ curl -s -X POST http://localhost:8080/rules/api/test \
 - Add Conditions from dropdowns; choose AND/OR combinator (optional).
 - Add Actions and provide required args (tag/name, projectId/taskId/value).
 - Click “Save Rule”; use “Existing Rules” to refresh or delete.
+
+## Developer Workspace Notes
+
+- Install After Start: Start the add‑on and confirm the Base URL banner matches your ngrok URL, then install the manifest. Installing first can cache an old URL and cause 401/404s.
+- Signatures: Developer webhooks are signed. The validator accepts `clockify-webhook-signature` and `x-clockify-webhook-signature` (case variants). If your environment still 401s, use the dev bypass below to prove E2E and share one sample header so we can adapt.
+- Dev bypass: To test end‑to‑end without signature problems and apply changes:
+  - `ADDON_SKIP_SIGNATURE_VERIFY=true RULES_APPLY_CHANGES=true bash scripts/run-rules.sh --base-url "https://<ngrok>/rules"`
+  - Create a rule in the UI, then create/update a matching time entry in the installed workspace.
+  - Switch back to signed mode by removing `ADDON_SKIP_SIGNATURE_VERIFY` once verified.
+
+## Troubleshooting
+- Double slash (//) 400 errors: If you see `Ambiguous URI empty segment`, you likely posted to `/rules//api/rules`. Hard‑refresh to load the latest UI; it computes baseUrl safely and won’t generate `//`.
+- Wrong base URL: Quote the URL when using `--base-url`. If the banner shows a space in the URL or a context path of `/`, stop and relaunch with a clean quoted URL.
+- Single ngrok agent: Free plan allows one agent. Kill stray agents (`killall ngrok`) and start a fresh one (`ngrok http 8080`).
 ```
 
 ## Security

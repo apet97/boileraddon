@@ -11,6 +11,9 @@ public class SettingsController implements RequestHandler {
 
     @Override
     public HttpResponse handle(HttpServletRequest request) {
+        String applyMode = "true".equalsIgnoreCase(System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false")) ? "Apply" : "Log-only";
+        String skipSig = "true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_SKIP_SIGNATURE_VERIFY", "false")) ? "ON" : "OFF";
+        String base = System.getenv().getOrDefault("ADDON_BASE_URL", "");
         String html = """
 <!DOCTYPE html>
 <html>
@@ -39,6 +42,15 @@ public class SettingsController implements RequestHandler {
 </head>
 <body>
   <h1>Rules Automation</h1>
+
+  <div class=\"section\" style=\"border-left:4px solid #1976d2\">
+    <div class=\"row\">
+      <span class=\"pill\">Mode: %s</span>
+      <span class=\"pill\">Signature bypass: %s</span>
+      <span class=\"pill\">Base: %s</span>
+    </div>
+    <p class=\"muted\">Install the manifest after the server is running so the Developer workspace sends webhooks to this exact URL. For signed webhooks, leave signature bypass OFF; while testing, turn it ON with <code>ADDON_SKIP_SIGNATURE_VERIFY=true</code>.</p>
+  </div>
 
   <div class=\"section\">
     <h2>Create / Update Rule</h2>
@@ -261,6 +273,7 @@ public class SettingsController implements RequestHandler {
 </html>
 """;
 
+        html = String.format(html, applyMode, skipSig, base);
         return HttpResponse.ok(html, "text/html; charset=utf-8");
     }
 }
