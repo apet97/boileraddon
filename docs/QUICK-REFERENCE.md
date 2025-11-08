@@ -330,8 +330,9 @@ make run-my-addon
 # 2. Start ngrok (in another terminal)
 ngrok http 8080
 
-# 3. Update manifest.json baseUrl
-"baseUrl": "https://abc123.ngrok-free.app/my-addon"
+# 3. Set ADDON_BASE_URL and restart
+export ADDON_BASE_URL=https://abc123.ngrok-free.app/my-addon
+make run-my-addon
 
 # 4. Install addon in Clockify
 # Use manifest URL: https://abc123.ngrok-free.app/my-addon/manifest.json

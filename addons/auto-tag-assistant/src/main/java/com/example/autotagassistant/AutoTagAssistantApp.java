@@ -22,7 +22,7 @@ import com.clockify.addon.sdk.ConfigValidator;
  * 1. Build: mvn clean package
  * 2. Run: java -jar target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
  * 3. Start ngrok: ngrok http 8080
- * 4. Update manifest.json baseUrl to: https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant
+ * 4. Restart with: ADDON_BASE_URL=https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant
  * 5. In Clockify Admin > Add-ons, install using: https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant/manifest.json
  */
 public class AutoTagAssistantApp {
