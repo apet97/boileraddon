@@ -79,7 +79,8 @@ public class RulesController {
     }
 
     /**
-     * DELETE /api/rules/{id} - Delete a rule
+     * DELETE /api/rules - Delete a rule by id provided via `?id=` or JSON body {"id":"..."}.
+     * (SDK routes by exact path; using query/body ensures this works at /api/rules.)
      */
     public RequestHandler deleteRule() {
         return request -> {
@@ -125,19 +126,81 @@ public class RulesController {
         return null;
     }
 
-    private String extractRuleId(HttpServletRequest request) {
+    private String extractRuleId(HttpServletRequest request) throws Exception {
+        // Prefer query parameter first
+        String q = request.getParameter("id");
+        if (q != null && !q.trim().isEmpty()) {
+            return q.trim();
+        }
+        // Try JSON body if available
+        Object cachedJson = request.getAttribute("clockify.jsonBody");
+        if (cachedJson instanceof JsonNode json && json.hasNonNull("id")) {
+            String id = json.get("id").asText("");
+            if (!id.isBlank()) return id;
+        }
+        // Fallback for unit tests invoking controller directly with path suffix
         String path = request.getPathInfo();
-        if (path == null) {
-            return null;
+        if (path != null) {
+            String[] segments = path.split("/");
+            if (segments.length >= 4 && "api".equals(segments[1]) && "rules".equals(segments[2])) {
+                return segments[3];
+            }
         }
-
-        // Path format: /api/rules/{ruleId}
-        String[] segments = path.split("/");
-        if (segments.length >= 4 && "api".equals(segments[1]) && "rules".equals(segments[2])) {
-            return segments[3];
-        }
-
         return null;
+    }
+
+    /**
+     * POST /api/test — Evaluate rules against a provided timeEntry (no side effects).
+     * Body: { "workspaceId": "...", "timeEntry": { ... } }
+     */
+    public RequestHandler testRules() {
+        return request -> {
+            try {
+                String workspaceId = getWorkspaceId(request);
+                JsonNode body = parseRequestBody(request);
+                if ((workspaceId == null || workspaceId.isBlank()) && body != null && body.hasNonNull("workspaceId")) {
+                    workspaceId = body.get("workspaceId").asText();
+                }
+                if (workspaceId == null || workspaceId.isBlank()) {
+                    return HttpResponse.error(400, "{\"error\":\"workspaceId is required\"}", "application/json");
+                }
+
+                JsonNode timeEntry = (body != null && body.has("timeEntry")) ? body.get("timeEntry") : body;
+                if (timeEntry == null || timeEntry.isNull()) {
+                    return HttpResponse.error(400, "{\"error\":\"timeEntry is required\"}", "application/json");
+                }
+
+                var evaluator = new com.example.rules.engine.Evaluator();
+                var context = new com.example.rules.engine.TimeEntryContext(timeEntry);
+                var matched = new java.util.ArrayList<com.example.rules.engine.Action>();
+                for (var r : rulesStore.getEnabled(workspaceId)) {
+                    if (evaluator.evaluate(r, context) && r.getActions() != null) {
+                        matched.addAll(r.getActions());
+                    }
+                }
+
+                var node = objectMapper.createObjectNode();
+                node.put("workspaceId", workspaceId);
+                node.put("actionsCount", matched.size());
+                var arr = objectMapper.createArrayNode();
+                for (var a : matched) {
+                    var an = objectMapper.createObjectNode();
+                    an.put("type", a.getType());
+                    if (a.getArgs() != null) {
+                        var args = objectMapper.createObjectNode();
+                        a.getArgs().forEach(args::put);
+                        an.set("args", args);
+                    }
+                    arr.add(an);
+                }
+                node.set("actions", arr);
+                return HttpResponse.ok(node.toString(), "application/json");
+
+            } catch (Exception e) {
+                logger.error("Error testing rules", e);
+                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+            }
+        };
     }
 
     private JsonNode parseRequestBody(HttpServletRequest request) throws Exception {

@@ -1,7 +1,7 @@
 package com.example.rules;
 
 import com.clockify.addon.sdk.ClockifyManifest;
-import com.clockify.addon.sdk.controllers.DefaultManifestController;
+import com.clockify.addon.sdk.DefaultManifestController;
 
 /**
  * Serves the runtime manifest for the Rules add-on.
