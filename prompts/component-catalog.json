@@ -1,0 +1,322 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Clockify Addon Component Catalog",
+  "description": "Complete reference for all UI component types with examples and best practices",
+  "version": "1.0.0",
+  "components": [
+    {
+      "type": "SETTINGS_SIDEBAR",
+      "displayName": "Settings Sidebar",
+      "location": "Admin > Add-ons > Your Addon Settings",
+      "accessControl": {
+        "default": "ADMINS",
+        "options": ["ADMINS"],
+        "description": "Only workspace administrators can access settings"
+      },
+      "contextParams": {
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{24}$",
+          "description": "Current workspace ID",
+          "example": "68adfddad138cb5f24c63b22"
+        },
+        "userId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{24}$",
+          "description": "Current user ID",
+          "example": "64621faec4d2cc53b91fce6c"
+        },
+        "jwt": {
+          "type": "string",
+          "description": "JWT token with user context",
+          "claims": ["userId", "workspaceId", "userEmail", "userName", "iat", "exp", "iss"]
+        }
+      },
+      "manifestExample": {
+        "type": "SETTINGS_SIDEBAR",
+        "path": "/settings",
+        "label": "Addon Settings",
+        "accessLevel": "ADMINS"
+      },
+      "useCases": [
+        "Configure addon behavior (enable/disable features)",
+        "Manage integration credentials (API keys, OAuth tokens)",
+        "Define business rules (tagging rules, approval workflows)",
+        "Set notification preferences",
+        "View addon status and health",
+        "Manage workspace-specific configuration"
+      ],
+      "bestPractices": [
+        "Use clear section headers and labels",
+        "Validate inputs before saving",
+        "Provide helpful error messages",
+        "Show current configuration state",
+        "Include save/cancel buttons",
+        "Mask sensitive fields (API keys, passwords)",
+        "Provide help text for complex settings",
+        "Show success/error notifications after save"
+      ],
+      "htmlTemplateBasic": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Addon Settings</title>\n  <style>\n    body { font-family: Arial, sans-serif; padding: 20px; }\n    .section { margin-bottom: 20px; }\n    label { display: block; margin-bottom: 5px; font-weight: bold; }\n    input { width: 100%; padding: 8px; margin-bottom: 10px; }\n    button { padding: 10px 20px; background: #03a9f4; color: white; border: none; cursor: pointer; }\n  </style>\n</head>\n<body>\n  <h1>Addon Settings</h1>\n  <form id=\"settings-form\">\n    <div class=\"section\">\n      <label for=\"api-key\">API Key</label>\n      <input type=\"password\" id=\"api-key\" placeholder=\"Enter your API key\" />\n    </div>\n    <button type=\"submit\">Save Settings</button>\n  </form>\n  <script>\n    document.getElementById('settings-form').addEventListener('submit', function(e) {\n      e.preventDefault();\n      // Save settings via API\n      alert('Settings saved!');\n    });\n  </script>\n</body>\n</html>",
+      "htmlTemplateAdvanced": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Advanced Settings</title>\n  <style>\n    * { box-sizing: border-box; }\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }\n    .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }\n    h1 { margin-top: 0; color: #333; }\n    .section { margin-bottom: 25px; padding-bottom: 25px; border-bottom: 1px solid #e0e0e0; }\n    .section:last-child { border-bottom: none; }\n    label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }\n    input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }\n    input:focus, select:focus { outline: none; border-color: #03a9f4; }\n    .help-text { font-size: 12px; color: #777; margin-top: 4px; }\n    .button-group { display: flex; gap: 10px; margin-top: 30px; }\n    button { padding: 12px 24px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 600; }\n    .btn-primary { background: #03a9f4; color: white; }\n    .btn-secondary { background: #e0e0e0; color: #333; }\n    .btn-primary:hover { background: #0288d1; }\n    .notification { padding: 12px; margin-bottom: 20px; border-radius: 4px; display: none; }\n    .notification.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }\n    .notification.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div id=\"notification\" class=\"notification\"></div>\n    <h1>🔧 Addon Settings</h1>\n    <form id=\"settings-form\">\n      <div class=\"section\">\n        <h2>Integration Settings</h2>\n        <label for=\"api-url\">API Base URL</label>\n        <input type=\"url\" id=\"api-url\" placeholder=\"https://api.example.com\" required />\n        <p class=\"help-text\">The base URL for external API integration</p>\n        \n        <label for=\"api-key\">API Key</label>\n        <input type=\"password\" id=\"api-key\" placeholder=\"Enter your API key\" />\n        <p class=\"help-text\">Keep this secret! Never share your API key.</p>\n      </div>\n      \n      <div class=\"section\">\n        <h2>Notification Preferences</h2>\n        <label for=\"notify-email\">Email Notifications</label>\n        <select id=\"notify-email\">\n          <option value=\"all\">All events</option>\n          <option value=\"errors\">Errors only</option>\n          <option value=\"none\">None</option>\n        </select>\n      </div>\n      \n      <div class=\"button-group\">\n        <button type=\"submit\" class=\"btn-primary\">Save Settings</button>\n        <button type=\"button\" class=\"btn-secondary\" onclick=\"resetForm()\">Cancel</button>\n      </div>\n    </form>\n  </div>\n  <script>\n    function showNotification(message, type) {\n      const notif = document.getElementById('notification');\n      notif.textContent = message;\n      notif.className = 'notification ' + type;\n      notif.style.display = 'block';\n      setTimeout(() => { notif.style.display = 'none'; }, 3000);\n    }\n    \n    document.getElementById('settings-form').addEventListener('submit', async function(e) {\n      e.preventDefault();\n      try {\n        // Collect form data\n        const settings = {\n          apiUrl: document.getElementById('api-url').value,\n          apiKey: document.getElementById('api-key').value,\n          notifyEmail: document.getElementById('notify-email').value\n        };\n        \n        // Send to backend\n        const response = await fetch('/api/settings', {\n          method: 'POST',\n          headers: { 'Content-Type': 'application/json' },\n          body: JSON.stringify(settings)\n        });\n        \n        if (response.ok) {\n          showNotification('✓ Settings saved successfully!', 'success');\n        } else {\n          throw new Error('Failed to save settings');\n        }\n      } catch (error) {\n        showNotification('✗ Error: ' + error.message, 'error');\n      }\n    });\n    \n    function resetForm() {\n      document.getElementById('settings-form').reset();\n    }\n  </script>\n</body>\n</html>"
+    },
+    {
+      "type": "TIME_ENTRY_SIDEBAR",
+      "displayName": "Time Entry Sidebar",
+      "location": "Time Tracker > Time Entry Details Panel",
+      "accessControl": {
+        "default": "ALL",
+        "options": ["ALL", "ADMINS"],
+        "description": "Visible to all users or admins only"
+      },
+      "contextParams": {
+        "timeEntryId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{24}$",
+          "description": "ID of the time entry being viewed",
+          "example": "69017c7cf249396a237cfcce"
+        },
+        "workspaceId": {
+          "type": "string",
+          "description": "Current workspace ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Current user ID"
+        },
+        "jwt": {
+          "type": "string",
+          "description": "JWT token with user context"
+        }
+      },
+      "manifestExample": {
+        "type": "TIME_ENTRY_SIDEBAR",
+        "path": "/time-entry-sidebar",
+        "label": "Entry Details",
+        "accessLevel": "ALL"
+      },
+      "useCases": [
+        "Display additional time entry metadata",
+        "Show validation warnings (missing tags, etc.)",
+        "Provide quick actions (tag, categorize, approve)",
+        "Display related external data (Jira issue, GitHub PR)",
+        "Show billable amount calculations",
+        "Display approval status",
+        "Show sync status with external systems"
+      ],
+      "bestPractices": [
+        "Fetch time entry data using timeEntryId parameter",
+        "Display loading state while fetching data",
+        "Handle cases where time entry doesn't exist",
+        "Keep UI lightweight (sidebar is narrow)",
+        "Use icons for quick actions",
+        "Show real-time updates when possible",
+        "Provide clear feedback for user actions"
+      ],
+      "htmlTemplateBasic": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Time Entry Details</title>\n  <style>\n    body { font-family: Arial, sans-serif; padding: 15px; margin: 0; }\n    .info { margin-bottom: 15px; }\n    .label { font-weight: bold; color: #666; }\n    .value { margin-top: 5px; }\n    .badge { display: inline-block; padding: 4px 8px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <h2>Entry Details</h2>\n  <div class=\"info\">\n    <div class=\"label\">Duration</div>\n    <div class=\"value\">2 hours 30 minutes</div>\n  </div>\n  <div class=\"info\">\n    <div class=\"label\">Status</div>\n    <div class=\"value\"><span class=\"badge\">Approved</span></div>\n  </div>\n</body>\n</html>",
+      "htmlTemplateAdvanced": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Time Entry Sidebar</title>\n  <style>\n    * { box-sizing: border-box; }\n    body { font-family: -apple-system, sans-serif; margin: 0; padding: 16px; background: #fafafa; font-size: 14px; }\n    h2 { margin-top: 0; font-size: 18px; color: #333; }\n    .loading { text-align: center; padding: 40px; color: #999; }\n    .info-row { margin-bottom: 16px; }\n    .info-label { font-size: 12px; color: #777; text-transform: uppercase; margin-bottom: 4px; }\n    .info-value { font-size: 14px; color: #333; font-weight: 500; }\n    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }\n    .badge.success { background: #d4edda; color: #155724; }\n    .badge.warning { background: #fff3cd; color: #856404; }\n    .badge.error { background: #f8d7da; color: #721c24; }\n    .actions { margin-top: 20px; }\n    .btn { display: block; width: 100%; padding: 10px; margin-bottom: 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }\n    .btn-primary { background: #03a9f4; color: white; }\n    .btn-secondary { background: #e0e0e0; color: #333; }\n    .external-link { display: flex; align-items: center; padding: 12px; background: white; border-radius: 4px; border: 1px solid #e0e0e0; margin-top: 12px; text-decoration: none; color: #333; }\n    .external-link:hover { background: #f5f5f5; }\n  </style>\n</head>\n<body>\n  <div id=\"content\">\n    <div class=\"loading\">Loading...</div>\n  </div>\n  <script>\n    const urlParams = new URLSearchParams(window.location.search);\n    const timeEntryId = urlParams.get('timeEntryId');\n    const workspaceId = urlParams.get('workspaceId');\n    \n    async function loadTimeEntry() {\n      try {\n        const response = await fetch(`/api/time-entry/${timeEntryId}?workspaceId=${workspaceId}`);\n        const data = await response.json();\n        \n        document.getElementById('content').innerHTML = `\n          <h2>⏱️ Entry Details</h2>\n          <div class=\"info-row\">\n            <div class=\"info-label\">Duration</div>\n            <div class=\"info-value\">${data.duration}</div>\n          </div>\n          <div class=\"info-row\">\n            <div class=\"info-label\">Billable</div>\n            <div class=\"info-value\">${data.billable ? 'Yes' : 'No'}</div>\n          </div>\n          <div class=\"info-row\">\n            <div class=\"info-label\">Status</div>\n            <div class=\"info-value\">\n              <span class=\"badge ${data.status.toLowerCase()}\">${data.status}</span>\n            </div>\n          </div>\n          ${data.externalLink ? `\n            <a href=\"${data.externalLink}\" target=\"_blank\" class=\"external-link\">\n              🔗 View in External System\n            </a>\n          ` : ''}\n          <div class=\"actions\">\n            <button class=\"btn btn-primary\" onclick=\"performAction('approve')\">✓ Approve</button>\n            <button class=\"btn btn-secondary\" onclick=\"performAction('tag')\">🏷️ Add Tags</button>\n          </div>\n        `;\n      } catch (error) {\n        document.getElementById('content').innerHTML = '<div class=\"loading\">Error loading time entry</div>';\n      }\n    }\n    \n    function performAction(action) {\n      alert('Action: ' + action);\n      // Implement actual action logic\n    }\n    \n    loadTimeEntry();\n  </script>\n</body>\n</html>"
+    },
+    {
+      "type": "PROJECT_SIDEBAR",
+      "displayName": "Project Sidebar",
+      "location": "Projects > Project Details Panel",
+      "accessControl": {
+        "default": "ALL",
+        "options": ["ALL", "ADMINS"],
+        "description": "Visible to all users or admins only"
+      },
+      "contextParams": {
+        "projectId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{24}$",
+          "description": "ID of the project being viewed",
+          "example": "68ffbce07bde82688ecb38fd"
+        },
+        "workspaceId": {
+          "type": "string",
+          "description": "Current workspace ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Current user ID"
+        },
+        "jwt": {
+          "type": "string",
+          "description": "JWT token with user context"
+        }
+      },
+      "manifestExample": {
+        "type": "PROJECT_SIDEBAR",
+        "path": "/project-sidebar",
+        "label": "Project Info",
+        "accessLevel": "ALL"
+      },
+      "useCases": [
+        "Display project statistics (total time, budget)",
+        "Show project-specific configuration",
+        "Display budget vs actual tracking",
+        "Show external system integration (Jira project link)",
+        "Display team members and their allocations",
+        "Show project health indicators"
+      ],
+      "bestPractices": [
+        "Cache project data to reduce API calls",
+        "Display aggregated statistics prominently",
+        "Use visualizations (charts, progress bars)",
+        "Provide quick links to related resources",
+        "Show real-time or near-real-time data"
+      ],
+      "htmlTemplateBasic": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Project Info</title>\n  <style>\n    body { font-family: Arial, sans-serif; padding: 15px; }\n    .stat { margin-bottom: 15px; }\n    .stat-label { font-size: 12px; color: #666; }\n    .stat-value { font-size: 24px; font-weight: bold; color: #333; }\n  </style>\n</head>\n<body>\n  <h2>Project Statistics</h2>\n  <div class=\"stat\">\n    <div class=\"stat-label\">Total Time Tracked</div>\n    <div class=\"stat-value\">42.5 hours</div>\n  </div>\n  <div class=\"stat\">\n    <div class=\"stat-label\">Budget Remaining</div>\n    <div class=\"stat-value\">$2,400</div>\n  </div>\n</body>\n</html>"
+    },
+    {
+      "type": "REPORT_TAB",
+      "displayName": "Report Tab",
+      "location": "Reports > Custom Tab",
+      "accessControl": {
+        "default": "ALL",
+        "options": ["ALL", "ADMINS"],
+        "description": "Visible to all users or admins only"
+      },
+      "contextParams": {
+        "workspaceId": {
+          "type": "string",
+          "description": "Current workspace ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Current user ID"
+        },
+        "jwt": {
+          "type": "string",
+          "description": "JWT token with user context"
+        }
+      },
+      "manifestExample": {
+        "type": "REPORT_TAB",
+        "path": "/report",
+        "label": "Custom Report",
+        "accessLevel": "ALL"
+      },
+      "useCases": [
+        "Display custom analytics and visualizations",
+        "Show consolidated reports across projects",
+        "Provide export functionality (CSV, PDF, Excel)",
+        "Display approval dashboards",
+        "Show compliance reports",
+        "Display cross-workspace analytics"
+      ],
+      "bestPractices": [
+        "Support date range filtering",
+        "Provide export functionality",
+        "Use charts and visualizations",
+        "Allow customization (filters, grouping)",
+        "Optimize for large datasets",
+        "Show loading states during data fetch"
+      ],
+      "htmlTemplateBasic": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Custom Report</title>\n  <style>\n    body { font-family: Arial, sans-serif; padding: 20px; }\n    table { width: 100%; border-collapse: collapse; }\n    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }\n    th { background: #f5f5f5; font-weight: bold; }\n  </style>\n</head>\n<body>\n  <h1>Time Tracking Report</h1>\n  <table>\n    <thead>\n      <tr><th>Project</th><th>Hours</th><th>Amount</th></tr>\n    </thead>\n    <tbody>\n      <tr><td>Project A</td><td>24.5</td><td>$2,450</td></tr>\n      <tr><td>Project B</td><td>18.0</td><td>$1,800</td></tr>\n    </tbody>\n  </table>\n</body>\n</html>"
+    },
+    {
+      "type": "WIDGET",
+      "displayName": "Dashboard Widget",
+      "location": "Dashboard > Widgets Panel",
+      "accessControl": {
+        "default": "ALL",
+        "options": ["ALL", "ADMINS"],
+        "description": "Visible to all users or admins only"
+      },
+      "contextParams": {
+        "workspaceId": {
+          "type": "string",
+          "description": "Current workspace ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Current user ID"
+        },
+        "jwt": {
+          "type": "string",
+          "description": "JWT token with user context"
+        }
+      },
+      "manifestExample": {
+        "type": "WIDGET",
+        "path": "/widget",
+        "label": "Dashboard Widget",
+        "accessLevel": "ALL"
+      },
+      "useCases": [
+        "Display quick stats at a glance",
+        "Show alerts and notifications",
+        "Provide quick action buttons",
+        "Display summary information",
+        "Show real-time status indicators"
+      ],
+      "bestPractices": [
+        "Keep content minimal and focused",
+        "Use large, readable fonts",
+        "Update data in real-time when possible",
+        "Provide quick links to detailed views",
+        "Use color coding for status",
+        "Optimize for small screen space"
+      ],
+      "htmlTemplateBasic": "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Widget</title>\n  <style>\n    body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }\n    .metric { text-align: center; }\n    .metric-value { font-size: 36px; font-weight: bold; color: #03a9f4; }\n    .metric-label { font-size: 14px; color: #666; margin-top: 8px; }\n  </style>\n</head>\n<body>\n  <div class=\"metric\">\n    <div class=\"metric-value\">8.5</div>\n    <div class=\"metric-label\">Hours Today</div>\n  </div>\n</body>\n</html>"
+    }
+  ],
+  "commonUIPatterns": {
+    "loading-state": {
+      "description": "Display while fetching data from API",
+      "html": "<div style=\"text-align: center; padding: 40px; color: #999;\">Loading...</div>"
+    },
+    "error-state": {
+      "description": "Display when data fetch fails",
+      "html": "<div style=\"text-align: center; padding: 40px; color: #d32f2f;\">Error loading data. Please try again.</div>"
+    },
+    "empty-state": {
+      "description": "Display when no data is available",
+      "html": "<div style=\"text-align: center; padding: 40px; color: #999;\">No data available.</div>"
+    },
+    "notification": {
+      "description": "Show success/error messages",
+      "html": "<div style=\"padding: 12px; background: #d4edda; color: #155724; border-radius: 4px; margin-bottom: 16px;\">✓ Success message</div>"
+    }
+  },
+  "cssFrameworks": {
+    "none": {
+      "description": "Vanilla CSS - no framework",
+      "pros": ["No dependencies", "Full control", "Lightweight"],
+      "cons": ["More code to write", "Less consistency"],
+      "recommended": true
+    },
+    "tailwind-cdn": {
+      "description": "Tailwind CSS via CDN",
+      "pros": ["Utility-first", "Fast development", "Responsive"],
+      "cons": ["Larger payload", "CDN dependency"],
+      "cdn": "https://cdn.tailwindcss.com",
+      "recommended": false
+    },
+    "bootstrap-cdn": {
+      "description": "Bootstrap via CDN",
+      "pros": ["Ready components", "Responsive grid", "Well-documented"],
+      "cons": ["Heavier", "Less customizable"],
+      "cdn": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css",
+      "recommended": false
+    }
+  },
+  "javaScriptPatterns": {
+    "fetch-api": {
+      "description": "Modern way to make HTTP requests",
+      "example": "const response = await fetch('/api/data'); const data = await response.json();"
+    },
+    "query-params": {
+      "description": "Extract URL parameters",
+      "example": "const urlParams = new URLSearchParams(window.location.search); const id = urlParams.get('timeEntryId');"
+    },
+    "dom-manipulation": {
+      "description": "Update page content dynamically",
+      "example": "document.getElementById('content').innerHTML = '<h1>Hello</h1>';"
+    },
+    "event-handling": {
+      "description": "Handle user interactions",
+      "example": "document.getElementById('btn').addEventListener('click', () => { alert('Clicked!'); });"
+    }
+  }
+}
