@@ -132,14 +132,6 @@ public class AddonServlet extends HttpServlet {
                     return byType.handle(req);
                 }
             }
-            // As a last resort, acknowledge known lifecycle endpoints to keep compatibility
-            if ("installed".equalsIgnoreCase(type)) {
-                String body = objectMapper.createObjectNode()
-                        .put("status", "installed")
-                        .put("message", "Add-on installed successfully")
-                        .toString();
-                return HttpResponse.ok(body, "application/json");
-            }
         }
 
         if (!"/lifecycle".equals(path)) {
