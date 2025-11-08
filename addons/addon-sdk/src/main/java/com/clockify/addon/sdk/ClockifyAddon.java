@@ -18,12 +18,15 @@ import java.util.Map;
  * }</pre>
  */
 public class ClockifyAddon {
+    public static final String DEFAULT_WEBHOOK_PATH = "/webhook";
+
     private final ClockifyManifest manifest;
     private final Map<String, RequestHandler> endpoints = new HashMap<>();
     private final Map<String, RequestHandler> lifecycleHandlers = new HashMap<>();
     private final Map<String, RequestHandler> lifecycleHandlersByPath = new HashMap<>();
     private final Map<String, String> lifecyclePathsByType = new HashMap<>();
-    private final Map<String, RequestHandler> webhookHandlers = new HashMap<>();
+    private final Map<String, Map<String, RequestHandler>> webhookHandlersByPath = new HashMap<>();
+    private final Map<String, String> webhookPathsByEvent = new HashMap<>();
 
     public ClockifyAddon(ClockifyManifest manifest) {
         this.manifest = manifest;
@@ -84,11 +87,36 @@ public class ClockifyAddon {
      * @param handler handler that processes the event
      */
     public void registerWebhookHandler(String event, RequestHandler handler) {
-        webhookHandlers.put(event, handler);
+        registerWebhookHandler(event, DEFAULT_WEBHOOK_PATH, handler);
+    }
 
-        // Auto-register in manifest if not already present
-        if (manifest.getWebhooks().stream().noneMatch(w -> w.getEvent().equals(event))) {
-            manifest.getWebhooks().add(new ClockifyManifest.WebhookEndpoint(event, "/webhook"));
+    public void registerWebhookHandler(String event, String path, RequestHandler handler) {
+        String normalizedPath = normalizeWebhookPath(path);
+
+        Map<String, RequestHandler> handlersForPath = webhookHandlersByPath
+                .computeIfAbsent(normalizedPath, key -> new HashMap<>());
+        handlersForPath.put(event, handler);
+
+        String previousPath = webhookPathsByEvent.put(event, normalizedPath);
+        if (previousPath != null && !previousPath.equals(normalizedPath)) {
+            Map<String, RequestHandler> previousHandlers = webhookHandlersByPath.get(previousPath);
+            if (previousHandlers != null) {
+                previousHandlers.remove(event);
+                if (previousHandlers.isEmpty()) {
+                    webhookHandlersByPath.remove(previousPath);
+                }
+            }
+        }
+
+        ClockifyManifest.WebhookEndpoint endpoint = manifest.getWebhooks().stream()
+                .filter(w -> w.getEvent().equals(event))
+                .findFirst()
+                .orElse(null);
+
+        if (endpoint == null) {
+            manifest.getWebhooks().add(new ClockifyManifest.WebhookEndpoint(event, normalizedPath));
+        } else {
+            endpoint.setPath(normalizedPath);
         }
     }
 
@@ -120,13 +148,32 @@ public class ClockifyAddon {
      * @return map of webhook event to handler implementation
      */
     public Map<String, RequestHandler> getWebhookHandlers() {
-        return webhookHandlers;
+        return webhookHandlersByPath.computeIfAbsent(DEFAULT_WEBHOOK_PATH, key -> new HashMap<>());
+    }
+
+    public Map<String, Map<String, RequestHandler>> getWebhookHandlersByPath() {
+        return webhookHandlersByPath;
+    }
+
+    public Map<String, String> getWebhookPathsByEvent() {
+        return webhookPathsByEvent;
     }
 
     private String normalizeLifecyclePath(String lifecycleType, String path) {
         String normalizedPath = path != null ? path.trim() : "";
         if (normalizedPath.isEmpty()) {
             normalizedPath = "/lifecycle/" + lifecycleType.toLowerCase();
+        }
+        if (!normalizedPath.startsWith("/")) {
+            normalizedPath = "/" + normalizedPath;
+        }
+        return normalizedPath;
+    }
+
+    private String normalizeWebhookPath(String path) {
+        String normalizedPath = path != null ? path.trim() : "";
+        if (normalizedPath.isEmpty()) {
+            normalizedPath = DEFAULT_WEBHOOK_PATH;
         }
         if (!normalizedPath.startsWith("/")) {
             normalizedPath = "/" + normalizedPath;
