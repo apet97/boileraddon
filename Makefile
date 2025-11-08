@@ -1,4 +1,4 @@
-.PHONY: help setup validate build build-template build-auto-tag-assistant run-auto-tag-assistant docker-run dev clean test
+.PHONY: help setup validate build build-template build-auto-tag-assistant run-auto-tag-assistant docker-run dev clean test briefings-open briefings-verify
 
 TEMPLATE ?= _template-addon
 ADDON_PORT ?= 8080
@@ -29,6 +29,12 @@ help:
 	@echo ""
 	@echo "Note: This boilerplate now uses ONLY Maven Central dependencies."
 	@echo "      No GitHub Packages authentication or external SDK needed!"
+ 
+briefings-open:
+	@echo "_briefings/INDEX.md is at $(PWD)/_briefings/INDEX.md"
+
+briefings-verify:
+	python3 tools/check_briefing_links.py _briefings
 
 # Setup environment
 setup:
