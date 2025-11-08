@@ -17,6 +17,11 @@ public final class WebhookSignatureValidator {
     private WebhookSignatureValidator() {}
 
     public static final String SIGNATURE_HEADER = "clockify-webhook-signature";
+    private static final String[] ALT_HEADERS = new String[]{
+            "x-clockify-webhook-signature",
+            "Clockify-Webhook-Signature",
+            "X-Clockify-Webhook-Signature"
+    };
 
     public static class VerificationResult {
         private final boolean valid;
@@ -43,6 +48,12 @@ public final class WebhookSignatureValidator {
             return new VerificationResult(false, HttpResponse.error(401, "{\"error\":\"installation token not found\"}", "application/json"));
         }
         String sigHeader = request.getHeader(SIGNATURE_HEADER);
+        if (sigHeader == null || sigHeader.isBlank()) {
+            for (String h : ALT_HEADERS) {
+                String v = request.getHeader(h);
+                if (v != null && !v.isBlank()) { sigHeader = v; break; }
+            }
+        }
         if (sigHeader == null || sigHeader.isBlank()) {
             return new VerificationResult(false, HttpResponse.error(401, "{\"error\":\"signature header missing\"}", "application/json"));
         }
