@@ -2,6 +2,8 @@
 
 This document consolidates how manifests are modeled and served at runtime, and how lifecycle events are registered and handled in this boilerplate. It aims to remove ambiguity between schema examples and the in‑repo SDK behavior.
 
+See also: docs/MANIFEST_RECIPES.md (copy‑pasteable patterns) and docs/PERMISSIONS_MATRIX.md (scope selection).
+
 ## Manifest Fundamentals
 
 - schemaVersion: "1.3" (mandatory)
