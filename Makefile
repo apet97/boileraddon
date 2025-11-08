@@ -199,8 +199,9 @@ dev-check:
 
 # AI helpers
 ai-start:
-	@echo "AI Onboarding: /Users/15x/boileraddon/docs/AI_ONBOARDING.md"
-	@echo "AGENTS Guide: /Users/15x/boileraddon/AGENTS.md"
+	@echo "AI START HERE: $(PWD)/docs/AI_START_HERE.md"
+	@echo "AI Onboarding: $(PWD)/docs/AI_ONBOARDING.md"
+	@echo "AGENTS Guide: $(PWD)/AGENTS.md"
 
 # AI zero-shot cheat sheet (one-screen quick steps)
 ai-cheatsheet:

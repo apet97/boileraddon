@@ -98,6 +98,7 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
 - [ ] Briefings regenerated if needed and links verified
 
 ## AI Tasks
+- Start here: `docs/AI_START_HERE.md`.
 - Use the strict zero‑shot checklist: `docs/AI_ZERO_SHOT_PLAYBOOK.md`.
 - Keep changes surgical. Favor targeted tests over broad refactors.
 - Commit message template:
