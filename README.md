@@ -2,6 +2,19 @@
 
 A clean, **truly self-contained** boilerplate for building Clockify add-ons with **ZERO external authentication required**. Uses an in-repo SDK module with **Maven Central dependencies ONLY** - no GitHub Packages, no private artifacts, no hidden prerequisites.
 
+## 🚀 New: Production-Ready Improvements
+
+This boilerplate now includes **comprehensive production enhancements**:
+
+- ✅ **Security**: Path sanitization, rate limiting, input validation
+- ✅ **Persistence**: Database-backed token storage (PostgreSQL/MySQL)
+- ✅ **Reliability**: HTTP timeouts, retries, health checks
+- ✅ **Observability**: Structured logging, metrics, monitoring
+- ✅ **Testing**: Comprehensive test suite with CI/CD automation
+- ✅ **Documentation**: Complete production deployment guide
+
+**See**: [Production Deployment Guide](docs/PRODUCTION-DEPLOYMENT.md) | [Improvements Summary](docs/IMPROVEMENTS-SUMMARY.md) | [CHANGELOG](CHANGELOG.md)
+
 ## Requirements
 
 | Tool | Version | Notes |

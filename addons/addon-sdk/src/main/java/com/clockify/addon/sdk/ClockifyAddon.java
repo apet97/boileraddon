@@ -1,5 +1,7 @@
 package com.clockify.addon.sdk;
 
+import com.clockify.addon.sdk.util.PathSanitizer;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,14 +45,7 @@ public class ClockifyAddon {
      * @param handler  handler that will process requests to {@code path}
      */
     public void registerCustomEndpoint(String path, RequestHandler handler) {
-        String normalizedPath = path != null ? path.trim() : "";
-        if (normalizedPath.isEmpty()) {
-            normalizedPath = "/";
-        }
-        if (!normalizedPath.startsWith("/")) {
-            normalizedPath = "/" + normalizedPath;
-        }
-
+        String normalizedPath = PathSanitizer.sanitize(path);
         endpoints.put(normalizedPath, handler);
     }
 
@@ -168,24 +163,10 @@ public class ClockifyAddon {
     }
 
     private String normalizeLifecyclePath(String lifecycleType, String path) {
-        String normalizedPath = path != null ? path.trim() : "";
-        if (normalizedPath.isEmpty()) {
-            normalizedPath = "/lifecycle/" + lifecycleType.toLowerCase();
-        }
-        if (!normalizedPath.startsWith("/")) {
-            normalizedPath = "/" + normalizedPath;
-        }
-        return normalizedPath;
+        return PathSanitizer.sanitizeLifecyclePath(lifecycleType, path);
     }
 
     private String normalizeWebhookPath(String path) {
-        String normalizedPath = path != null ? path.trim() : "";
-        if (normalizedPath.isEmpty()) {
-            normalizedPath = DEFAULT_WEBHOOK_PATH;
-        }
-        if (!normalizedPath.startsWith("/")) {
-            normalizedPath = "/" + normalizedPath;
-        }
-        return normalizedPath;
+        return PathSanitizer.sanitizeWebhookPath(path);
     }
 }
