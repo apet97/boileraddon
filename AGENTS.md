@@ -33,6 +33,8 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
   - Module security: `security/JwtTokenDecoder.java` (JWT claims helper)
 - Template: `addons/_template-addon/**` (use for scaffolding new add‑ons)
 - Docs: `docs/**` (Architecture, DB token store, Briefings workflow)
+- Parameters: `docs/CLOCKIFY_PARAMETERS.md` (manifest fields, headers, env flags)
+- SDK overview: `docs/SDK_OVERVIEW.md`
 - Briefings: `_briefings/**` (pin to SHA; verify with `make briefings-verify`)
 - Tools:
   - `tools/validate-manifest.py`, `tools/manifest.schema.json`
@@ -49,10 +51,11 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
    - Routing note: the SDK matches endpoint paths exactly (no wildcards). If you need identifiers,
      pass them via query parameters or JSON body (e.g., DELETE `/api/items?id=...`) or register
      an additional exact path. Keep manifest paths in sync (SDK auto‑updates runtime manifest entries).
+   - For quick logic checks, add a dry‑run endpoint like `/api/test` that evaluates input without side effects.
 3) Secure the surface:
    - Use `SecurityHeadersFilter`; enable CSP with `ADDON_FRAME_ANCESTORS` if required.
    - Rate limit via env: `ADDON_RATE_LIMIT`, `ADDON_LIMIT_BY`.
-   - For webhooks, verify signatures (see demo `WebhookSignatureValidator`).
+   - Use SDK security utilities: `security/TokenStore`, `security/WebhookSignatureValidator`.
 4) Validate and test:
    - `make validate` / `make schema-validate`.
    - `mvn test` (module scope first), ensure coverage remains above thresholds.

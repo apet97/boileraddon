@@ -1,258 +1,100 @@
 package com.clockify.addon.sdk.http;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 
 /**
- * Production-ready HTTP client for Clockify API with:
- * - Connection and request timeouts
- * - Automatic retries with exponential backoff
- * - Proper error handling and logging
- * - Rate limit awareness
+ * Minimal HTTP client wrapper with sane timeouts and retries for 429/5xx.
+ * Adds the x-addon-token header for workspace-scoped requests.
  */
 public class ClockifyHttpClient {
-    private static final Logger logger = LoggerFactory.getLogger(ClockifyHttpClient.class);
-
-    private final HttpClient httpClient;
-    private final ObjectMapper objectMapper;
+    private final HttpClient client;
     private final String baseUrl;
-    private final String authToken;
+    private final Duration timeout;
     private final int maxRetries;
-    private final Duration requestTimeout;
 
-    /**
-     * Creates a Clockify HTTP client with default settings.
-     *
-     * @param baseUrl The Clockify API base URL
-     * @param authToken The workspace auth token
-     */
-    public ClockifyHttpClient(String baseUrl, String authToken) {
-        this(baseUrl, authToken, 3, Duration.ofSeconds(30));
+    public ClockifyHttpClient(String baseUrl) {
+        this(baseUrl, Duration.ofSeconds(10), 3);
     }
 
-    /**
-     * Creates a Clockify HTTP client with custom settings.
-     *
-     * @param baseUrl The Clockify API base URL
-     * @param authToken The workspace auth token
-     * @param maxRetries Maximum retry attempts for failed requests
-     * @param requestTimeout Timeout for each request
-     */
-    public ClockifyHttpClient(String baseUrl, String authToken, int maxRetries, Duration requestTimeout) {
-        this.baseUrl = baseUrl;
-        this.authToken = authToken;
+    public ClockifyHttpClient(String baseUrl, Duration timeout, int maxRetries) {
+        this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        this.timeout = timeout;
         this.maxRetries = maxRetries;
-        this.requestTimeout = requestTimeout;
-        this.objectMapper = new ObjectMapper();
-
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
-
-        logger.debug("ClockifyHttpClient initialized: baseUrl={}, timeout={}, maxRetries={}",
-                baseUrl, requestTimeout, maxRetries);
+        this.client = HttpClient.newBuilder().connectTimeout(timeout).build();
     }
 
-    /**
-     * Executes a GET request.
-     *
-     * @param path API path (e.g., "/workspaces/{id}/tags")
-     * @return Response body as JsonNode
-     * @throws HttpException if request fails
-     */
-    public JsonNode get(String path) throws HttpException {
-        return execute("GET", path, null);
+    public HttpResponse<String> get(String path, String addonToken, Map<String, String> headers) throws Exception {
+        HttpRequest.Builder b = baseRequest(path, addonToken, headers).GET();
+        return sendWithRetry(b.build());
     }
 
-    /**
-     * Executes a POST request with JSON body.
-     *
-     * @param path API path
-     * @param body Request body (will be serialized to JSON)
-     * @return Response body as JsonNode
-     * @throws HttpException if request fails
-     */
-    public JsonNode post(String path, Object body) throws HttpException {
-        return execute("POST", path, body);
+    public HttpResponse<String> postJson(String path, String addonToken, String jsonBody, Map<String, String> headers) throws Exception {
+        HttpRequest.Builder b = baseRequest(path, addonToken, headers)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody));
+        return sendWithRetry(b.build());
     }
 
-    /**
-     * Executes a PUT request with JSON body.
-     *
-     * @param path API path
-     * @param body Request body (will be serialized to JSON)
-     * @return Response body as JsonNode
-     * @throws HttpException if request fails
-     */
-    public JsonNode put(String path, Object body) throws HttpException {
-        return execute("PUT", path, body);
+    public HttpResponse<String> putJson(String path, String addonToken, String jsonBody, Map<String, String> headers) throws Exception {
+        HttpRequest.Builder b = baseRequest(path, addonToken, headers)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonBody));
+        return sendWithRetry(b.build());
     }
 
-    /**
-     * Executes a DELETE request.
-     *
-     * @param path API path
-     * @return Response body as JsonNode
-     * @throws HttpException if request fails
-     */
-    public JsonNode delete(String path) throws HttpException {
-        return execute("DELETE", path, null);
+    public HttpResponse<String> delete(String path, String addonToken, Map<String, String> headers) throws Exception {
+        HttpRequest.Builder b = baseRequest(path, addonToken, headers).DELETE();
+        return sendWithRetry(b.build());
     }
 
-    /**
-     * Executes an HTTP request with retries and error handling.
-     */
-    private JsonNode execute(String method, String path, Object body) throws HttpException {
-        String url = baseUrl + path;
+    private HttpRequest.Builder baseRequest(String path, String addonToken, Map<String, String> headers) {
+        HttpRequest.Builder b = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + normalize(path)))
+                .timeout(timeout)
+                .header("x-addon-token", addonToken)
+                .header("Accept", "application/json");
+        if (headers != null) {
+            headers.forEach(b::header);
+        }
+        return b;
+    }
+
+    private static String normalize(String p) {
+        return p.startsWith("/") ? p : "/" + p;
+    }
+
+    private HttpResponse<String> sendWithRetry(HttpRequest req) throws Exception {
         int attempt = 0;
-        Exception lastException = null;
+        long backoffMs = 300L;
+        while (true) {
+            attempt++;
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            int code = resp.statusCode();
 
-        while (attempt <= maxRetries) {
-            try {
-                HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                        .uri(URI.create(url))
-                        .timeout(requestTimeout)
-                        .header("x-addon-token", authToken)
-                        .header("Accept", "application/json");
-
-                // Add method and body
-                if ("GET".equals(method)) {
-                    requestBuilder.GET();
-                } else if ("DELETE".equals(method)) {
-                    requestBuilder.DELETE();
-                } else if (body != null) {
-                    String jsonBody = objectMapper.writeValueAsString(body);
-                    requestBuilder.header("Content-Type", "application/json");
-                    if ("POST".equals(method)) {
-                        requestBuilder.POST(HttpRequest.BodyPublishers.ofString(jsonBody));
-                    } else if ("PUT".equals(method)) {
-                        requestBuilder.PUT(HttpRequest.BodyPublishers.ofString(jsonBody));
-                    }
-                } else {
-                    throw new HttpException("Body required for " + method + " request", 400);
-                }
-
-                HttpRequest request = requestBuilder.build();
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-                int statusCode = response.statusCode();
-                String responseBody = response.body();
-
-                // Success
-                if (statusCode >= 200 && statusCode < 300) {
-                    logger.debug("{} {} -> {}", method, path, statusCode);
-                    if (responseBody == null || responseBody.trim().isEmpty()) {
-                        return objectMapper.createObjectNode();
-                    }
-                    return objectMapper.readTree(responseBody);
-                }
-
-                // Rate limit - wait and retry
-                if (statusCode == 429) {
-                    String retryAfter = response.headers().firstValue("Retry-After").orElse("1");
-                    int waitSeconds = Integer.parseInt(retryAfter);
-                    logger.warn("Rate limited on {} {}, waiting {} seconds", method, path, waitSeconds);
-                    Thread.sleep(waitSeconds * 1000L);
-                    attempt++;
-                    continue;
-                }
-
-                // Server errors - retry with backoff
-                if (statusCode >= 500 && attempt < maxRetries) {
-                    long backoffMs = (long) Math.pow(2, attempt) * 1000; // Exponential backoff
-                    logger.warn("Server error {} on {} {}, retrying in {}ms (attempt {}/{})",
-                            statusCode, method, path, backoffMs, attempt + 1, maxRetries);
-                    Thread.sleep(backoffMs);
-                    attempt++;
-                    continue;
-                }
-
-                // Client errors - don't retry
-                String errorMsg = String.format("%s %s failed with status %d: %s",
-                        method, path, statusCode, responseBody);
-                logger.error(errorMsg);
-                throw new HttpException(errorMsg, statusCode, responseBody);
-
-            } catch (HttpException e) {
-                throw e; // Re-throw our custom exceptions
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new HttpException("Request interrupted: " + e.getMessage(), 0, e);
-            } catch (Exception e) {
-                lastException = e;
-                logger.error("Error executing {} {} (attempt {}/{})",
-                        method, path, attempt + 1, maxRetries + 1, e);
-
-                if (attempt < maxRetries) {
-                    long backoffMs = (long) Math.pow(2, attempt) * 1000;
-                    try {
-                        Thread.sleep(backoffMs);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new HttpException("Request interrupted during retry", 0, ie);
-                    }
-                    attempt++;
-                } else {
-                    break;
-                }
+            if (code < 500 && code != 429) {
+                return resp; // success or client error
             }
-        }
 
-        // Max retries exceeded
-        String errorMsg = String.format("%s %s failed after %d attempts", method, path, maxRetries + 1);
-        throw new HttpException(errorMsg, 0, lastException);
+            if (attempt > maxRetries) {
+                return resp; // give up
+            }
+
+            long sleep = retryAfterMillis(resp).orElse(backoffMs);
+            Thread.sleep(sleep);
+            backoffMs = Math.min(backoffMs * 2, 3000L);
+        }
     }
 
-    /**
-     * Custom exception for HTTP errors.
-     */
-    public static class HttpException extends Exception {
-        private final int statusCode;
-        private final String responseBody;
-
-        public HttpException(String message, int statusCode) {
-            this(message, statusCode, (String) null);
-        }
-
-        public HttpException(String message, int statusCode, String responseBody) {
-            super(message);
-            this.statusCode = statusCode;
-            this.responseBody = responseBody;
-        }
-
-        public HttpException(String message, int statusCode, Throwable cause) {
-            super(message, cause);
-            this.statusCode = statusCode;
-            this.responseBody = null;
-        }
-
-        public int getStatusCode() {
-            return statusCode;
-        }
-
-        public String getResponseBody() {
-            return responseBody;
-        }
-
-        public boolean isClientError() {
-            return statusCode >= 400 && statusCode < 500;
-        }
-
-        public boolean isServerError() {
-            return statusCode >= 500;
-        }
-
-        public boolean isRateLimitError() {
-            return statusCode == 429;
-        }
+    private Optional<Long> retryAfterMillis(HttpResponse<?> resp) {
+        return resp.headers().firstValue("Retry-After").map(v -> {
+            try { return Long.parseLong(v) * 1000L; } catch (NumberFormatException e) { return 0L; }
+        });
     }
 }
+
