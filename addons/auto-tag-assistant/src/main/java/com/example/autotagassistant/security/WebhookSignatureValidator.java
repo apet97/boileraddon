@@ -1,7 +1,7 @@
 package com.example.autotagassistant.security;
 
+import com.clockify.addon.sdk.HttpResponse;
 import com.example.autotagassistant.TokenStore;
-import com.example.autotagassistant.sdk.HttpResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
