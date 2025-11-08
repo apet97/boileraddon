@@ -23,6 +23,8 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules java -jar addons/rules/target/r
 # Install using: https://YOUR.ngrok-free.app/rules/manifest.json
 ```
 
+Developer signatures: webhooks include an HMAC header `clockify-webhook-signature` (and case variants). In Developer workspaces, Clockify may send a JWT header `Clockify-Signature`; the SDK accepts it by default. Toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
+
 ## Manifest (Scopes and Plan)
 
 Rules needs to read and optionally modify time entries, and it uses tags. By default it targets the FREE plan; raise the minimum plan and adapt scopes as needed.

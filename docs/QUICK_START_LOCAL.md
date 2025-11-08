@@ -25,5 +25,5 @@ Auto-Tag Assistant (ngrok)
 
 Notes
 - Do not edit manifest.json for baseUrl; set ADDON_BASE_URL and restart.
-- Webhook header: clockify-webhook-signature (HMAC-SHA256 of raw body using installation token).
+- Webhook headers: `clockify-webhook-signature` (HMAC-SHA256 of raw body using installation token), and Developer’s `Clockify-Signature` (JWT) which is accepted by default. Toggle JWT acceptance with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
 - Use docs/NGROK_TESTING.md for a deeper, step-by-step runbook.

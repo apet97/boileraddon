@@ -62,3 +62,11 @@ curl $(ADDON_BASE_URL)/manifest.json
 - ADDON_FRAME_ANCESTORS='self' https://*.clockify.me — set CSP for the settings iframe.
 - ADDON_RATE_LIMIT, ADDON_LIMIT_BY — enable RateLimiter.
 - ADDON_CORS_ORIGINS, ADDON_CORS_ALLOW_CREDENTIALS — enable CORS allowlist.
+
+## Common ngrok issues
+
+- Single agent limit (free plan): `ERR_NGROK_108` means you already have an agent running. Reuse it or stop stray processes:
+  - `pgrep -fl ngrok` → identify the running agent
+  - `killall ngrok` → stop it, then `ngrok http 8080`
+  - Read the current public URL any time: `curl http://127.0.0.1:4040/api/tunnels`
+- Always quote the URL passed to `--base-url` to avoid accidental spaces.

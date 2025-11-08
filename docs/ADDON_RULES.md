@@ -56,6 +56,7 @@ Optional runtime safeguards:
 
 - `GET /rules/manifest.json` — runtime manifest (v1.3; no `$schema`)
 - `GET /rules/settings` — sidebar UI
+- `GET /rules/status?workspaceId=...` — runtime status (token present, apply mode, skip‑sig flag, baseUrl)
 - `GET /rules/api/rules?workspaceId=...` — list rules
 - `POST /rules/api/rules?workspaceId=...` — create/update rule (id auto‑generated if omitted)
 - `DELETE /rules/api/rules?id=<id>&workspaceId=...` — delete rule by id
@@ -123,11 +124,15 @@ curl -s -X POST http://localhost:8080/rules/api/test \
 ## Developer Workspace Notes
 
 - Install After Start: Start the add‑on and confirm the Base URL banner matches your ngrok URL, then install the manifest. Installing first can cache an old URL and cause 401/404s.
-- Signatures: Developer webhooks are signed. The validator accepts `clockify-webhook-signature` and `x-clockify-webhook-signature` (case variants). If your environment still 401s, use the dev bypass below to prove E2E and share one sample header so we can adapt.
+- Signatures: Developer webhooks are signed. The validator accepts `clockify-webhook-signature`, `x-clockify-webhook-signature` (case variants), and Developer’s JWT header `Clockify-Signature` by default. Toggle JWT acceptance with `ADDON_ACCEPT_JWT_SIGNATURE=true|false` (default: true). If your environment still 401s, use the dev bypass below to prove E2E and share one sample header so we can adapt.
 - Dev bypass: To test end‑to‑end without signature problems and apply changes:
   - `ADDON_SKIP_SIGNATURE_VERIFY=true RULES_APPLY_CHANGES=true bash scripts/run-rules.sh --base-url "https://<ngrok>/rules"`
   - Create a rule in the UI, then create/update a matching time entry in the installed workspace.
   - Switch back to signed mode by removing `ADDON_SKIP_SIGNATURE_VERIFY` once verified.
+
+Tips:
+- Only one ngrok agent session is allowed on the free plan. If you see `ERR_NGROK_108`, stop stray sessions (`killall ngrok`), or reuse the existing one. You can always read the current public URL from `http://127.0.0.1:4040/api/tunnels`.
+- Quote your `--base-url` value to avoid stray spaces (the run script rejects URLs containing spaces and prints a hint).
 
 ## Troubleshooting
 - Double slash (//) 400 errors: If you see `Ambiguous URI empty segment`, you likely posted to `/rules//api/rules`. Hard‑refresh to load the latest UI; it computes baseUrl safely and won’t generate `//`.

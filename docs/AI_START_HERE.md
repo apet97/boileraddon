@@ -30,6 +30,10 @@ TEMPLATE=auto-tag-assistant make zero-shot-run
 #   make rules-up
 # Then install using the printed manifest URL or 'make manifest-url'
 
+Developer signatures
+- HMAC header: `clockify-webhook-signature` (and case variants) is always supported.
+- JWT header: `Clockify-Signature` from Developer is accepted by default. Toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
+
 Dev shortcuts (when Developer webhooks 401 during setup):
 ```
 ADDON_SKIP_SIGNATURE_VERIFY=true RULES_APPLY_CHANGES=true \

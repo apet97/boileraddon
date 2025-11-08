@@ -10,6 +10,7 @@ This project provides a Clockify add-on boilerplate. Use these practices when bu
 - Webhooks and lifecycle
   - Verify signatures for webhook/lifecycle requests before processing.
   - Reject unsigned or malformed requests.
+  - Developer environments may send a JWT header (`Clockify-Signature`). The SDK validator can accept it by default (toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`). Prefer HMAC (`clockify-webhook-signature`) for production consistency.
 - Tokens and storage
   - Persist installation tokens in a database for HA and auditability.
   - Rotate and revoke tokens when requested.

@@ -19,6 +19,7 @@ Canonical reference for the parameters used by this boilerplate and add-ons: man
 
 - x-addon-token: workspace-scoped installation token for Clockify API calls (canonical in this boilerplate).
 - clockify-webhook-signature: HMAC-SHA256 signature header for webhook bodies (validate with SDK WebhookSignatureValidator).
+- Clockify-Signature: Developer JWT header for webhooks. Accepted by default when `ADDON_ACCEPT_JWT_SIGNATURE=true` (default). The validator inspects the JWT payload and matches `workspaceId`.
 - x-clockify-workspace: workspace id (when provided by Clockify; not guaranteed on all routes).
 
 Notes:
@@ -47,6 +48,7 @@ Tokens and UI endpoints may include environment claims (e.g., backend/api base U
 - ADDON_LIMIT_BY — ip|workspace (RateLimiter bucketing)
 - ADDON_CORS_ORIGINS — CSV list of allowed origins (CorsFilter)
 - ADDON_CORS_ALLOW_CREDENTIALS — true|false for CORS credentials
+- ADDON_ACCEPT_JWT_SIGNATURE — true|false to accept Developer JWT signature header `Clockify-Signature` (default true)
 
 ## Persistence (DatabaseTokenStore)
 
