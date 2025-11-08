@@ -46,3 +46,14 @@ addon.registerWebhookHandler("TIME_ENTRY_UPDATED", handler);
 ```
 
 See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQUEST-RESPONSE-EXAMPLES.md for full HTTP exchanges.
+
+## Route → Manifest Mapping
+
+| Route | Purpose | Manifest Entry |
+|------|---------|----------------|
+| `/manifest.json` | Serve runtime manifest | n/a (content of manifest itself) |
+| `/settings` | Settings UI | `components[]` item with `type: SETTINGS_SIDEBAR`, `url: /settings` |
+| `/lifecycle/installed` | Lifecycle install callback | `lifecycle[]` item `{ type: "INSTALLED", path: "/lifecycle/installed" }` |
+| `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
+| `/webhook` (default) | Time entry webhooks (TIME_ENTRY_CREATED, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
+| Custom (e.g. `/webhooks/entries`) | Alternative webhook mount | One `webhooks[]` item per event with `path: "/webhooks/entries"` |

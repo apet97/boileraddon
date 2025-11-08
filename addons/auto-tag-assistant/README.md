@@ -192,4 +192,16 @@ ClockifyManifest manifest = ClockifyManifest
 
 Runtime manifest is served at `/{addon}/manifest.json` and auto‑updates as you register lifecycle, webhook, and UI component routes. See docs/MANIFEST_AND_LIFECYCLE.md for details.
 
+## Route → Manifest Mapping
+
+| Route | Purpose | Manifest Entry |
+|------|---------|----------------|
+| `/manifest.json` | Serve runtime manifest | n/a (content of manifest itself) |
+| `/settings` | Settings sidebar UI | `components[]` item with `type: SETTINGS_SIDEBAR`, `url: /settings` |
+| `/lifecycle/installed` | Lifecycle install callback | `lifecycle[]` item `{ type: "INSTALLED", path: "/lifecycle/installed" }` |
+| `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
+| `/webhook` | Time entry webhooks (NEW_TIMER_STARTED, TIMER_STOPPED, NEW_TIME_ENTRY, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
+| `/health` | Liveness/readiness check | Not listed in manifest (optional health endpoint) |
+
+
 Questions? Open an issue in the root repository.

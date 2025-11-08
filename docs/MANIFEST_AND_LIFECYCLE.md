@@ -170,6 +170,17 @@ Dispatch model:
 - The servlet dispatches lifecycle requests by exact path to the registered handler for that path.
 - Lifecycle routes are not treated as webhooks; they are first‑class, explicit paths.
 
+### Route → Manifest Mapping (Example)
+
+| Route | Purpose | Manifest Entry |
+|------|---------|----------------|
+| `/manifest.json` | Serve runtime manifest | n/a (content of manifest itself) |
+| `/settings` | Settings UI | `components[]` item with `type: SETTINGS_SIDEBAR`, `url: /settings` |
+| `/lifecycle/installed` | Lifecycle install callback | `lifecycle[]` item `{ type: "INSTALLED", path: "/lifecycle/installed" }` |
+| `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
+| `/webhook` | Webhook endpoint mount | One `webhooks[]` item per event with `path: "/webhook"` |
+
+
 ## Webhook Registration
 
 Webhooks are mapped by event to a path (default `/webhook`).
