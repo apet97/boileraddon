@@ -1,4 +1,4 @@
-.PHONY: help setup validate build build-template build-auto-tag-assistant run-auto-tag-assistant docker-run dev clean test briefings-open briefings-verify
+.PHONY: help setup validate build build-template build-auto-tag-assistant build-rules run-auto-tag-assistant run-rules docker-run dev clean test briefings-open briefings-verify
 
 TEMPLATE ?= _template-addon
 ADDON_PORT ?= 8080
@@ -14,10 +14,12 @@ help:
 	@echo "  build                      - Build all modules (templates + addons)"
 	@echo "  build-template             - Build only the _template-addon module"
 	@echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
+	@echo "  build-rules                - Build only the rules addon"
 	@echo "  dev                        - Build and run the template add-on using .env"
 	@echo "  docker-run                 - Build and run an add-on inside Docker (override TEMPLATE=...)"
 	@echo "  test                       - Run all tests"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
+	@echo "  run-rules                  - Run the rules addon locally"
 	@echo "  clean                      - Clean all build artifacts"
 	@echo ""
 	@echo "Quick start:"
@@ -63,6 +65,7 @@ build:
 	@echo "Built artifacts:"
 	@ls -lh addons/_template-addon/target/*jar-with-dependencies.jar 2>/dev/null || true
 	@ls -lh addons/auto-tag-assistant/target/*jar-with-dependencies.jar 2>/dev/null || true
+	@ls -lh addons/rules/target/*jar-with-dependencies.jar 2>/dev/null || true
 
 # Build template only
 build-template:
@@ -75,6 +78,12 @@ build-auto-tag-assistant:
 	@echo "Building auto-tag-assistant addon..."
 	mvn -q -f addons/auto-tag-assistant/pom.xml clean package -DskipTests
 	@echo "✓ Auto-Tag Assistant built: addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar"
+
+# Build rules only
+build-rules:
+	@echo "Building rules addon..."
+	mvn -q -f addons/rules/pom.xml clean package -DskipTests
+	@echo "✓ Rules built: addons/rules/target/rules-0.1.0-jar-with-dependencies.jar"
 
 # No longer needed - kept for backward compatibility
 install:
@@ -111,6 +120,23 @@ run-auto-tag-assistant-db:
 	ADDON_PORT=$(ADDON_PORT) ADDON_BASE_URL=$(ADDON_BASE_URL) \
 	DB_URL=$(DB_URL) DB_USERNAME=$(DB_USERNAME) DB_PASSWORD=$(DB_PASSWORD) \
 	java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
+
+# Run rules addon locally
+run-rules:
+	@echo "Starting Rules Add-on..."
+	@echo "================================"
+	@echo "Base URL: http://localhost:8080/rules"
+	@echo "Manifest: http://localhost:8080/rules/manifest.json"
+	@echo "Rules API: http://localhost:8080/rules/api/rules"
+	@echo "================================"
+	@echo ""
+	@echo "To expose via ngrok:"
+	@echo "  1. In another terminal: ngrok http 8080"
+	@echo "  2. Update manifest.json baseUrl to: https://YOUR-SUBDOMAIN.ngrok-free.app/rules"
+	@echo "  3. Install in Clockify using: https://YOUR-SUBDOMAIN.ngrok-free.app/rules/manifest.json"
+	@echo ""
+	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/rules \
+	java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar
 
 docker-run:
 	@echo "Building Docker image for $(TEMPLATE)..."
