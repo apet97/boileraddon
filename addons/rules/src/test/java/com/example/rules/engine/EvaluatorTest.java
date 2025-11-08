@@ -173,6 +173,46 @@ class EvaluatorTest {
     }
 
     @Test
+    void testDescriptionContains_IN_values() {
+        Condition condition = new Condition("descriptionContains", Condition.Operator.IN, null, Arrays.asList("meeting", "review"));
+        Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "any"))));
+
+        ObjectNode timeEntry = mapper.createObjectNode();
+        timeEntry.put("description", "Code review");
+        TimeEntryContext context = new TimeEntryContext(timeEntry);
+
+        assertTrue(evaluator.evaluate(rule, context));
+    }
+
+    @Test
+    void testHasTag_IN_values() {
+        Condition condition = new Condition("hasTag", Condition.Operator.IN, null, Arrays.asList("urgent", "client"));
+        Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "hit"))));
+
+        ObjectNode timeEntry = mapper.createObjectNode();
+        ArrayNode tagIds = mapper.createArrayNode();
+        tagIds.add("client");
+        timeEntry.set("tagIds", tagIds);
+        TimeEntryContext context = new TimeEntryContext(timeEntry);
+
+        assertTrue(evaluator.evaluate(rule, context));
+    }
+
+    @Test
+    void testProjectIdEquals_IN_values() {
+        Condition condition = new Condition("projectIdEquals", Condition.Operator.IN, null, Arrays.asList("p1", "p2"));
+        Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "proj"))));
+
+        ObjectNode timeEntry = mapper.createObjectNode();
+        timeEntry.put("projectId", "p2");
+        TimeEntryContext context = new TimeEntryContext(timeEntry);
+
+        assertTrue(evaluator.evaluate(rule, context));
+    }
+    @Test
     void testEmptyConditions_returnsFalse() {
         Rule rule = new Rule(null, "Test", true, "AND", Collections.emptyList(),
                 Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))));

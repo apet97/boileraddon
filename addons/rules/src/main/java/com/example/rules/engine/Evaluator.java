@@ -74,14 +74,21 @@ public class Evaluator {
 
     private boolean evaluateDescriptionContains(Condition condition, TimeEntryContext context) {
         String description = context.getDescription();
-        String value = condition.getValue();
+        if (description == null) return false;
 
-        if (description == null || value == null) {
-            return false;
+        // Single value
+        if (condition.getValue() != null) {
+            boolean contains = description.toLowerCase().contains(condition.getValue().toLowerCase());
+            return applyOperator(condition.getOperator(), contains);
         }
-
-        boolean contains = description.toLowerCase().contains(value.toLowerCase());
-        return applyOperator(condition.getOperator(), contains);
+        // Multi-value for IN/NOT_IN
+        if (condition.getValues() != null && !condition.getValues().isEmpty()) {
+            boolean any = condition.getValues().stream()
+                    .filter(v -> v != null)
+                    .anyMatch(v -> description.toLowerCase().contains(v.toLowerCase()));
+            return applyOperator(condition.getOperator(), any);
+        }
+        return false;
     }
 
     private boolean evaluateDescriptionEquals(Condition condition, TimeEntryContext context) {
@@ -98,26 +105,32 @@ public class Evaluator {
 
     private boolean evaluateHasTag(Condition condition, TimeEntryContext context) {
         List<String> tagIds = context.getTagIds();
-        String value = condition.getValue();
+        if (tagIds == null) return false;
 
-        if (tagIds == null || value == null) {
-            return false;
+        if (condition.getValue() != null) {
+            boolean hasTag = tagIds.contains(condition.getValue());
+            return applyOperator(condition.getOperator(), hasTag);
         }
-
-        boolean hasTag = tagIds.contains(value);
-        return applyOperator(condition.getOperator(), hasTag);
+        if (condition.getValues() != null && !condition.getValues().isEmpty()) {
+            boolean any = condition.getValues().stream().anyMatch(tagIds::contains);
+            return applyOperator(condition.getOperator(), any);
+        }
+        return false;
     }
 
     private boolean evaluateProjectIdEquals(Condition condition, TimeEntryContext context) {
         String projectId = context.getProjectId();
-        String value = condition.getValue();
+        if (projectId == null) return false;
 
-        if (projectId == null || value == null) {
-            return false;
+        if (condition.getValue() != null) {
+            boolean equals = projectId.equals(condition.getValue());
+            return applyOperator(condition.getOperator(), equals);
         }
-
-        boolean equals = projectId.equals(value);
-        return applyOperator(condition.getOperator(), equals);
+        if (condition.getValues() != null && !condition.getValues().isEmpty()) {
+            boolean any = condition.getValues().contains(projectId);
+            return applyOperator(condition.getOperator(), any);
+        }
+        return false;
     }
 
     private boolean evaluateIsBillable(Condition condition, TimeEntryContext context) {
