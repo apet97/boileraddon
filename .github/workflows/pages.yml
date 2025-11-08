@@ -1,9 +1,9 @@
-name: deploy-coverage-to-pages
+name: deploy-coverage-to-pages (manual)
 
 on:
+  # Run manually from the Actions tab when you want to publish
+  # aggregate coverage to GitHub Pages instead of docs.
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 permissions:
   contents: read
@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: "pages-coverage"
   cancel-in-progress: true
 
 jobs:
@@ -41,4 +41,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
