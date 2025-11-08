@@ -114,7 +114,7 @@ All component URLs receive a `jwt` query parameter with user context.
 
 | Event | Trigger | Payload Includes |
 |-------|---------|------------------|
-| `NEW_TIME_ENTRY` | New entry created | Full time entry object |
+| `NEW_TIME_ENTRY` / `TIME_ENTRY_CREATED` | New entry created | Full time entry object |
 | `NEW_TIMER_STARTED` | Timer started | Time entry with null end time |
 | `TIMER_STOPPED` | Timer stopped | Time entry with duration |
 | `TIME_ENTRY_UPDATED` | Entry modified | Updated entry + changes object |

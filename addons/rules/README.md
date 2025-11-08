@@ -39,8 +39,10 @@ addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest))
 addon.registerCustomEndpoint("/settings", new SettingsController());
 addon.registerLifecycleHandler("INSTALLED", handler);
 addon.registerLifecycleHandler("DELETED",   handler);
-addon.registerWebhookHandler("NEW_TIME_ENTRY", "/webhooks/entries", handler);
+// Default path ("/webhook"): register time entry events used by Rules
+addon.registerWebhookHandler("TIME_ENTRY_CREATED", handler);
+addon.registerWebhookHandler("TIME_ENTRY_UPDATED", handler);
+// Or supply a custom path, e.g.: addon.registerWebhookHandler("TIME_ENTRY_CREATED", "/webhooks/entries", handler);
 ```
 
 See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQUEST-RESPONSE-EXAMPLES.md for full HTTP exchanges.
-

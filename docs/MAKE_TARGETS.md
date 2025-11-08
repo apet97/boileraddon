@@ -39,6 +39,7 @@ Zero‑shot
 - `make manifest-url` — print the current manifest URL for installation.
 - `make manifest-print` — fetch and pretty‑print the runtime manifest (uses `ADDON_BASE_URL` or defaults).
 - `make manifest-validate-runtime` — fetch the runtime manifest and validate it against `tools/manifest.schema.json`.
+- `make manifest-validate-all URLS="https://.../rules https://.../auto-tag-assistant"` — fetch and validate multiple runtime manifests.
 
 Testing
 - `make test` — run tests for the selected module or full reactor depending on setup; prefer Maven directly for fine control:

@@ -279,6 +279,26 @@ manifest-validate-runtime:
 	fi; \
 	python3 tools/validate-manifest.py tools/.runtime-manifest.json
 
+# Validate multiple runtime manifests. Pass URLS as a space-separated list, e.g.:
+#   make manifest-validate-all URLS="https://.../rules https://.../auto-tag-assistant"
+manifest-validate-all:
+	@URLS_LIST="$(URLS)"; \
+	if [ -z "$$URLS_LIST" ]; then \
+	  if [ -n "$(ADDON_BASE_URL)" ]; then URLS_LIST="$(ADDON_BASE_URL)"; else URLS_LIST="http://localhost:$(ADDON_PORT)/$(TEMPLATE)"; fi; \
+	fi; \
+	echo "Validating manifests for: $$URLS_LIST"; \
+	mkdir -p tools; \
+	STATUS=0; \
+	for U in $$URLS_LIST; do \
+	  MF="$$U/manifest.json"; \
+	  OUT="tools/.runtime-`echo $$U | sed 's#https\?://##; s#/##g'`.json"; \
+	  echo "→ Fetching $$MF"; \
+	  if ! curl -fsSL "$$MF" -o "$$OUT"; then echo "Fetch failed: $$MF"; STATUS=2; continue; fi; \
+	  echo "→ Validating $$OUT"; \
+	  if ! python3 tools/validate-manifest.py "$$OUT"; then STATUS=3; fi; \
+	done; \
+	exit $$STATUS
+
 # Zero-shot run helper: build selected addon and run it with sensible defaults
 zero-shot-run:
 	@if [ -z "$(TEMPLATE)" ]; then \
