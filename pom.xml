@@ -24,6 +24,7 @@
         <!-- Working add-ons -->
         <module>addons/addon-sdk</module>
         <module>addons/auto-tag-assistant</module>
+        <module>addons/rules</module>
 </modules>
 
     <build>

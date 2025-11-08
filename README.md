@@ -180,7 +180,9 @@ java -jar addons/_template-addon/target/_template-addon-0.1.0-jar-with-dependenc
 
 ## What's Included
 
-- ✅ **Working Example**: `addons/auto-tag-assistant/` - A complete auto-tagging add-on
+- ✅ **Working Examples**:
+  - `addons/auto-tag-assistant/` - Auto-tagging for time entries
+  - `addons/rules/` - Declarative automation rules with conditions and actions
 - ✅ **SDK Module**: `addons/addon-sdk` shared by all add-ons - no external dependencies
 - ✅ **Maven Central Only**: All dependencies from public Maven Central (Jackson, Jetty, SLF4J)
 - ✅ **No Annotation Processing**: Simple Java 17 classes and builders
@@ -204,16 +206,29 @@ boileraddon/
 │   │       ├── EmbeddedServer.java
 │   │       ├── RequestHandler.java
 │   │       └── HttpResponse.java
-│   └── auto-tag-assistant/                    # Working example add-on
+│   ├── auto-tag-assistant/                    # Working example add-on
+│   │   ├── pom.xml                            # Maven Central dependencies only
+│   │   ├── README.md                          # Detailed implementation guide
+│   │   └── src/main/java/
+│   │       └── com/example/autotagassistant/
+│   │           ├── AutoTagAssistantApp.java  # Main application
+│   │           ├── ManifestController.java   # Manifest endpoint
+│   │           ├── SettingsController.java   # Settings UI
+│   │           ├── LifecycleHandlers.java    # INSTALLED/DELETED
+│   │           └── WebhookHandlers.java      # Time entry webhooks
+│   └── rules/                                 # Rules automation add-on
 │       ├── pom.xml                            # Maven Central dependencies only
-│       ├── README.md                          # Detailed implementation guide
 │       └── src/main/java/
-│           └── com/example/autotagassistant/
-│               ├── AutoTagAssistantApp.java  # Main application
-│               ├── ManifestController.java   # Manifest endpoint
-│               ├── SettingsController.java   # Settings UI
-│               ├── LifecycleHandlers.java    # INSTALLED/DELETED
-│               └── WebhookHandlers.java      # Time entry webhooks
+│           └── com/example/rules/
+│               ├── RulesApp.java             # Main application
+│               ├── RulesController.java      # CRUD API for rules
+│               ├── engine/                    # Rule evaluation engine
+│               │   ├── Rule.java             # Rule model
+│               │   ├── Condition.java        # Condition model
+│               │   ├── Action.java           # Action model
+│               │   └── Evaluator.java        # Rule evaluator (AND/OR)
+│               └── store/
+│                   └── RulesStore.java       # In-memory rule storage
 └── tools/
     └── validate-manifest.py                   # Manifest validation helper
 ```
