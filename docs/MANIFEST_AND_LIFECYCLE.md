@@ -134,6 +134,21 @@ Every add‑on in this repo (template, auto‑tag‑assistant, rules, overtime) 
 
 Use the module entrypoint (e.g., `AutoTagAssistantApp`, `RulesApp`) to set the manifest builder fields and register handlers appropriate for that add‑on’s purpose. Keep your manifest synchronized by using the SDK’s `register*` helpers.
 
+## Live Validation and Introspection
+
+Use the Make targets to inspect and validate a running add‑on’s manifest:
+
+```
+# Pretty-print the runtime manifest
+export ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules
+make manifest-print
+
+# Validate the runtime manifest against the local schema
+make manifest-validate-runtime   # (installs optional checks if jsonschema is available)
+```
+
+If the `jsonschema` package is installed for Python, the validator performs full schema checks (including `lifecycle[]` object shape). Otherwise, it runs minimal built‑in validations.
+
 ## Lifecycle Registration
 
 Lifecycle entries are explicit and path‑based. The SDK normalizes and auto‑registers lifecycle paths in the manifest.

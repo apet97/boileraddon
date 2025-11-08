@@ -37,9 +37,10 @@ Scaffolding
 Zero‑shot
 - `TEMPLATE=auto-tag-assistant make zero-shot-run` — build & run the selected module and print the manifest URL (pair with ngrok).
 - `make manifest-url` — print the current manifest URL for installation.
+- `make manifest-print` — fetch and pretty‑print the runtime manifest (uses `ADDON_BASE_URL` or defaults).
+- `make manifest-validate-runtime` — fetch the runtime manifest and validate it against `tools/manifest.schema.json`.
 
 Testing
 - `make test` — run tests for the selected module or full reactor depending on setup; prefer Maven directly for fine control:
   - `mvn -e -pl addons/addon-sdk -am test`
   - `mvn -e -fae verify`
-

@@ -57,6 +57,8 @@ Summarize changes and append proof-of-green lines (test counts, BUILD SUCCESS) t
 TEMPLATE=auto-tag-assistant make zero-shot-run
 # In another terminal: ngrok http 8080
 # Restart with HTTPS base URL and install using `make manifest-url`
+make manifest-print                 # pretty-print runtime manifest
+make manifest-validate-runtime      # schema-validate runtime manifest
 ```
 
 Patterns & Tips
@@ -84,4 +86,3 @@ Escalation Heuristics (AI)
 - Do not disable tests in build-and-test. Only the Pages job runs without tests and fetches the coverage artifact.
 
 That’s it. For broader docs, see docs/AI_ONBOARDING.md and AGENTS.md.
-

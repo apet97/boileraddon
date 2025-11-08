@@ -262,6 +262,23 @@ manifest-print:
 	  curl -fsSL "$$URL" || true; \
 	fi
 
+# Fetch the runtime manifest and validate against tools/manifest.schema.json
+manifest-validate-runtime:
+	@URL="$(ADDON_BASE_URL)"; \
+	if [ -z "$$URL" ]; then \
+	  URL="http://localhost:$(ADDON_PORT)/$(TEMPLATE)"; \
+	  echo "ADDON_BASE_URL not set; defaulting to $$URL"; \
+	fi; \
+	URL="$$URL/manifest.json"; \
+	DEST="tools/.runtime-manifest.json"; \
+	echo "Downloading $$URL → $$DEST"; \
+	mkdir -p tools; \
+	if ! curl -fsSL "$$URL" -o "$$DEST"; then \
+	  echo "Failed to fetch runtime manifest from $$URL"; \
+	  exit 2; \
+	fi; \
+	python3 tools/validate-manifest.py tools/.runtime-manifest.json
+
 # Zero-shot run helper: build selected addon and run it with sensible defaults
 zero-shot-run:
 	@if [ -z "$(TEMPLATE)" ]; then \
