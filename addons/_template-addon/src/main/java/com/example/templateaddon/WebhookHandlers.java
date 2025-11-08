@@ -1,7 +1,7 @@
 package com.example.templateaddon;
 
-import com.example.templateaddon.sdk.ClockifyAddon;
-import com.example.templateaddon.sdk.HttpResponse;
+import com.clockify.addon.sdk.ClockifyAddon;
+import com.clockify.addon.sdk.HttpResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

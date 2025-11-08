@@ -1,7 +1,7 @@
 package com.example.templateaddon;
 
-import com.example.templateaddon.sdk.HttpResponse;
-import com.example.templateaddon.sdk.RequestHandler;
+import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.RequestHandler;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**

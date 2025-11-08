@@ -1,9 +1,10 @@
 package com.example.templateaddon;
 
-import com.example.templateaddon.sdk.AddonServlet;
-import com.example.templateaddon.sdk.ClockifyAddon;
-import com.example.templateaddon.sdk.ClockifyManifest;
-import com.example.templateaddon.sdk.EmbeddedServer;
+import com.clockify.addon.sdk.AddonServlet;
+import com.clockify.addon.sdk.ClockifyAddon;
+import com.clockify.addon.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.EmbeddedServer;
+import com.clockify.addon.sdk.HttpResponse;
 
 /**
  * Starter application for building a new Clockify add-on.
@@ -45,7 +46,7 @@ public class TemplateAddonApp {
 
         // GET /_template-addon/health - Simple readiness probe
         addon.registerCustomEndpoint("/health", request ->
-                com.example.templateaddon.sdk.HttpResponse.ok("Template add-on is running"));
+                HttpResponse.ok("Template add-on is running"));
 
         String contextPath = sanitizeContextPath(baseUrl);
 
