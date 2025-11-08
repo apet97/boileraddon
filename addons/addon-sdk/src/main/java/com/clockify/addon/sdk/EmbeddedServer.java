@@ -1,4 +1,4 @@
-package com.example.autotagassistant.sdk;
+package com.clockify.addon.sdk;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -7,7 +7,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Embedded Jetty server wrapper.
+ * Convenience wrapper around Jetty for local development of Clockify add-ons.
+ * <p>
+ * The server installs the provided {@link AddonServlet} under the supplied
+ * context path and blocks until shutdown:
+ * </p>
+ * <pre>{@code
+ * AddonServlet servlet = new AddonServlet(addon);
+ * EmbeddedServer server = new EmbeddedServer(servlet, "/auto-tag-assistant");
+ * server.start(8080);
+ * }</pre>
  */
 public class EmbeddedServer {
     private static final Logger logger = LoggerFactory.getLogger(EmbeddedServer.class);

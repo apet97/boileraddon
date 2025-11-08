@@ -1,8 +1,8 @@
 package com.example.autotagassistant;
 
-import com.example.autotagassistant.sdk.ClockifyManifest;
-import com.example.autotagassistant.sdk.HttpResponse;
-import com.example.autotagassistant.sdk.RequestHandler;
+import com.clockify.addon.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.RequestHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import jakarta.servlet.http.HttpServletRequest;

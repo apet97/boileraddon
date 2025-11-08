@@ -1,4 +1,4 @@
-package com.example.autotagassistant.sdk;
+package com.clockify.addon.sdk;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

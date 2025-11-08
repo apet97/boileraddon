@@ -23,7 +23,7 @@ Use these files as the authoritative reference:
    - Complete, working add-on implementation
    - Shows proper manifest structure, lifecycle handling, webhook processing
    - Demonstrates Clockify API client usage
-   - Contains the inline SDK under `src/main/java/com/example/autotagassistant/sdk/`
+   - Uses the shared SDK module (`addons/addon-sdk`)
 
 5. **Template**: `templates/java-basic-addon/`
    - Minimal starter template
@@ -126,15 +126,15 @@ boileraddon/
 ├── templates/
 │   └── java-basic-addon/                      # Starter template
 ├── addons/
-│   └── auto-tag-assistant/                    # Working example + inline SDK
-│       └── src/main/java/com/example/autotagassistant/sdk/  # Minimal inline SDK used by examples
+│   ├── addon-sdk/                             # Shared SDK module (servlet, manifest, Jetty helpers)
+│   └── auto-tag-assistant/                    # Working example that consumes the SDK module
 └── scripts/
     └── new-addon.sh                           # Scaffolding script
 ```
 
 ## Building Add-ons
 
-The SDK is provided inline within the repository - **no GitHub Packages authentication needed**:
+The SDK ships as a dedicated Maven module in this repository - **no GitHub Packages authentication needed**:
 
 ```bash
 # Build everything (SDK + all add-ons)
@@ -299,7 +299,7 @@ addon.registerCustomEndpoint("/settings", request -> {
 4. ❌ **NEVER** invent webhook event types - only use documented ones
 5. ❌ **NEVER** hardcode access tokens or secrets
 6. ❌ **NEVER** modify files under `dev-docs-marketplace-cake-snapshot/`
-7. ❌ **NEVER** assume GitHub Packages access - use the inline SDK under `addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/`
+7. ❌ **NEVER** assume GitHub Packages access - use the in-repo SDK under `addons/addon-sdk/src/main/java/com/clockify/addon/sdk/`
 8. ❌ **NEVER** skip storing the auth token from INSTALLED event
 9. ❌ **NEVER** use any auth header other than `x-addon-token: {token}`
 10. ❌ **NEVER** exceed rate limits (50 req/s per addon per workspace)
@@ -357,7 +357,7 @@ Brief description
 - **Docs**: `dev-docs-marketplace-cake-snapshot/cake_marketplace_dev_docs.md`
 - **API Spec**: `dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json`
 - **Schema**: `dev-docs-marketplace-cake-snapshot/extras/manifest-schema-latest.json` (authoring only)
-- **SDK Source**: `addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/`
+- **SDK Source**: `addons/addon-sdk/src/main/java/com/clockify/addon/sdk/`
 
 ## Version Pinning
 
@@ -365,6 +365,6 @@ Use versions from `extras/versions.md` if it exists. Otherwise:
 
 - Java: 17
 - Maven: 3.6+
-- Inline SDK: `addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/` (kept in-repo instead of an external dependency)
+- SDK Module: `addons/addon-sdk/src/main/java/com/clockify/addon/sdk/` (kept in-repo instead of an external dependency)
 - Jackson: 2.17.1
 - Jetty: 11.0.20
