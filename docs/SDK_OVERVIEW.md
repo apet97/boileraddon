@@ -17,6 +17,8 @@ Routing note:
 
 - SecurityHeadersFilter — adds security headers and optional CSP frame-ancestors from `ADDON_FRAME_ANCESTORS`.
 - CorsFilter — strict allowlist via `ADDON_CORS_ORIGINS` (CSV). Optional `ADDON_CORS_ALLOW_CREDENTIALS=true`.
+  - Supports exact origins (e.g., `https://app.clockify.me`) and subdomain wildcards (e.g., `https://*.example.com`).
+  - Wildcards only match subdomains, not the bare domain.
 - RateLimiter — opt-in throttling by `ip` or `workspace`, configured via `ADDON_RATE_LIMIT` and `ADDON_LIMIT_BY`.
 - RequestLoggingFilter — request/response logging for debugging (disable in production unless needed).
 

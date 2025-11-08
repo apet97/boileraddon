@@ -29,11 +29,11 @@
       <version>2.18.2</version>
     </dependency>
 
-    <!-- Servlet API -->
+    <!-- Servlet API: align with tests implementing Servlet 6 interfaces -->
     <dependency>
       <groupId>jakarta.servlet</groupId>
       <artifactId>jakarta.servlet-api</artifactId>
-      <version>5.0.0</version>
+      <version>6.1.0</version>
       <scope>provided</scope>
     </dependency>
 
