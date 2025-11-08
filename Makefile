@@ -16,7 +16,6 @@ help:
 	@echo "  build-auto-tag-assistant   - Build only the auto-tag-assistant addon"
 	@echo "  build-rules                - Build only the rules addon"
 	@echo "  build-overtime             - Build only the overtime addon"
-	@echo "  build-overtime             - Build only the overtime addon"
 	@echo "  dev                        - Build and run the template add-on using .env"
 	@echo "  docker-run                 - Build and run an add-on inside Docker (override TEMPLATE=...)"
 	@echo "  test                       - Run all tests"
