@@ -214,6 +214,28 @@ ai-cheatsheet:
 	@echo "6) Optional run: TEMPLATE=auto-tag-assistant make zero-shot-run"
 	@echo "Docs: docs/AI_ZERO_SHOT_PLAYBOOK.md"
 
+# AI verification helper: runs validator, addon-sdk tests, and reactor verify, then prints proof lines
+ai-verify:
+	@bash -euo pipefail -c "\
+	  echo '== Manifest validation =='; \
+	  python3 tools/validate-manifest.py | tee /tmp/ai_manifest.out; \
+	  if grep -q '^Invalid:' /tmp/ai_manifest.out; then MAN='FAIL'; else MAN='OK'; fi; \
+	  echo; \
+	  echo '== addon-sdk tests =='; \
+	  mvn -e -DtrimStackTrace=false -Dsurefire.printSummary=true -pl addons/addon-sdk -am test | tee /tmp/ai_sdktest.out; \
+	  SDK_SUM=\$$(rg -n 'Tests run: .*Failures:.*Errors:.*' -S addons/addon-sdk/target/surefire-reports/*.txt 2>/dev/null | tail -n 1 || true); \
+	  if grep -E 'Failures:\\s*[1-9]|Errors:\\s*[1-9]' /tmp/ai_sdktest.out >/dev/null 2>&1; then SDK='FAIL'; else SDK='OK'; fi; \
+	  echo; \
+	  echo '== Reactor verify =='; \
+	  mvn -e -DtrimStackTrace=false -fae verify | tee /tmp/ai_verify.out; \
+	  if grep -q 'BUILD SUCCESS' /tmp/ai_verify.out; then REACTOR='BUILD SUCCESS'; else REACTOR='FAIL'; fi; \
+	  echo; \
+	  echo '== Proof lines =='; \
+	  echo "- python3 tools/validate-manifest.py → \$${MAN}"; \
+	  if [ -n "\$${SDK_SUM}" ]; then echo "- addon-sdk surefire summary: \$${SDK_SUM}"; fi; \
+	  echo "- mvn -fae verify → \$${REACTOR}"; \
+	"
+
 # Print the current manifest URL based on ADDON_BASE_URL
 manifest-url:
 	@if [ -z "$(ADDON_BASE_URL)" ]; then \
