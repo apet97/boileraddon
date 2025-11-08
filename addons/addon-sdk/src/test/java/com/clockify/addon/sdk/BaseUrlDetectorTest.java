@@ -68,19 +68,19 @@ class BaseUrlDetectorTest {
     }
 
     @Test
-    void doesNotAppendInternalPortWhenForwardedHostOmitsPort() {
+    void omitsServerPortWhenForwardedPortMissing() {
         Map<String, String> headers = new HashMap<>();
-        headers.put("Forwarded", "proto=https; host=public.example.com");
+        headers.put("Forwarded", "proto=https; host=example.com");
         HttpServletRequest request = request(headers, "http", "internal", 8080, "/addon");
 
         Optional<String> detected = detector.detectBaseUrl(request);
 
         assertTrue(detected.isPresent());
-        assertEquals("https://public.example.com/addon", detected.get());
+        assertEquals("https://example.com/addon", detected.get());
     }
 
     @Test
-    void fallsBackToServerPortWhenNoForwardingInfoPresent() {
+    void fallsBackToServerPortWhenNoForwardingPresent() {
         Map<String, String> headers = new HashMap<>();
         HttpServletRequest request = request(headers, "http", "localhost", 8080, "/addon");
 
