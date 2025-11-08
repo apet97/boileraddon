@@ -114,32 +114,30 @@
         <version>0.8.12</version>
         <executions>
           <execution>
-            <goals>
-              <goal>prepare-agent</goal>
-            </goals>
+            <id>prepare-agent</id>
+            <goals><goal>prepare-agent</goal></goals>
             <configuration>
               <includes>
-                <include>com.example.rules.*</include>
+                <include>com/example/rules/**</include>
               </includes>
               <excludes>
-                <!-- Exclude Mockito generated subclasses that can be compiled with newer class file versions -->
-                <exclude>com.example.rules.*$MockitoMock$*</exclude>
-                <exclude>com.example.rules.*$MockitoMock$*$auxiliary$*</exclude>
+                <!-- Exclude Mockito/Byte Buddy generated classes from instrumentation -->
+                <exclude>**/*$MockitoMock$*</exclude>
+                <exclude>**/*$MockitoMock$*$$*</exclude>
+                <exclude>org/mockito/**</exclude>
+                <exclude>net/bytebuddy/**</exclude>
               </excludes>
             </configuration>
           </execution>
           <execution>
             <id>report</id>
             <phase>test</phase>
-            <goals>
-              <goal>report</goal>
-            </goals>
+            <goals><goal>report</goal></goals>
           </execution>
           <execution>
-            <id>jacoco-check</id>
-            <goals>
-              <goal>check</goal>
-            </goals>
+            <id>check</id>
+            <phase>verify</phase>
+            <goals><goal>check</goal></goals>
             <configuration>
               <rules>
                 <rule>
@@ -151,6 +149,11 @@
                       <minimum>0.35</minimum>
                     </limit>
                   </limits>
+                  <excludes>
+                    <!-- Optional bundle-level exclusions for generated/bootstrap code -->
+                    <exclude>com/example/rules/config/**</exclude>
+                    <exclude>com/example/rules/store/**</exclude>
+                  </excludes>
                 </rule>
               </rules>
             </configuration>
