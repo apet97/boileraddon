@@ -128,3 +128,13 @@ clean:
 	@echo "Cleaning build artifacts..."
 	mvn clean
 	@echo "✓ Clean complete"
+
+
+# Validate manifests using local JSON schema (if jsonschema installed)
+schema-validate:
+	@python3 -c "import pkgutil,sys;import json;import os; from jsonschema import Draft7Validator" >/dev/null 2>&1 || { echo 'jsonschema not installed: pip install jsonschema'; exit 1; }
+	@python3 tools/validate-manifest.py addons/_template-addon/manifest.json || true
+
+# Quick environment sanity check
+dev-check:
+	@bash scripts/dev-env-check.sh
