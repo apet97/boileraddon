@@ -103,6 +103,50 @@ class BaseUrlDetectorTest {
         assertEquals("http://localhost:8080/addon", detected.get());
     }
 
+    @Test
+    void supportsIpv6HostWithExplicitPortInForwarded() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Forwarded", "proto=https; host=\"[2001:db8::1]:8443\"");
+        HttpServletRequest request = request(headers, "http", "ignored", 8080, "/ctx");
+
+        Optional<String> detected = detector.detectBaseUrl(request);
+        assertTrue(detected.isPresent());
+        assertEquals("https://[2001:db8::1]:8443/ctx", detected.get());
+    }
+
+    @Test
+    void honorsHostHeaderWithPortWhenNoForwarding() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Host", "example.com:8080");
+        HttpServletRequest request = request(headers, "http", "internal", 80, "/app");
+
+        Optional<String> detected = detector.detectBaseUrl(request);
+        assertTrue(detected.isPresent());
+        assertEquals("http://example.com:8080/app", detected.get());
+    }
+
+    @Test
+    void forwardedKeysCaseInsensitive() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Forwarded", "Proto=https; Host=MiXeD.example; Port=443");
+        HttpServletRequest request = request(headers, "http", "internal", 8080, "/addon");
+
+        Optional<String> detected = detector.detectBaseUrl(request);
+        assertTrue(detected.isPresent());
+        assertEquals("https://MiXeD.example:443/addon", detected.get());
+    }
+
+    @Test
+    void ipv6HostWithoutPortAppendsForwardedPort() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Forwarded", "proto=https; host=\"[2001:db8::2]\"; port=443");
+        HttpServletRequest request = request(headers, "http", "ignored", 8081, "");
+
+        Optional<String> detected = detector.detectBaseUrl(request);
+        assertTrue(detected.isPresent());
+        assertEquals("https://[2001:db8::2]:443", detected.get());
+    }
+
     private HttpServletRequest request(Map<String, String> headers, String scheme, String serverName, int port, String contextPath) {
         Map<String, String> normalizedHeaders = new HashMap<>();
         headers.forEach((key, value) -> normalizedHeaders.put(key, value));
