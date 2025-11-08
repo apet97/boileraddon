@@ -28,16 +28,25 @@ java -jar templates/java-basic-addon/target/java-basic-addon-0.1.0-jar-with-depe
 
 ## Expose to Clockify
 
-In a second terminal, forward the local port with ngrok:
+1. In a second terminal, forward the local port with ngrok:
 
-```bash
-ngrok http 8080
-```
+   ```bash
+   ngrok http 8080
+   ```
 
-Copy the HTTPS URL that ngrok prints (for example `https://abc123.ngrok-free.app`). Use it to install the add-on in Clockify:
+   Copy the HTTPS URL that ngrok prints (for example `https://abc123.ngrok-free.app`).
+2. Restart the add-on with `ADDON_BASE_URL` set to the ngrok domain so the manifest points to the public URL:
 
-1. Go to **Admin → Add-ons → Install Custom Add-on**.
-2. Enter `https://abc123.ngrok-free.app/my-addon/manifest.json` (replace `my-addon` with your `ADDON_BASE_URL` suffix).
+   ```bash
+   ADDON_PORT=8080 ADDON_BASE_URL=https://abc123.ngrok-free.app/my-addon \
+   java -jar templates/java-basic-addon/target/java-basic-addon-0.1.0-jar-with-dependencies.jar
+   ```
+
+   Stop any instance you launched with the default `http://localhost:8080` URL before running this command.
+3. Install in Clockify:
+
+   - Go to **Admin → Add-ons → Install Custom Add-on**.
+   - Enter `https://abc123.ngrok-free.app/my-addon/manifest.json` (replace `my-addon` with your `ADDON_BASE_URL` suffix).
 
 ## Makefile Shortcuts
 
