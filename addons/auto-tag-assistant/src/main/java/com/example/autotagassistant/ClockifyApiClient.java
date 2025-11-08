@@ -15,7 +15,7 @@ import java.time.Duration;
  * IMPORTANT:
  * - Use the auth token received in the INSTALLED lifecycle event
  * - Token is workspace-specific - store it keyed by workspaceId
- * - Include token in Authorization header: "Bearer {authToken}"
+ * - Include token in x-addon-token header
  * - Respect rate limits: 50 requests/second per addon per workspace
  * - Base URL comes from token claims (different for prod/staging/dev)
  *
@@ -57,7 +57,7 @@ public class ClockifyApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + authToken)
+                .header("x-addon-token", authToken)
                 .header("Accept", "application/json")
                 .GET()
                 .build();
@@ -83,7 +83,7 @@ public class ClockifyApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + authToken)
+                .header("x-addon-token", authToken)
                 .header("Accept", "application/json")
                 .GET()
                 .build();
@@ -132,7 +132,7 @@ public class ClockifyApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + authToken)
+                .header("x-addon-token", authToken)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .PUT(HttpRequest.BodyPublishers.ofString(requestBody))
@@ -164,7 +164,7 @@ public class ClockifyApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
-                .header("Authorization", "Bearer " + authToken)
+                .header("x-addon-token", authToken)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
