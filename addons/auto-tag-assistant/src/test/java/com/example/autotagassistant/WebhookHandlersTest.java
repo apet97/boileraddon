@@ -208,7 +208,9 @@ class WebhookHandlersTest {
         HttpResponse response = handler.handle(request);
 
         assertEquals(401, response.getStatusCode());
-        assertEquals("Missing webhook signature header", response.getBody());
+        // SDK now returns JSON error bodies
+        com.fasterxml.jackson.databind.JsonNode json = OBJECT_MAPPER.readTree(response.getBody());
+        assertEquals("signature header missing", json.get("error").asText());
     }
 
     @Test
@@ -240,7 +242,8 @@ class WebhookHandlersTest {
         HttpResponse response = handler.handle(request);
 
         assertEquals(403, response.getStatusCode());
-        assertEquals("Invalid webhook signature", response.getBody());
+        com.fasterxml.jackson.databind.JsonNode json2 = OBJECT_MAPPER.readTree(response.getBody());
+        assertEquals("invalid signature", json2.get("error").asText());
     }
 
     private static void respondWithJson(HttpExchange exchange, int statusCode, String body) throws IOException {

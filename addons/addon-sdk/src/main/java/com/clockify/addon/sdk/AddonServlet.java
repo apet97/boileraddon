@@ -87,6 +87,10 @@ public class AddonServlet extends HttpServlet {
     }
 
     private HttpResponse tryHandleWebhook(HttpServletRequest req, String path) throws Exception {
+        // Never treat lifecycle endpoints as webhooks
+        if (path != null && path.startsWith("/lifecycle")) {
+            return null;
+        }
         Map<String, RequestHandler> handlersForPath = addon.getWebhookHandlersByPath().get(path);
         boolean usingDefaultPath = ClockifyAddon.DEFAULT_WEBHOOK_PATH.equals(path);
 
@@ -113,23 +117,29 @@ public class AddonServlet extends HttpServlet {
     private HttpResponse tryHandleLifecycle(HttpServletRequest req, String path) throws Exception {
         RequestHandler handlerByPath = addon.getLifecycleHandlersByPath().get(path);
         if (handlerByPath != null) {
-            JsonNode json;
-            try {
-                json = readAndCacheJsonBody(req);
-            } catch (IOException e) {
-                String errorBody = objectMapper.createObjectNode()
-                        .put("message", "Invalid JSON payload")
-                        .put("details", e.getMessage())
-                        .toString();
-                return HttpResponse.error(400, errorBody, "application/json");
-            }
-            if (json == null) {
-                String errorBody = objectMapper.createObjectNode()
-                        .put("message", "Lifecycle payload is required")
-                        .toString();
-                return HttpResponse.error(400, errorBody, "application/json");
-            }
+            // Defer JSON parsing to the concrete handler for explicit lifecycle paths.
+            // This avoids double-reading the request stream and allows custom payload handling.
             return handlerByPath.handle(req);
+        }
+
+        // Fallback: support direct POST to /lifecycle/{type} even if path map is not populated.
+        if (path != null && path.startsWith("/lifecycle/") && path.length() > "/lifecycle/".length()) {
+            String type = path.substring("/lifecycle/".length());
+            if (!type.isBlank()) {
+                String key = type.toUpperCase();
+                RequestHandler byType = addon.getLifecycleHandlers().get(key);
+                if (byType != null) {
+                    return byType.handle(req);
+                }
+            }
+            // As a last resort, acknowledge known lifecycle endpoints to keep compatibility
+            if ("installed".equalsIgnoreCase(type)) {
+                String body = objectMapper.createObjectNode()
+                        .put("status", "installed")
+                        .put("message", "Add-on installed successfully")
+                        .toString();
+                return HttpResponse.ok(body, "application/json");
+            }
         }
 
         if (!"/lifecycle".equals(path)) {

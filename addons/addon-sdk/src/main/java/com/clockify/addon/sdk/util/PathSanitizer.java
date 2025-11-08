@@ -26,11 +26,31 @@ public class PathSanitizer {
             return "/";
         }
 
+        // Pre-trim checks: examine the raw input to avoid trim() hiding trailing control chars
+        String raw = path;
+        boolean rawHasNullChar = raw.indexOf('\u0000') >= 0;
+        boolean rawHasPercent00 = raw.toLowerCase().contains("%00");
+        boolean rawHasBackslashZero = false; // "\\0"
+        boolean rawHasUnicodeLiteralNull = raw.toLowerCase().contains("\\u0000"); // literal text "\u0000"
+        for (int i = 0; i + 1 < raw.length(); i++) {
+            if (raw.charAt(i) == '\\' && raw.charAt(i + 1) == '0') {
+                rawHasBackslashZero = true;
+                break;
+            }
+        }
+        if (rawHasNullChar || rawHasBackslashZero || rawHasPercent00 || rawHasUnicodeLiteralNull) {
+            logger.warn("Path contains null byte or encoding before trim (nullChar?={}, \\0?={}, %00?={}, \\u0000?={}): {}",
+                rawHasNullChar, rawHasBackslashZero, rawHasPercent00, rawHasUnicodeLiteralNull, path);
+            throw new IllegalArgumentException("Path contains null bytes");
+        }
+
+        // Now trim and continue normalization/validation
         String sanitized = path.trim();
 
-        // Detect common null-byte representations
+        // Detect common null-byte representations again after trim
         boolean hasNullChar = sanitized.indexOf('\u0000') >= 0;
         boolean hasPercent00 = sanitized.toLowerCase().contains("%00"); // URL-encoded null byte
+        boolean hasUnicodeLiteralNull = sanitized.toLowerCase().contains("\\u0000"); // literal text "\u0000"
         boolean hasBackslashZero = false; // robust detection for "\\0" (backslash then zero)
         for (int i = 0; i + 1 < sanitized.length(); i++) {
             if (sanitized.charAt(i) == '\\' && sanitized.charAt(i + 1) == '0') {
@@ -40,10 +60,19 @@ public class PathSanitizer {
         }
 
         // Check for null bytes (potential security issue) or common encodings
-        if (hasNullChar || hasBackslashZero || hasPercent00) {
-            logger.warn("Path contains null byte or encoding (nullChar?={}, \\0?={}, %00?={}): {}",
-                    hasNullChar, hasBackslashZero, hasPercent00, path);
+        if (hasNullChar || hasBackslashZero || hasPercent00 || hasUnicodeLiteralNull) {
+            logger.warn("Path contains null byte or encoding (nullChar?={}, \\0?={}, %00?={}, \\u0000?={}): {}",
+                    hasNullChar, hasBackslashZero, hasPercent00, hasUnicodeLiteralNull, path);
             throw new IllegalArgumentException("Path contains null bytes");
+        }
+
+        // Disallow ASCII control characters (0x00-0x1F) for safety
+        for (int i = 0; i < sanitized.length(); i++) {
+            char ch = sanitized.charAt(i);
+            if (ch <= 0x1F) {
+                logger.warn("Path contains control characters (<=0x1F): {}", path);
+                throw new IllegalArgumentException("Path contains control characters");
+            }
         }
 
         // Check for path traversal attempts

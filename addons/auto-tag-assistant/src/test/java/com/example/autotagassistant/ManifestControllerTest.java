@@ -58,7 +58,12 @@ class ManifestControllerTest {
 
         HttpResponse response = controller.handle(request);
         assertEquals("application/json", response.getContentType());
-        assertEquals("https://example.com/auto-tag-assistant", manifest.getBaseUrl());
+        // DefaultManifestController does not mutate the backing manifest; it overrides baseUrl per-response.
+        // Verify the JSON payload reflects the forwarded base URL while the object remains unchanged.
+        String body = response.getBody();
+        assertEquals("http://localhost:8080/auto-tag-assistant", manifest.getBaseUrl());
+        com.fasterxml.jackson.databind.JsonNode json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+        assertEquals("https://example.com/auto-tag-assistant", json.get("baseUrl").asText());
     }
 
     private static class TestHttpServletRequest implements HttpServletRequest {

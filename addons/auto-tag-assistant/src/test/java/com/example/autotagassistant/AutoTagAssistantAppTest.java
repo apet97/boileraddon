@@ -260,8 +260,10 @@ class AutoTagAssistantAppTest {
                 connection.setRequestMethod("POST");
                 connection.setDoOutput(true);
                 connection.setRequestProperty("Content-Type", "application/json");
+                byte[] bytes = payload.getBytes(StandardCharsets.UTF_8);
+                connection.setRequestProperty("Content-Length", Integer.toString(bytes.length));
                 try (OutputStream outputStream = connection.getOutputStream()) {
-                    outputStream.write(payload.getBytes(StandardCharsets.UTF_8));
+                    outputStream.write(bytes);
                 }
 
                 int status = connection.getResponseCode();

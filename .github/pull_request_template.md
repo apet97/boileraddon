@@ -1,17 +1,26 @@
-Thanks for your contribution! Please complete this checklist:
+## Summary
 
-- [ ] `make validate` (and `make schema-validate` if available)
-- [ ] `mvn -q -pl <module> -am test` passes
-- [ ] Coverage unaffected or improved (see CI artifacts)
-- [ ] Updated relevant docs (README or docs/**)
-- [ ] If endpoints/paths changed, refreshed `_briefings` pin (make briefings-verify)
+- [ ] Feature/fix summary and scope
+- [ ] Linked issue(s):
 
-Summary
-- What changed and why?
+## Pre‑merge checklist (please tick all)
 
-Testing
-- How did you test locally? Include commands/logs if relevant.
+- [ ] Java 17 in use locally (`java -version` shows 17.x)
+- [ ] Maven uses Java 17 (`mvn -version` shows 17.x)
+- [ ] Toolchains configured or CI runner uses Java 17 (see docs/BUILD_ENVIRONMENT.md)
+- [ ] Manifests validated: `python3 tools/validate-manifest.py` → OK only
+- [ ] Module tests: `mvn -e -DtrimStackTrace=false -pl addons/addon-sdk -am test` → 0 failures
+- [ ] Full build: `mvn -e -DtrimStackTrace=false -fae verify` → BUILD SUCCESS
+- [ ] No `$schema` in runtime manifests; schemaVersion is `"1.3"`
 
-Notes
-- Breaking changes? Follow-up tasks?
+## Outputs (paste or attach)
+
+- Manifest validator output
+- Surefire summaries (if any failed previously)
+- `java -version` and `mvn -version`
+
+## Notes for reviewers
+
+- Anything special about environment, credentials, or steps
+- Any follow‑ups needed (tests, docs, CI)
 
