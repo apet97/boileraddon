@@ -62,7 +62,7 @@ make schema-validate
     another exact path (e.g., `DELETE /api/items?id=...`).
 - Add lifecycle/webhook handling
   - `registerLifecycleHandler("INSTALLED", handler)`
-  - `registerWebhookHandler("TIME_ENTRY_CREATED", handler)`
+  - `registerWebhookHandler("NEW_TIME_ENTRY", handler)`
   - Keep manifest entries in sync (SDK auto-updates runtime manifest list)
 - Security
   - Use `SecurityHeadersFilter`; set `ADDON_FRAME_ANCESTORS` in staging/prod

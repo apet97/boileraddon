@@ -48,7 +48,7 @@ Clockify sends workspace-specific credentials and environment hints. Treat them 
 
 ## 4. Deployment Pointers
 
-* **Local development** – Build with `mvn clean package -DskipTests` and run `java -jar <module>/target/<name>-jar-with-dependencies.jar`. Pair it with `ngrok http 8080` (or your chosen port) and install the manifest via the forwarded HTTPS URL.【F:README.md†L79-L109】
+* **Local development** – Build with `mvn clean package -DskipTests` and run `java -jar <module>/target/<name>-jar-with-dependencies.jar`. Pair it with `ngrok http 8080` (or your chosen port) and install the manifest via the forwarded HTTPS URL. Start the server first, then install the manifest to avoid caching a stale URL in Developer.
 * **Configuration** – Provide sensible defaults via environment variables (`ADDON_BASE_URL`, `ADDON_PORT`) and propagate them to your manifest builder so the runtime manifest always matches the deployed host.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/AutoTagAssistantApp.java†L25-L63】
 * **Logging & monitoring** – Forward structured logs to your platform of choice and tag entries with workspace IDs to simplify debugging.
 * **Health checks** – Register a `/health` endpoint that returns quickly so platform monitors and Clockify can detect outages.

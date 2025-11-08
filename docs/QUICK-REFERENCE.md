@@ -130,6 +130,7 @@ All component URLs receive a `jwt` query parameter with user context.
 
 **All webhooks include**:
 - `clockify-webhook-signature` header (MUST validate!)
+- Developer’s `Clockify-Signature` (JWT) is accepted by default; toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
 - `x-clockify-workspace-id` header
 - JSON body with event data
 

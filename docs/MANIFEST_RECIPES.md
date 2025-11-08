@@ -48,7 +48,7 @@ Listens to time entry events and may write tags/updates.
   "TIME_ENTRY_READ", "TIME_ENTRY_WRITE", "TAG_READ", "TAG_WRITE"
 })
 // Webhooks (default path "/webhook")
-addon.registerWebhookHandler("TIME_ENTRY_CREATED", rulesHandler);
+addon.registerWebhookHandler("NEW_TIME_ENTRY", rulesHandler);
 addon.registerWebhookHandler("TIME_ENTRY_UPDATED", rulesHandler);
 ```
 
@@ -116,4 +116,3 @@ server.addFilter(new CorsFilter(System.getenv("ADDON_CORS_ORIGINS")));
 - UI components[] added with correct URL endpoints
 - baseUrl points to public HTTPS (ngrok/stage/prod)
 - Validate live: `make manifest-print` and `make manifest-validate-runtime`
-
