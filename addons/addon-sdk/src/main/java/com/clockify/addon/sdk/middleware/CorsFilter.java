@@ -21,12 +21,18 @@ public class CorsFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(CorsFilter.class);
 
     private final Set<String> allowedOrigins;
+    private final boolean allowCredentials;
 
     public CorsFilter() {
-        this(System.getenv("ADDON_CORS_ORIGINS"));
+        this(System.getenv("ADDON_CORS_ORIGINS"),
+             Boolean.parseBoolean(System.getenv().getOrDefault("ADDON_CORS_ALLOW_CREDENTIALS", "false")));
     }
 
     public CorsFilter(String originsCsv) {
+        this(originsCsv, false);
+    }
+
+    public CorsFilter(String originsCsv, boolean allowCredentials) {
         if (originsCsv == null || originsCsv.isBlank()) {
             this.allowedOrigins = Set.of();
             logger.info("CorsFilter initialized with empty allowlist; CORS disabled");
@@ -39,6 +45,7 @@ public class CorsFilter implements Filter {
             this.allowedOrigins = Set.copyOf(s);
             logger.info("CorsFilter allowlist: {}", this.allowedOrigins);
         }
+        this.allowCredentials = allowCredentials;
     }
 
     @Override
@@ -60,6 +67,9 @@ public class CorsFilter implements Filter {
             resp.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, clockify-webhook-signature");
             resp.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
             resp.setHeader("Access-Control-Max-Age", "600");
+            if (allowCredentials) {
+                resp.setHeader("Access-Control-Allow-Credentials", "true");
+            }
 
             if (preflight) {
                 resp.setStatus(204);
@@ -74,4 +84,3 @@ public class CorsFilter implements Filter {
         chain.doFilter(request, response);
     }
 }
-
