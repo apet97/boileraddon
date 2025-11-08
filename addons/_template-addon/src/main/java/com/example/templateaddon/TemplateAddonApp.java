@@ -11,8 +11,8 @@ import com.clockify.addon.sdk.HttpResponse;
  */
 public class TemplateAddonApp {
     public static void main(String[] args) throws Exception {
-        String baseUrl = System.getenv().getOrDefault("ADDON_BASE_URL", "http://localhost:8080/_template-addon");
-        int port = Integer.parseInt(System.getenv().getOrDefault("ADDON_PORT", "8080"));
+        String baseUrl = EnvConfig.get("ADDON_BASE_URL", "http://localhost:8080/_template-addon");
+        int port = Integer.parseInt(EnvConfig.get("ADDON_PORT", "8080"));
         String addonKey = "_template-addon";
 
         // TODO: Rename "Template Add-on" and customize description before publishing.

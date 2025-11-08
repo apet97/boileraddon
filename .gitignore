@@ -36,3 +36,6 @@ bin/
 *.bak
 *.swp
 *~
+
+# Environment files
+.env
