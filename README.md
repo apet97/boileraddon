@@ -96,6 +96,7 @@ Examples:
 
 ```
 export ADDON_CORS_ORIGINS=https://app.clockify.me,https://example.com
+export ADDON_CORS_ALLOW_CREDENTIALS=true
 make run-auto-tag-assistant
 ```
 
