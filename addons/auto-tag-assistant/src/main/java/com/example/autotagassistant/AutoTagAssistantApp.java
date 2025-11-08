@@ -5,6 +5,7 @@ import com.clockify.addon.sdk.EmbeddedServer;
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.ConfigValidator;
 
 /**
  * Auto-Tag Assistant Add-on
@@ -26,9 +27,17 @@ import com.clockify.addon.sdk.HttpResponse;
  */
 public class AutoTagAssistantApp {
     public static void main(String[] args) throws Exception {
-        // Read configuration from environment
-        String baseUrl = System.getenv().getOrDefault("ADDON_BASE_URL", "http://localhost:8080/auto-tag-assistant");
-        int port = Integer.parseInt(System.getenv().getOrDefault("ADDON_PORT", "8080"));
+        // Read and validate configuration from environment
+        String baseUrl = ConfigValidator.validateUrl(
+            System.getenv("ADDON_BASE_URL"),
+            "http://localhost:8080/auto-tag-assistant",
+            "ADDON_BASE_URL"
+        );
+        int port = ConfigValidator.validatePort(
+            System.getenv("ADDON_PORT"),
+            8080,
+            "ADDON_PORT"
+        );
         String addonKey = "auto-tag-assistant";
 
         // Build manifest programmatically (aligns with manifest.json)
@@ -120,8 +129,8 @@ public class AutoTagAssistantApp {
                     contextPath = sanitized;
                 }
             }
-        } catch (Exception e) {
-            System.err.println("Warning: Could not parse base URL, using '/' as context path: " + e.getMessage());
+        } catch (java.net.URISyntaxException e) {
+            System.err.println("Warning: Could not parse base URL '" + baseUrl + "', using '/' as context path: " + e.getMessage());
         }
         return contextPath;
     }

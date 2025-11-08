@@ -5,14 +5,24 @@ import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.EmbeddedServer;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.ConfigValidator;
 
 /**
  * Starter application for building a new Clockify add-on.
  */
 public class TemplateAddonApp {
     public static void main(String[] args) throws Exception {
-        String baseUrl = EnvConfig.get("ADDON_BASE_URL", "http://localhost:8080/_template-addon");
-        int port = Integer.parseInt(EnvConfig.get("ADDON_PORT", "8080"));
+        // Read and validate configuration from environment
+        String baseUrl = ConfigValidator.validateUrl(
+            System.getenv("ADDON_BASE_URL"),
+            "http://localhost:8080/_template-addon",
+            "ADDON_BASE_URL"
+        );
+        int port = ConfigValidator.validatePort(
+            System.getenv("ADDON_PORT"),
+            8080,
+            "ADDON_PORT"
+        );
         String addonKey = "_template-addon";
 
         // TODO: Rename "Template Add-on" and customize description before publishing.
@@ -83,8 +93,8 @@ public class TemplateAddonApp {
                     contextPath = sanitized;
                 }
             }
-        } catch (Exception e) {
-            System.err.println("Warning: Could not parse base URL, using '/' as context path: " + e.getMessage());
+        } catch (java.net.URISyntaxException e) {
+            System.err.println("Warning: Could not parse base URL '" + baseUrl + "', using '/' as context path: " + e.getMessage());
         }
         return contextPath;
     }

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Addon Settings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 14px;
+            color: #333;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: #1a1a1a;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #4a4a4a;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #03A9F4;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #03A9F4;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0288D1;
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+
+        .alert.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Addon Settings</h1>
+
+        <div id="alert" class="alert"></div>
+
+        <form id="settingsForm">
+            <div class="setting-group">
+                <label for="apiKey">API Key</label>
+                <input type="text" id="apiKey" name="apiKey" placeholder="Enter your API key">
+                <div class="help-text">Your API key for external integrations</div>
+            </div>
+
+            <div class="setting-group">
+                <label for="tagPrefix">Tag Prefix</label>
+                <input type="text" id="tagPrefix" name="tagPrefix" value="auto-">
+                <div class="help-text">Prefix for automatically created tags</div>
+            </div>
+
+            <div class="setting-group">
+                <label for="keywords">Keywords (comma-separated)</label>
+                <textarea id="keywords" name="keywords" placeholder="meeting, bug, feature, review"></textarea>
+                <div class="help-text">Keywords to detect in time entry descriptions</div>
+            </div>
+
+            <div class="setting-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="autoTag" name="autoTag" checked>
+                    <label for="autoTag">Enable auto-tagging</label>
+                </div>
+                <div class="help-text">Automatically tag time entries based on keywords</div>
+            </div>
+
+            <div class="setting-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="notifyOnTag" name="notifyOnTag">
+                    <label for="notifyOnTag">Notify when tags are added</label>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn-primary" id="saveButton">
+                    Save Settings
+                </button>
+                <button type="button" class="btn-secondary" onclick="resetForm()">
+                    Reset
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Get JWT from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const jwt = urlParams.get('jwt');
+
+        // Parse JWT to get user context (without verification - verification should be server-side)
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                ).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                console.error('Failed to parse JWT:', e);
+                return null;
+            }
+        }
+
+        const userContext = jwt ? parseJwt(jwt) : null;
+        if (userContext) {
+            console.log('User context:', userContext);
+            // You can use workspaceId, userId, userEmail, userName from userContext
+        }
+
+        // Load saved settings
+        async function loadSettings() {
+            try {
+                const response = await fetch('/addon/api/settings?workspaceId=' + userContext.workspaceId);
+                if (response.ok) {
+                    const settings = await response.json();
+                    document.getElementById('apiKey').value = settings.apiKey || '';
+                    document.getElementById('tagPrefix').value = settings.tagPrefix || 'auto-';
+                    document.getElementById('keywords').value = settings.keywords || '';
+                    document.getElementById('autoTag').checked = settings.autoTag !== false;
+                    document.getElementById('notifyOnTag').checked = settings.notifyOnTag === true;
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+
+        // Save settings
+        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const saveButton = document.getElementById('saveButton');
+            const alert = document.getElementById('alert');
+
+            // Disable button and show loading
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<span class="loading"></span> Saving...';
+
+            // Hide previous alerts
+            alert.style.display = 'none';
+
+            try {
+                const formData = new FormData(e.target);
+                const settings = {
+                    workspaceId: userContext.workspaceId,
+                    apiKey: formData.get('apiKey'),
+                    tagPrefix: formData.get('tagPrefix'),
+                    keywords: formData.get('keywords'),
+                    autoTag: formData.get('autoTag') === 'on',
+                    notifyOnTag: formData.get('notifyOnTag') === 'on'
+                };
+
+                const response = await fetch('/addon/api/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+
+                if (response.ok) {
+                    showAlert('Settings saved successfully!', 'success');
+                } else {
+                    const error = await response.text();
+                    showAlert('Failed to save settings: ' + error, 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = 'Save Settings';
+            }
+        });
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = 'alert ' + type;
+            alert.style.display = 'block';
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    alert.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('settingsForm').reset();
+        }
+
+        // Load settings on page load
+        if (userContext) {
+            loadSettings();
+        }
+    </script>
+</body>
+</html>
