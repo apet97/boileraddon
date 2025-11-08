@@ -79,6 +79,9 @@ All dependencies are resolved from **Maven Central ONLY**:
 
 All of these artifacts are available on Maven Central without authentication.
 
+> **Note:** The `templates/java-basic-addon` module still depends on the legacy external SDK and is therefore excluded from the
+> default reactor build. Only the `addons/auto-tag-assistant` module ships in the self-contained build.
+
 ## Inline SDK Architecture
 
 Instead of depending on external `com.cake.clockify:addon-sdk`, this boilerplate now includes a **minimal inline SDK** directly in the `auto-tag-assistant` module:
@@ -112,13 +115,14 @@ mvn clean package -DskipTests
 ```
 [INFO] Reactor Summary:
 [INFO]
-[INFO] Clockify Add-on Boilerplate ........................ SUCCESS
-[INFO] java-basic-addon ................................... SUCCESS
-[INFO] auto-tag-assistant ................................. SUCCESS
+[INFO] Clockify Add-on Boilerplate 1.0.0 .................. SUCCESS [  0.159 s]
+[INFO] auto-tag-assistant 0.1.0 ........................... SUCCESS [ 17.734 s]
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
 ```
+
+*(Timing numbers will vary slightly between machines.)*
 
 **Artifacts produced:**
 - `addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0.jar`
