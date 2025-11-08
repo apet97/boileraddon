@@ -5,6 +5,8 @@ This guide gets you running the add-ons locally in minutes, with no surprises.
 Rules Add-on (local)
 - Build: make build-rules
 - Run (env file): cp .env.rules.example .env.rules, then make dev-rules
+- One-liner (auto-detect ngrok if running): bash scripts/run-rules.sh --use-ngrok
+- Fully automatic (starts ngrok if needed): make rules-up
 - Health: curl http://localhost:8080/rules/health
 - Manifest: make manifest-url (prints runtime URL)
 - Seed + dry-run: export WORKSPACE_ID=your-ws-id; make rules-seed-demo
@@ -13,8 +15,8 @@ Rules Add-on (local)
 
 Rules Add-on (ngrok)
 - ngrok http 8080
-- ADDON_BASE_URL=https://YOUR-NGROK.ngrok-free.app/rules make run-rules
-- make manifest-url → Install in Clockify using the printed https URL
+- bash scripts/run-rules.sh --use-ngrok   # or: make run-rules-ngrok
+- make manifest-url → install in Clockify using the printed https URL
 
 Auto-Tag Assistant (ngrok)
 - ngrok http 8080
@@ -25,4 +27,3 @@ Notes
 - Do not edit manifest.json for baseUrl; set ADDON_BASE_URL and restart.
 - Webhook header: clockify-webhook-signature (HMAC-SHA256 of raw body using installation token).
 - Use docs/NGROK_TESTING.md for a deeper, step-by-step runbook.
-

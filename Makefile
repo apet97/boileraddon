@@ -22,6 +22,8 @@ help:
 	@echo "  smoke                      - Run smoke tests (/health, /metrics)"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
 	@echo "  run-rules                  - Run the rules addon locally"
+	@echo "  run-rules-ngrok            - Run rules with ngrok auto-detected"
+	@echo "  rules-up                   - Start ngrok if needed and run rules (one-liner)"
 	@echo "  rules-apply                - Run rules with RULES_APPLY_CHANGES=true"
 	@echo "  rules-seed-demo            - Seed a demo rule and dry-run test"
 	@echo "  rules-webhook-sim          - Simulate a signed webhook locally"
@@ -153,6 +155,14 @@ run-rules:
 	@echo ""
 	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/rules \
 	java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar
+
+# Run rules with ngrok auto-detected via local API
+run-rules-ngrok:
+	@bash scripts/run-rules.sh --use-ngrok
+
+# Start ngrok if needed and run rules (one-liner convenience)
+rules-up:
+	@bash scripts/rules-up.sh
 
 # Run rules and actually apply changes (idempotent updates)
 rules-apply:

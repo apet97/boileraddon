@@ -12,6 +12,8 @@ ngrok http 8080
 ```
 Copy the printed HTTPS forwarding URL (for example `https://abc123.ngrok-free.app`).
 
+Tip: The helper can auto-detect the https URL via the local Web UI at `http://127.0.0.1:4040`.
+
 ## 2) Run the add-on with ADDON_BASE_URL set
 
 Pick one add-on and run it with the ngrok domain in `ADDON_BASE_URL`:
@@ -25,7 +27,15 @@ ADDON_BASE_URL=https://abc123.ngrok-free.app/auto-tag-assistant make run-auto-ta
 Rules
 ```
 make build-rules
+# One-liner (detects https tunnel via 127.0.0.1:4040):
+bash scripts/run-rules.sh --use-ngrok
+# Or pass the URL explicitly:
 ADDON_BASE_URL=https://abc123.ngrok-free.app/rules make run-rules
+```
+
+Fully automatic (starts ngrok if needed):
+```
+make rules-up
 ```
 
 Tip: Print the manifest URL any time with:
@@ -52,4 +62,3 @@ curl $(ADDON_BASE_URL)/manifest.json
 - ADDON_FRAME_ANCESTORS='self' https://*.clockify.me — set CSP for the settings iframe.
 - ADDON_RATE_LIMIT, ADDON_LIMIT_BY — enable RateLimiter.
 - ADDON_CORS_ORIGINS, ADDON_CORS_ALLOW_CREDENTIALS — enable CORS allowlist.
-

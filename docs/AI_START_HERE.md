@@ -24,9 +24,11 @@ mvn -e -DtrimStackTrace=false -fae verify
 
 # 5) Optional run (choose a module)
 TEMPLATE=auto-tag-assistant make zero-shot-run
-# In another terminal:
-ngrok http 8080
-# Restart with HTTPS base URL and install using make manifest-url
+# Or, fastest path for Rules add-on:
+#   bash scripts/run-rules.sh --use-ngrok     # auto-detects https ngrok URL via 127.0.0.1:4040
+# Or fully automatic (starts ngrok if needed):
+#   make rules-up
+# Then install using the printed manifest URL or 'make manifest-url'
 
 # 6) Inspect & validate runtime manifest
 make manifest-print
