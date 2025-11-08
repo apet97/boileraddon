@@ -18,8 +18,8 @@
   "components": [...],
   "webhooks": [...],
   "lifecycle": [
-    {"event": "INSTALLED", "url": "/lifecycle/installed"},
-    {"event": "DELETED", "url": "/lifecycle/deleted"}
+    {"type": "INSTALLED", "path": "/lifecycle/installed"},
+    {"type": "DELETED", "path": "/lifecycle/deleted"}
   ]
 }
 ```
@@ -124,7 +124,7 @@ All component URLs receive a `jwt` query parameter with user context.
 ```json
 {
   "event": "NEW_TIME_ENTRY",
-  "url": "/webhooks/new-time-entry"
+  "path": "/webhooks/new-time-entry"
 }
 ```
 
