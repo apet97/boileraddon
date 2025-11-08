@@ -12,6 +12,9 @@
   - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
 - How to do your job:
+
+- Quickstart anchors for docs: Makefile quickstart lines 23–31 [Makefile]({base}/Makefile#L23-L31)
+- Validate + run commands to document: Makefile lines 48–51, 88–102 [Makefile]({base}/Makefile#L48-L51) [Makefile]({base}/Makefile#L88-L102)
   - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
   - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
   - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26

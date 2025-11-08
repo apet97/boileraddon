@@ -12,6 +12,11 @@
   - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
 - How to do your job:
+
+- Scaffold and build locally: make build-template (65–69) then run demo (88–102) [Makefile]({base}/Makefile#L65-L69) [Makefile]({base}/Makefile#L88-L102)
+- Register manifest + lifecycle: TemplateAddonApp lines 45–52 [TemplateAddonApp.java]({base}/addons/_template-addon/src/main/java/com/example/templateaddon/TemplateAddonApp.java#L45-L52)
+- Implement lifecycle/webhook TODOs: LifecycleHandlers lines 16–60 [LifecycleHandlers.java]({base}/addons/_template-addon/src/main/java/com/example/templateaddon/LifecycleHandlers.java#L16-L60)
+- Validate manifests before install: Makefile lines 48–51 [Makefile]({base}/Makefile#L48-L51)
   - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
   - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
   - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26

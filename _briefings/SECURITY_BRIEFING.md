@@ -12,6 +12,10 @@
   - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
 - How to do your job:
+
+- Enforce manifest schema validation prior to install: Makefile lines 48–51 [Makefile]({base}/Makefile#L48-L51)
+- Validate static manifest fields and forbid : validate-addon.sh lines 79–92 [validate-addon.sh]({base}/tools/validate-addon.sh#L79-L92)
+- CI gate for validation: validate.yml line 26 [validate.yml]({base}/.github/workflows/validate.yml#L26-L26)
   - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
   - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
   - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26

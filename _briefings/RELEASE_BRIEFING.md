@@ -12,6 +12,10 @@
   - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
 - How to do your job:
+
+- Docker image flow: docker-run target lines 104–113 [Makefile]({base}/Makefile#L104-L113)
+- Manifest URL for install validation: Makefile lines 96–99 [Makefile]({base}/Makefile#L96-L99)
+- CI validation gate before tagging: validate.yml line 26 [validate.yml]({base}/.github/workflows/validate.yml#L26-L26)
   - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
   - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
   - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26

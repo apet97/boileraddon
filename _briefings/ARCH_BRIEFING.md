@@ -12,6 +12,11 @@
   - Make targets https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L1-L30
 
 - How to do your job:
+
+- Template app registers manifest and lifecycle: TemplateAddonApp lines 45–52 [TemplateAddonApp.java]({base}/addons/_template-addon/src/main/java/com/example/templateaddon/TemplateAddonApp.java#L45-L52)
+- Auto-Tag app manifest and baseUrl notes: AutoTagAssistantApp lines 16–25 [AutoTagAssistantApp.java]({base}/addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/AutoTagAssistantApp.java#L16-L25)
+- RateLimiter defaults and integration: lines 18–60 (adjust as file exists) [RateLimiter.java]({base}/addons/addon-sdk/src/main/java/com/clockify/addon/sdk/middleware/RateLimiter.java#L18-L60)
+- CI manifest validation gate: validate.yml line 26 [validate.yml]({base}/.github/workflows/validate.yml#L26-L26)
   - Use provided quick start to assess dev effort https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L23-L31
   - Plan around two addons: template and auto-tag assistant https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/pom.xml#L22-L27
   - Consider local run via `run-auto-tag-assistant` https://github.com/apet97/boileraddon/blob/a487d16c75425f6c14d1c3195459a52bc0991f88/Makefile#L20-L26
