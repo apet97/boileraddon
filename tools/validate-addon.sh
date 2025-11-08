@@ -179,8 +179,11 @@ echo ""
 info "Checking if addon builds..."
 
 if command -v mvn &> /dev/null; then
-    echo "Running Maven compile..."
-    if mvn -f "$ADDON_DIR/pom.xml" compile -q -DskipTests; then
+    echo "Running Maven compile (reactor-aware)..."
+    # Build with aggregator so sibling modules (e.g., addon-sdk) are available in the reactor
+    # This avoids trying to resolve local modules from Maven Central when building a single addon.
+    REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    if mvn -q -f "$REPO_ROOT/pom.xml" -pl "$ADDON_DIR" -am compile -DskipTests; then
         success "Addon compiles successfully"
     else
         error "Addon failed to compile"
@@ -196,8 +199,9 @@ info "Checking tests..."
 
 if [ -d "$ADDON_DIR/src/test/java" ]; then
     if command -v mvn &> /dev/null; then
-        echo "Running tests..."
-        if mvn -f "$ADDON_DIR/pom.xml" test -q; then
+        echo "Running tests (reactor-aware)..."
+        REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+        if mvn -q -f "$REPO_ROOT/pom.xml" -pl "$ADDON_DIR" -am test; then
             success "All tests passed"
         else
             error "Some tests failed"
