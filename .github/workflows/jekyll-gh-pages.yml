@@ -2,11 +2,12 @@
 name: Deploy Jekyll with GitHub Pages dependencies preinstalled
 
 on:
-  # Runs on pushes targeting the default branch
-  push:
-    branches: ["main"]
+  # Run this workflow after build-and-test completes. Deploy only on success on main.
+  workflow_run:
+    workflows: ["build-and-test"]
+    types: [completed]
 
-  # Allows you to run this workflow manually from the Actions tab
+  # Allows manual deployment from the Actions tab
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -24,10 +25,15 @@ concurrency:
 jobs:
   # Build job
   build:
+    # Deploy automatically only when build-and-test succeeded on main, or when manually triggered
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # When triggered by workflow_run, deploy the exact commit that was tested
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - name: Set up Python 3
         uses: actions/setup-python@v5
         with:
