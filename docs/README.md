@@ -24,6 +24,11 @@ This directory contains comprehensive documentation designed to enable AI assist
 ### 🔧 Reference
 
 - **[Build Verification](../BUILD_VERIFICATION.md)** - Validate your build setup
+- **[Clockify Parameters](CLOCKIFY_PARAMETERS.md)** - Manifest fields, headers, webhooks, env flags
+
+### 📦 Product Specs
+
+- **[Overtime Add-on (PM)](ADDON_OVERTIME.md)** - Scope, MVP, flows, KPIs
 
 ---
 

@@ -482,6 +482,8 @@ After cloning and building, verify:
 * [Architecture Overview](docs/ARCHITECTURE.md) – SDK modules, routing, claim handling, and endpoint registration flow.
 * [SDK Overview](docs/SDK_OVERVIEW.md) – Routing core, middleware, and consolidated security utilities.
 * [Building Your Own Add-on](docs/BUILDING-YOUR-OWN-ADDON.md) – Copy/rename checklist, manifest customization, token storage, and deployment guidance.
+* [Clockify Parameters](docs/CLOCKIFY_PARAMETERS.md) – Manifest fields, headers, webhooks, and env flags.
+* [Overtime Add-on (PM)](docs/ADDON_OVERTIME.md) – Product spec for an overtime policy add-on.
 
 ## Troubleshooting
 
