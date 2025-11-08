@@ -18,7 +18,16 @@ jobs:
           cache: 'maven'
       - name: Run smoke tests (/health and /metrics)
         run: |
+          set -e
+          echo "auto-tag-assistant smoke"
           mvn -B -e -q -DtrimStackTrace=false \
-            -pl addons/auto-tag-assistant,addons/rules,addons/overtime -am \
+            -f addons/auto-tag-assistant/pom.xml \
             -Dtest=*SmokeIT test
-
+          echo "rules smoke"
+          mvn -B -e -q -DtrimStackTrace=false \
+            -f addons/rules/pom.xml \
+            -Dtest=*SmokeIT test
+          echo "overtime smoke"
+          mvn -B -e -q -DtrimStackTrace=false \
+            -f addons/overtime/pom.xml \
+            -Dtest=*SmokeIT test

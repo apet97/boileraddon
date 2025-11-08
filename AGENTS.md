@@ -22,6 +22,8 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
   - `make schema-validate` (strong JSON Schema; requires `pip install jsonschema`)
 - Tests and coverage:
   - `mvn test`
+  - Fast smoke tests (runtime wiring only): `make smoke` or
+    `mvn -e -pl addons/auto-tag-assistant,addons/rules,addons/overtime -am -Dtest=*SmokeIT test`
   - CI enforces JaCoCo min coverage for modules; aggregate report is published via Pages.
 
 ## Repo Map (AI‑useful)

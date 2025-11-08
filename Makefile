@@ -373,6 +373,9 @@ new-addon:
 
 # Run only smoke tests quickly (no full reactor)
 smoke:
-	@mvn -q -e -DtrimStackTrace=false \
-	  -pl addons/auto-tag-assistant,addons/rules,addons/overtime -am \
-	  -Dtest=*SmokeIT test
+	@echo "auto-tag-assistant smoke"; \
+	mvn -q -e -DtrimStackTrace=false -f addons/auto-tag-assistant/pom.xml -Dtest=*SmokeIT test && \
+	echo "rules smoke"; \
+	mvn -q -e -DtrimStackTrace=false -f addons/rules/pom.xml -Dtest=*SmokeIT test && \
+	echo "overtime smoke"; \
+	mvn -q -e -DtrimStackTrace=false -f addons/overtime/pom.xml -Dtest=*SmokeIT test
