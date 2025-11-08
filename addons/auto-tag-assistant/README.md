@@ -10,7 +10,7 @@ A Clockify add-on that automatically manages tags on time entries, ensuring ever
 
 1. **Webhook Event Received** – Clockify sends `NEW_TIMER_STARTED`, `TIMER_STOPPED`, `TIME_ENTRY_UPDATED`, or `NEW_TIME_ENTRY` payloads.
 2. **Tag Detection** – `WebhookHandlers.java` parses the payload and evaluates the `tagIds` list.
-3. **Signature Verification** – `WebhookSignatureValidator` checks the `clockify-webhook-signature` header using the stored installation token.
+3. **Signature Verification** – `com.clockify.addon.sdk.security.WebhookSignatureValidator` checks the `clockify-webhook-signature` header using the stored installation token.
 4. **Auto-Tag Logic** – Extend `WebhookHandlers.java` to fetch rules, pick defaults, and call the API.
 5. **Clockify Update** – Use `ClockifyApiClient.java` to update the time entry or create missing tags.
 
@@ -24,7 +24,7 @@ Clockify Event → Webhook → Tag Detection → (Optional) Auto-Tag → API Upd
 - ⚙️ **Configurable Rules** – `SettingsController.java` renders a sidebar UI stub for future configuration.
 - 🔄 **Real-time Processing** – Responds immediately to webhook payloads.
 - 🎯 **Multiple Event Support** – Works with timer start/stop and manual edits.
-- 🔐 **Workspace Scoped** – Tokens are isolated per workspace via `TokenStore` and reused for webhook signature validation.
+- 🔐 **Workspace Scoped** – Tokens are isolated per workspace via `com.clockify.addon.sdk.security.TokenStore` and reused for webhook signature validation.
 
 ## Architecture
 
@@ -32,13 +32,13 @@ Clockify Event → Webhook → Tag Detection → (Optional) Auto-Tag → API Upd
 
 - **`AutoTagAssistantApp.java`** – Bootstraps the embedded Jetty server and registers request handlers.
 - **`ManifestController.java`** – Serves `manifest.json` for Clockify discovery.
-- **`LifecycleHandlers.java`** – Handles `INSTALLED` and `DELETED` events, persisting tokens in `TokenStore`.
+- **`LifecycleHandlers.java`** – Handles `INSTALLED` and `DELETED` events, persisting tokens in the SDK `TokenStore`.
 - **`WebhookHandlers.java`** – Central webhook processor for time entry events.
-- **`security/WebhookSignatureValidator.java`** – Verifies webhook requests using the installation token-derived shared secret.
+- **SDK WebhookSignatureValidator** – Verifies webhook requests using the installation token‑derived shared secret.
 - **`security/JwtTokenDecoder.java`** – Lightweight helper for decoding Clockify JWTs and extracting environment claims.
 - **`ClockifyApiClient.java`** – Minimal HTTP client for Clockify REST calls (GET/PUT/POST).
 - **`SettingsController.java`** – Returns the sidebar HTML stub.
-- **`TokenStore.java`** – In-memory demo storage for workspace credentials.
+- **SDK TokenStore** – In‑memory demo storage for workspace credentials. For production, implement a persistent store.
 - **`sdk/` package** – Inline, dependency-free request routing utilities (no external SDK needed).
 
 ## Prerequisites
@@ -99,8 +99,10 @@ curl http://localhost:8080/auto-tag-assistant/settings
 
 ## Clockify API Usage
 
-- Store the `x-addon-token` and `apiBaseUrl` from the `INSTALLED` lifecycle payload using `TokenStore.save(...)`.
-- The same installation token is used to derive the shared secret for webhook signatures. `WebhookSignatureValidator` expects it to be saved in `TokenStore` (Lifecycle handlers do this automatically).
+- Store the `x-addon-token` and `apiBaseUrl` from the `INSTALLED` lifecycle payload using
+  `com.clockify.addon.sdk.security.TokenStore.save(...)`.
+- The same installation token is used to derive the shared secret for webhook signatures.
+  The SDK `WebhookSignatureValidator` expects it to be saved in TokenStore (Lifecycle handlers do this automatically).
 - Every Clockify REST request **must** include the workspace token in the `x-addon-token` header. See `ClockifyApiClient.java` for a production-ready pattern that demonstrates `GET`, `PUT`, and `POST` calls with the correct headers.
 - The `apiBaseUrl` can vary per installation (`https://api.clockify.me/api/v1`, staging, etc.). Use the value provided during installation instead of hard-coding endpoints.
 - Respect Clockify rate limits (50 requests/second per workspace per add-on) and handle non-200 responses gracefully.
@@ -109,7 +111,7 @@ curl http://localhost:8080/auto-tag-assistant/settings
 
 - Extend `WebhookHandlers.java` to implement real tagging logic (load settings, detect missing tags, call the API client). The handler now validates `clockify-webhook-signature` before any processing.
 - Replace the HTML stub in `SettingsController.java` with a real React/Vue/vanilla UI and serve static assets.
-- Swap `TokenStore` for a persistent database in production so tokens survive restarts.
+- Swap the SDK TokenStore for a persistent database in production so tokens survive restarts.
 - Use `JwtTokenDecoder` when you need to introspect installation or user tokens (e.g., to discover `backendUrl`, `apiUrl`, or other environment-specific endpoints).
 
 ## Production Considerations
@@ -132,11 +134,9 @@ addons/auto-tag-assistant/
     ├── LifecycleHandlers.java
     ├── ManifestController.java
     ├── SettingsController.java
-    ├── TokenStore.java
     ├── WebhookHandlers.java
     ├── security/
-    │   ├── JwtTokenDecoder.java
-    │   └── WebhookSignatureValidator.java
+    │   └── JwtTokenDecoder.java
     └── sdk/
         ├── AddonServlet.java
         ├── ClockifyAddon.java

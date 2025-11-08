@@ -151,7 +151,7 @@ public class AutoTagAssistantApp {
 
         String apiBaseUrl = System.getenv().getOrDefault("CLOCKIFY_API_BASE_URL", "https://api.clockify.me/api");
         try {
-            TokenStore.save(workspaceId, installationToken, apiBaseUrl);
+            com.clockify.addon.sdk.security.TokenStore.save(workspaceId, installationToken, apiBaseUrl);
             System.out.println("Preloaded installation token for workspace " + workspaceId);
         } catch (Exception e) {
             System.err.println("Failed to preload local installation token: " + e.getMessage());
