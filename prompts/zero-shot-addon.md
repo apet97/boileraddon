@@ -23,6 +23,7 @@ Use these files as the authoritative reference:
    - Complete, working add-on implementation
    - Shows proper manifest structure, lifecycle handling, webhook processing
    - Demonstrates Clockify API client usage
+   - Contains the inline SDK under `src/main/java/com/example/autotagassistant/sdk/`
 
 5. **Template**: `templates/java-basic-addon/`
    - Minimal starter template
@@ -119,20 +120,21 @@ boileraddon/
 ├── Makefile                                   # Build automation
 ├── dev-docs-marketplace-cake-snapshot/
 │   └── extras/
-│       └── addon-java-sdk/                    # Vendored SDK (no GitHub Packages needed)
+│       └── addon-java-sdk/                    # Archived documentation snapshot
 │           ├── annotation-processor/
 │           └── addon-sdk/
 ├── templates/
 │   └── java-basic-addon/                      # Starter template
 ├── addons/
-│   └── auto-tag-assistant/                    # Working example
+│   └── auto-tag-assistant/                    # Working example + inline SDK
+│       └── src/main/java/com/example/autotagassistant/sdk/  # Minimal inline SDK used by examples
 └── scripts/
     └── new-addon.sh                           # Scaffolding script
 ```
 
 ## Building Add-ons
 
-The SDK is vendored locally - **no GitHub Packages authentication needed**:
+The SDK is provided inline within the repository - **no GitHub Packages authentication needed**:
 
 ```bash
 # Build everything (SDK + all add-ons)
@@ -223,15 +225,17 @@ String baseUrl = "https://api.clockify.me/api/v1";
 // Create HTTP client
 HttpClient client = HttpClient.newHttpClient();
 
-// Make API call
+// Make API call (ALWAYS send the token via the x-addon-token header)
 HttpRequest req = HttpRequest.newBuilder()
     .uri(URI.create(baseUrl + "/workspaces/" + workspaceId + "/tags"))
-    .header("Authorization", "Bearer " + authToken)
+    .header("x-addon-token", authToken)
     .GET()
     .build();
 
 HttpResponse<String> response = client.send(req, HttpResponse.BodyHandlers.ofString());
 ```
+
+Clockify expects the add-on token exclusively via the `x-addon-token` header—never send it using `Authorization` or any other header.
 
 See `addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/ClockifyApiClient.java` for a complete example.
 
@@ -295,9 +299,9 @@ addon.registerCustomEndpoint("/settings", request -> {
 4. ❌ **NEVER** invent webhook event types - only use documented ones
 5. ❌ **NEVER** hardcode access tokens or secrets
 6. ❌ **NEVER** modify files under `dev-docs-marketplace-cake-snapshot/`
-7. ❌ **NEVER** assume GitHub Packages access - SDK is vendored locally
+7. ❌ **NEVER** assume GitHub Packages access - use the inline SDK under `addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/`
 8. ❌ **NEVER** skip storing the auth token from INSTALLED event
-9. ❌ **NEVER** use wrong header - always `Authorization: Bearer {token}`
+9. ❌ **NEVER** use any auth header other than `x-addon-token: {token}`
 10. ❌ **NEVER** exceed rate limits (50 req/s per addon per workspace)
 
 ## Environment Variables
@@ -353,7 +357,7 @@ Brief description
 - **Docs**: `dev-docs-marketplace-cake-snapshot/cake_marketplace_dev_docs.md`
 - **API Spec**: `dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json`
 - **Schema**: `dev-docs-marketplace-cake-snapshot/extras/manifest-schema-latest.json` (authoring only)
-- **SDK Source**: `dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/`
+- **SDK Source**: `addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/`
 
 ## Version Pinning
 
@@ -361,6 +365,6 @@ Use versions from `extras/versions.md` if it exists. Otherwise:
 
 - Java: 17
 - Maven: 3.6+
-- addon-sdk: 1.5.3 (vendored)
+- Inline SDK: `addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/` (kept in-repo instead of an external dependency)
 - Jackson: 2.17.1
 - Jetty: 11.0.20
