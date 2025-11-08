@@ -9,6 +9,7 @@ Canonical reference for the parameters used by this boilerplate and add-ons: man
 - description: short description shown to admins.
 - schemaVersion: "1.3" (do not include `$schema`).
 - baseUrl: external base URL for your add-on (e.g., ngrok HTTPS URL + context path).
+- minimalSubscriptionPlan: one of `FREE`, `BASIC`, `STANDARD`, `PRO`, `ENTERPRISE` — the minimum Clockify plan required to install your add‑on.
 - components:
   - sidebar: `{ path: "/settings", accessLevel: "ADMINS" }` (example)
 - webhooks: `{ event: "...", path: "/webhook" }` entries.
@@ -31,6 +32,8 @@ Common events used by the demo and rules add-ons:
 
 Signature validation: Use WebhookSignatureValidator with the stored installation token-derived secret.
 
+Webhook catalog: See docs/REQUEST-RESPONSE-EXAMPLES.md for examples and the original developer docs snapshot under `dev-docs-marketplace-cake-snapshot/` for the full event list (e.g., `NEW_TIME_ENTRY`, `TIME_ENTRY_UPDATED`, `NEW_PROJECT`, `PROJECT_UPDATED`, `NEW_CLIENT`, `CLIENT_UPDATED`, `TIME_OFF_REQUESTED`, etc.).
+
 ## JWT (environment claims)
 
 Tokens and UI endpoints may include environment claims (e.g., backend/api base URLs). Decode as needed in UI flows.
@@ -50,4 +53,3 @@ Tokens and UI endpoints may include environment claims (e.g., backend/api base U
 - DB_URL — JDBC URL (e.g., jdbc:postgresql://host/db)
 - DB_USERNAME — database username
 - DB_PASSWORD — database password
-

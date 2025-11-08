@@ -62,6 +62,78 @@ addon.registerCustomEndpoint("/manifest.json", new DefaultManifestController(add
 
 `DefaultManifestController` computes `baseUrl` per request (useful behind proxies) so your manifest always points to the correct public URL.
 
+## Per‑Addon Variations (Zero‑Shot Friendly)
+
+Different add‑ons require different permissions (scopes), minimum subscription plans, UI components, and webhook subscriptions. The SDK’s manifest builder and registration helpers are designed to make this trivial and zero‑shot for each module.
+
+### Scopes and Plans
+
+Add scopes and set the minimum plan for installation:
+
+```java
+ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+    .key("rules")
+    .name("Rules")
+    .baseUrl(env("ADDON_BASE_URL"))
+    .minimalSubscriptionPlan("PRO") // options: FREE, BASIC, STANDARD, PRO, ENTERPRISE
+    .scopes(new String[]{
+        "TIME_ENTRY_READ", "TIME_ENTRY_WRITE",
+        "PROJECT_READ", "TAG_READ", "TAG_WRITE"
+    })
+    .build();
+```
+
+Pick the smallest viable set of scopes for your add‑on. For the full list of scopes, see docs/QUICK-REFERENCE.md.
+
+### UI Components
+
+Components are configured separately from lifecycle/webhooks and use a `url` pointing to a UI endpoint you serve.
+
+```json
+{
+  "type": "SETTINGS_SIDEBAR",
+  "name": "Settings",
+  "url": "/settings"
+}
+```
+
+Register a custom endpoint for the settings page in your add‑on code:
+
+```java
+addon.registerCustomEndpoint("/settings", new SettingsController());
+```
+
+### Webhook Selection
+
+Subscribe only to the events your add‑on needs and route them to a path you own:
+
+```java
+addon.registerWebhookHandler("NEW_TIME_ENTRY", "/webhooks/entries", handler);
+addon.registerWebhookHandler("TIME_ENTRY_UPDATED", "/webhooks/entries", handler);
+```
+
+For a broader event catalog and payloads, see docs/REQUEST-RESPONSE-EXAMPLES.md and the original docs snapshot in `dev-docs-marketplace-cake-snapshot/`.
+
+### Lifecycle Customization
+
+If you need non‑default lifecycle paths, pass your own. The SDK sanitizes and updates the manifest accordingly:
+
+```java
+addon.registerLifecycleHandler("INSTALLED", "/lifecycle/install", handler);
+addon.registerLifecycleHandler("DELETED",   "/lifecycle/remove",  handler);
+```
+
+### Zero‑Shot per Add‑on
+
+Every add‑on in this repo (template, auto‑tag‑assistant, rules, overtime) can define its own:
+- `minimalSubscriptionPlan`
+- `scopes[]`
+- `components[]` (UI)
+- `webhooks[]`
+- `lifecycle[]` paths
+
+Use the module entrypoint (e.g., `AutoTagAssistantApp`, `RulesApp`) to set the manifest builder fields and register handlers appropriate for that add‑on’s purpose. Keep your manifest synchronized by using the SDK’s `register*` helpers.
+
 ## Lifecycle Registration
 
 Lifecycle entries are explicit and path‑based. The SDK normalizes and auto‑registers lifecycle paths in the manifest.
@@ -140,3 +212,8 @@ Recommendations:
 - Forgetting to keep manifest and routes in sync → Use SDK registration helpers; they auto‑update manifest entries.
 - Not sanitizing custom lifecycle paths → PathSanitizer enforces sane defaults and rejects unsafe inputs.
 
+## See Also (Reference)
+
+- docs/CLOCKIFY_PARAMETERS.md — manifest fields, headers, env flags, and link to webhook catalog
+- docs/QUICK-REFERENCE.md — scopes list and component/webhook examples
+- dev-docs-marketplace-cake-snapshot/ — upstream developer docs snapshot preserved in this repo
