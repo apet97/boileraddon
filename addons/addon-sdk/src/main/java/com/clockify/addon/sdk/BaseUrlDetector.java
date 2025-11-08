@@ -9,20 +9,30 @@ import java.util.Optional;
  */
 class BaseUrlDetector {
     Optional<String> detectBaseUrl(HttpServletRequest request) {
-        Optional<String> forwardedProto = headerOrForwarded(request, "proto", "X-Forwarded-Proto", request.getScheme());
-        Optional<String> forwardedHost = headerOrForwarded(request, "host", "X-Forwarded-Host", request.getServerName());
-        Optional<String> forwardedPort = headerOrForwarded(request, "port", "X-Forwarded-Port", Integer.toString(request.getServerPort()));
+        Optional<String> forwardedProto = forwardedOrHeader(request, "proto", "X-Forwarded-Proto");
+        Optional<String> forwardedHost = forwardedOrHeader(request, "host", "X-Forwarded-Host");
+        Optional<String> forwardedPort = forwardedOrHeader(request, "port", "X-Forwarded-Port");
         Optional<String> hostHeader = firstHeaderValue(request, "Host");
 
-        String scheme = forwardedProto.orElse("http");
-        String host = forwardedHost.or(() -> hostHeader).orElse(request.getServerName());
-        String port = forwardedPort.orElse(null);
+        String scheme = forwardedProto.filter(value -> !value.isBlank()).orElseGet(() -> {
+            String requestScheme = request.getScheme();
+            return (requestScheme == null || requestScheme.isBlank()) ? "http" : requestScheme;
+        });
+        String host = forwardedHost.filter(value -> !value.isBlank())
+                .or(() -> hostHeader)
+                .orElse(request.getServerName());
 
         if (host == null || host.isBlank()) {
             return Optional.empty();
         }
 
-        if (port != null && !port.isBlank() && !host.contains(":")) {
+        boolean hasForwardingHeaders = forwardedProto.isPresent() || forwardedHost.isPresent() || forwardedPort.isPresent();
+        String port = forwardedPort.filter(value -> !value.isBlank()).orElse(null);
+        if (port == null) {
+            port = inferPort(host, scheme, request, hasForwardingHeaders);
+        }
+
+        if (port != null && !port.isBlank() && !hostHasExplicitPort(host)) {
             host = host + ":" + port;
         }
 
@@ -38,7 +48,7 @@ class BaseUrlDetector {
         return Optional.of(normalized);
     }
 
-    private Optional<String> headerOrForwarded(HttpServletRequest request, String forwardedKey, String headerName, String fallback) {
+    private Optional<String> forwardedOrHeader(HttpServletRequest request, String forwardedKey, String headerName) {
         Optional<String> forwarded = forwardedHeaderValue(request, forwardedKey);
         if (forwarded.isPresent()) {
             return forwarded;
@@ -47,7 +57,52 @@ class BaseUrlDetector {
         if (header.isPresent()) {
             return header;
         }
-        return Optional.ofNullable(fallback);
+        return Optional.empty();
+    }
+
+    private String inferPort(String host, String scheme, HttpServletRequest request, boolean hasForwardingHeaders) {
+        if (hostHasExplicitPort(host)) {
+            return null;
+        }
+
+        if (hasForwardingHeaders) {
+            return null;
+        }
+
+        int serverPort = request.getServerPort();
+        if (!shouldIncludeServerPort(scheme, serverPort)) {
+            return null;
+        }
+        return Integer.toString(serverPort);
+    }
+
+    private boolean shouldIncludeServerPort(String scheme, int serverPort) {
+        if (serverPort <= 0) {
+            return false;
+        }
+
+        String normalizedScheme = scheme == null ? "" : scheme.toLowerCase();
+        if (("http".equals(normalizedScheme) && serverPort == 80)
+                || ("https".equals(normalizedScheme) && serverPort == 443)) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean hostHasExplicitPort(String host) {
+        if (host == null || host.isBlank()) {
+            return false;
+        }
+
+        if (host.startsWith("[")) {
+            int endBracket = host.indexOf(']');
+            if (endBracket < 0) {
+                return false;
+            }
+            return host.indexOf(':', endBracket) > endBracket;
+        }
+
+        return host.contains(":");
     }
 
     private Optional<String> firstHeaderValue(HttpServletRequest request, String headerName) {

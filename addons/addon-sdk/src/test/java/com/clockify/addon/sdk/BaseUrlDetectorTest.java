@@ -67,6 +67,29 @@ class BaseUrlDetectorTest {
         assertEquals("https://quoted.example.com:443", detected.get());
     }
 
+    @Test
+    void omitsServerPortWhenForwardedPortMissing() {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Forwarded", "proto=https; host=example.com");
+        HttpServletRequest request = request(headers, "http", "internal", 8080, "/addon");
+
+        Optional<String> detected = detector.detectBaseUrl(request);
+
+        assertTrue(detected.isPresent());
+        assertEquals("https://example.com/addon", detected.get());
+    }
+
+    @Test
+    void fallsBackToServerPortWhenNoForwardingPresent() {
+        Map<String, String> headers = new HashMap<>();
+        HttpServletRequest request = request(headers, "http", "localhost", 8080, "/addon");
+
+        Optional<String> detected = detector.detectBaseUrl(request);
+
+        assertTrue(detected.isPresent());
+        assertEquals("http://localhost:8080/addon", detected.get());
+    }
+
     private HttpServletRequest request(Map<String, String> headers, String scheme, String serverName, int port, String contextPath) {
         Map<String, String> normalizedHeaders = new HashMap<>();
         headers.forEach((key, value) -> normalizedHeaders.put(key, value));
