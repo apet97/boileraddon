@@ -28,9 +28,9 @@ public class PathSanitizer {
 
         String sanitized = path.trim();
 
-        // Check for null bytes (potential security issue)
-        if (sanitized.contains("\0")) {
-            logger.warn("Path contains null bytes: {}", path);
+        // Check for null bytes (potential security issue) or common encodings
+        if (sanitized.indexOf('\u0000') >= 0 || sanitized.contains("\\0") || sanitized.toLowerCase().contains("%00")) {
+            logger.warn("Path contains null byte or null-byte encoding: {}", path);
             throw new IllegalArgumentException("Path contains null bytes");
         }
 

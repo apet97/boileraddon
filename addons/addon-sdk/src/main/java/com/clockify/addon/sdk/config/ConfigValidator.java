@@ -84,7 +84,7 @@ public class ConfigValidator {
 
     public void throwIfInvalid() throws ConfigValidationException {
         if (!errors.isEmpty()) {
-            StringBuilder sb = new StringBuilder("Configuration errors:\n");
+            StringBuilder sb = new StringBuilder("Configuration validation failed:\n");
             for (String e : errors) sb.append(" - ").append(e).append('\n');
             throw new ConfigValidationException(sb.toString(), new ArrayList<>(errors));
         }

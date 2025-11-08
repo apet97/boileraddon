@@ -12,7 +12,18 @@
     "scopes": {"type": "array", "items": {"type": "string"}},
     "components": {"type": "array"},
     "webhooks": {"type": "array"},
-    "lifecycle": {"type": "object"}
+    "lifecycle": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "path"],
+        "properties": {
+          "type": {"type": "string"},
+          "path": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    }
   },
   "additionalProperties": true
 }
