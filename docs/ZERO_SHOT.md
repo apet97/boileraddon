@@ -6,6 +6,14 @@ This guide makes starting from scratch trivial. Follow exactly and you’ll have
 - Just try it (Rules): `cp .env.rules.example .env.rules && make dev-rules`
 - Overtime MVP: `make build-overtime && ADDON_BASE_URL=http://localhost:8080/overtime make run-overtime`
 - Create a new add‑on: `make new-addon NAME=my-addon DISPLAY="My Add-on"`
+- One‑liner (zero‑shot): `TEMPLATE=auto-tag-assistant make zero-shot-run`
+
+Tip: Pair with ngrok:
+
+```
+ngrok http 8080
+TEMPLATE=auto-tag-assistant ADDON_BASE_URL=https://YOUR.ngrok-free.app/auto-tag-assistant make zero-shot-run
+```
 
 2) Core rules (must comply)
 - Manifest: `schemaVersion: "1.3"`; omit `$schema`; keep `key`, `name`, `baseUrl`, `components`, `webhooks`, `lifecycle`.
@@ -27,6 +35,12 @@ This guide makes starting from scratch trivial. Follow exactly and you’ll have
 - `ngrok http 8080`
 - Restart with `ADDON_BASE_URL=https://YOUR-NGROK.ngrok-free.app/<addon>`
 - `make manifest-url` → paste in Clockify Admin → Add‑ons → Install Custom Add‑on
+
+Or use the one‑liner (replace <addon> with your module):
+
+```
+TEMPLATE=<addon> ADDON_BASE_URL=https://YOUR.ngrok-free.app/<addon> make zero-shot-run
+```
 
 5) Add a new endpoint (template)
 - Register: `addon.registerCustomEndpoint("/api/items", handler);`
@@ -51,4 +65,3 @@ Pointers
 - Rules (automation): addons/rules/**
 - Overtime (policy MVP): addons/overtime/**
 - SDK: addons/addon-sdk/src/main/java/com/clockify/addon/sdk/**
-

@@ -27,6 +27,7 @@ help:
 	@echo "  rules-webhook-sim          - Simulate a signed webhook locally"
 	@echo "  dev-rules                  - Run rules add-on using .env.rules"
 	@echo "  new-addon                  - Scaffold a new add-on (NAME, DISPLAY)"
+	@echo "  zero-shot-run              - Build & run selected addon, print manifest URL; pairs well with ngrok"
 	@echo "  manifest-url               - Print the current manifest URL"
 	@echo "  clean                      - Clean all build artifacts"
 	@echo ""
@@ -211,6 +212,36 @@ manifest-url:
 		echo "  export ADDON_BASE_URL=https://YOUR-SUBDOMAIN.ngrok-free.app/rules"; \
 	else \
 		echo "Manifest URL: $(ADDON_BASE_URL)/manifest.json"; \
+	fi
+
+# Zero-shot run helper: build selected addon and run it with sensible defaults
+zero-shot-run:
+	@if [ -z "$(TEMPLATE)" ]; then \
+		echo "TEMPLATE is required (e.g., TEMPLATE=auto-tag-assistant or TEMPLATE=rules)"; \
+		exit 1; \
+	fi
+	@echo "Building $(TEMPLATE) ..."
+	@if [ "$(TEMPLATE)" = "_template-addon" ]; then \
+		mvn -q -pl addons/_template-addon package -DskipTests; \
+	else \
+		mvn -q -pl addons/$(TEMPLATE) -am package -DskipTests; \
+	fi
+	@echo "Starting $(TEMPLATE) at $(ADDON_BASE_URL) ..."
+	@if [ "$(TEMPLATE)" = "_template-addon" ]; then \
+		ADDON_PORT=$(ADDON_PORT) ADDON_BASE_URL=$(ADDON_BASE_URL) \
+		java -jar addons/_template-addon/target/_template-addon-0.1.0-jar-with-dependencies.jar; \
+	elif [ "$(TEMPLATE)" = "auto-tag-assistant" ]; then \
+		ADDON_PORT=$(ADDON_PORT) ADDON_BASE_URL=$(ADDON_BASE_URL) \
+		java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar; \
+	elif [ "$(TEMPLATE)" = "rules" ]; then \
+		ADDON_PORT=$(ADDON_PORT) ADDON_BASE_URL=$(ADDON_BASE_URL) \
+		java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar; \
+	elif [ "$(TEMPLATE)" = "overtime" ]; then \
+		ADDON_PORT=$(ADDON_PORT) ADDON_BASE_URL=$(ADDON_BASE_URL) \
+		java -jar addons/overtime/target/overtime-0.1.0-jar-with-dependencies.jar; \
+	else \
+		echo "Unknown TEMPLATE=$(TEMPLATE). Supported: _template-addon, auto-tag-assistant, rules, overtime"; \
+		exit 1; \
 	fi
 
 # Seed a demo rule and exercise /api/test
