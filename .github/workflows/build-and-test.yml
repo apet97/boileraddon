@@ -63,15 +63,28 @@ jobs:
           fi
           echo "COVERAGE_SUMMARY=$(cat coverage-out/summary.json | tr -d '\n')" >> $GITHUB_ENV
 
+      - name: Fetch baseline coverage from main (Pages)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          curl -fsSL https://apet97.github.io/boileraddon/coverage/summary.json -o baseline.json || echo '{"coverage":"N/A"}' > baseline.json
+          echo "BASELINE_SUMMARY=$(cat baseline.json | tr -d '\n')" >> $GITHUB_ENV
+
       - name: Comment coverage on PR
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/github-script@v7
         with:
           script: |
-            const summary = process.env.COVERAGE_SUMMARY || '{}';
-            let pct = 'N/A';
-            try { pct = JSON.parse(summary).coverage || 'N/A'; } catch (e) {}
-            const body = `🧪 Coverage summary: ${pct === 'N/A' ? 'N/A' : pct + '%'}`;
+            const curRaw = process.env.COVERAGE_SUMMARY || '{}';
+            const baseRaw = process.env.BASELINE_SUMMARY || '{}';
+            let cur = 'N/A', base = 'N/A', delta = 'N/A';
+            try { cur = JSON.parse(curRaw).coverage || 'N/A'; } catch {}
+            try { base = JSON.parse(baseRaw).coverage || 'N/A'; } catch {}
+            if (cur !== 'N/A' && base !== 'N/A') {
+              const d = Number(cur) - Number(base);
+              const sign = d > 0 ? '+' : '';
+              delta = `${sign}${d}`;
+            }
+            const body = `🧪 Coverage: ${cur === 'N/A' ? 'N/A' : cur + '%'} \nBaseline (main): ${base === 'N/A' ? 'N/A' : base + '%'}${delta === 'N/A' ? '' : ` \nDelta: ${delta} pp`}`;
             const { context, github } = require('@actions/github');
             await github.rest.issues.createComment({
               owner: context.repo.owner,

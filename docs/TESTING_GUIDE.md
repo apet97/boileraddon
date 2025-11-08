@@ -70,6 +70,11 @@ The build-and-test workflow computes a simple coverage summary and posts a one-l
   otherwise it falls back to `addons/addon-sdk/target/site/jacoco/jacoco.xml`.
 - The comment shows `🧪 Coverage summary: <percent>%` or `N/A` if no report exists for that run.
 
+Additionally, it fetches the current baseline coverage from the published Pages summary for `main` and computes a delta:
+
+- Baseline URL: `https://apet97.github.io/boileraddon/coverage/summary.json`
+- The PR comment includes current, baseline, and delta in percentage points (pp) when both are available.
+
 ## Troubleshooting
 
 - Ensure you’re on Java 17 for both Maven and the forked test JVM (see docs/BUILD_ENVIRONMENT.md). Newer JDKs can cause the test JVM to die or Mockito to fail.
