@@ -1,9 +1,10 @@
 package com.example.addon;
 
-import addonsdk.shared.AddonServlet;
-import addonsdk.shared.EmbeddedServer;
-import com.cake.clockify.addonsdk.clockify.ClockifyAddon;
-import com.cake.clockify.addonsdk.clockify.model.ClockifyManifest;
+import com.example.addon.sdk.AddonServlet;
+import com.example.addon.sdk.ClockifyAddon;
+import com.example.addon.sdk.ClockifyManifest;
+import com.example.addon.sdk.EmbeddedServer;
+import com.example.addon.sdk.HttpResponse;
 
 public class AddonApplication {
     public static void main(String[] args) throws Exception {
@@ -21,7 +22,7 @@ public class AddonApplication {
 
         // Health endpoint
         addon.registerCustomEndpoint("/health", request ->
-                addonsdk.shared.response.HttpResponse.ok("OK"));
+                HttpResponse.ok("OK"));
 
         // Manifest endpoint
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));

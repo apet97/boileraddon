@@ -1,8 +1,8 @@
 package com.example.addon;
 
-import addonsdk.shared.RequestHandler;
-import addonsdk.shared.response.HttpResponse;
-import com.cake.clockify.addonsdk.clockify.model.ClockifyManifest;
+import com.example.addon.sdk.ClockifyManifest;
+import com.example.addon.sdk.HttpResponse;
+import com.example.addon.sdk.RequestHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import jakarta.servlet.http.HttpServletRequest;

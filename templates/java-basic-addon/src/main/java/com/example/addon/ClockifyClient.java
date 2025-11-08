@@ -6,8 +6,9 @@ import java.net.URI;
 /**
  * Simple Clockify API client.
  *
- * Use the auth token received in the INSTALLED lifecycle event.
- * Store it per workspace and use it for all API calls to that workspace.
+ * Use the add-on token received in the INSTALLED lifecycle event.
+ * Store it per workspace and send it via the {@code x-addon-token} header for
+ * all API calls to that workspace.
  *
  * See: dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json for full API reference.
  */
@@ -24,7 +25,7 @@ public class ClockifyClient {
     public HttpResponse<String> getWorkspace(String workspaceId) throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(apiBase + "/workspaces/" + workspaceId))
-                .header("Authorization", "Bearer " + authToken)
+                .header("x-addon-token", authToken)
                 .GET()
                 .build();
         return http.send(req, HttpResponse.BodyHandlers.ofString());
@@ -33,7 +34,7 @@ public class ClockifyClient {
     public HttpResponse<String> listProjects(String workspaceId) throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(apiBase + "/workspaces/" + workspaceId + "/projects"))
-                .header("Authorization", "Bearer " + authToken)
+                .header("x-addon-token", authToken)
                 .GET()
                 .build();
         return http.send(req, HttpResponse.BodyHandlers.ofString());
@@ -42,7 +43,7 @@ public class ClockifyClient {
     public HttpResponse<String> listUsers(String workspaceId) throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(apiBase + "/workspaces/" + workspaceId + "/users"))
-                .header("Authorization", "Bearer " + authToken)
+                .header("x-addon-token", authToken)
                 .GET()
                 .build();
         return http.send(req, HttpResponse.BodyHandlers.ofString());
