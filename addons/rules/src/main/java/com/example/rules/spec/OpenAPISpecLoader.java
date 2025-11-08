@@ -23,15 +23,28 @@ public class OpenAPISpecLoader {
     private static List<EndpointInfo> cachedEndpoints = null;
 
     /**
-     * Load the OpenAPI spec from the classpath or filesystem.
-     * Tries downloads/openapi (1).json first, falls back to dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json
+     * Load the OpenAPI spec from the filesystem or classpath.
+     * Tries downloads/openapi (1).json first, then classpath (clockify-openapi.json),
+     * then falls back to dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json.
      */
     public static synchronized JsonNode loadSpec() {
         if (cachedSpec != null) {
             return cachedSpec;
         }
 
-        // Try primary location first
+        // Try preferred local downloads path first
+        try {
+            java.nio.file.Path preferred = java.nio.file.Paths.get("downloads", "openapi (1).json");
+            if (java.nio.file.Files.exists(preferred)) {
+                cachedSpec = mapper.readTree(preferred.toFile());
+                logger.info("Loaded OpenAPI spec from downloads: {}", preferred);
+                return cachedSpec;
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to load OpenAPI spec from downloads", e);
+        }
+
+        // Try classpath resource next
         try (InputStream is = OpenAPISpecLoader.class.getClassLoader()
                 .getResourceAsStream("clockify-openapi.json")) {
             if (is != null) {
