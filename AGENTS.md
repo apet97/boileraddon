@@ -46,7 +46,9 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
    - SDK behavior → change `addons/addon-sdk/**`.
 2) Wire endpoints via `ClockifyAddon`:
    - `registerCustomEndpoint`, `registerLifecycleHandler`, `registerWebhookHandler`.
-   - Keep manifest paths in sync (SDK auto‑updates runtime manifest entries).
+   - Routing note: the SDK matches endpoint paths exactly (no wildcards). If you need identifiers,
+     pass them via query parameters or JSON body (e.g., DELETE `/api/items?id=...`) or register
+     an additional exact path. Keep manifest paths in sync (SDK auto‑updates runtime manifest entries).
 3) Secure the surface:
    - Use `SecurityHeadersFilter`; enable CSP with `ADDON_FRAME_ANCESTORS` if required.
    - Rate limit via env: `ADDON_RATE_LIMIT`, `ADDON_LIMIT_BY`.

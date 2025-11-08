@@ -40,10 +40,10 @@ class ManifestControllerTest {
         HttpResponse response = controller.handle(request);
 
         assertNotNull(response);
-        assertEquals(200, response.statusCode());
-        assertEquals("application/json", response.contentType());
+        assertEquals(200, response.getStatusCode());
+        assertEquals("application/json", response.getContentType());
 
-        JsonNode json = mapper.readTree(response.body());
+        JsonNode json = mapper.readTree(response.getBody());
         assertEquals("1.3", json.get("schemaVersion").asText());
         assertEquals("rules", json.get("key").asText());
         assertEquals("Rules", json.get("name").asText());
@@ -58,7 +58,7 @@ class ManifestControllerTest {
 
         HttpResponse response = controller.handle(request);
 
-        JsonNode json = mapper.readTree(response.body());
+        JsonNode json = mapper.readTree(response.getBody());
         String baseUrl = json.get("baseUrl").asText();
 
         assertTrue(baseUrl.startsWith("https://example.ngrok.io"));

@@ -45,6 +45,8 @@ make schema-validate
 - Add a new custom endpoint
   - Register via `ClockifyAddon.registerCustomEndpoint("/my-endpoint", handler)`
   - Add code in the appropriate controller class and return `HttpResponse`
+  - Routing note: SDK matches paths exactly. Use query/body for identifiers or register
+    another exact path (e.g., `DELETE /api/items?id=...`).
 - Add lifecycle/webhook handling
   - `registerLifecycleHandler("INSTALLED", handler)`
   - `registerWebhookHandler("TIME_ENTRY_CREATED", handler)`

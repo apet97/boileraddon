@@ -42,8 +42,8 @@ class RulesControllerTest {
 
         HttpResponse response = controller.listRules().handle(request);
 
-        assertEquals(200, response.statusCode());
-        JsonNode json = mapper.readTree(response.body());
+        assertEquals(200, response.getStatusCode());
+        JsonNode json = mapper.readTree(response.getBody());
         assertTrue(json.isArray());
         assertEquals(0, json.size());
     }
@@ -57,8 +57,8 @@ class RulesControllerTest {
 
         HttpResponse response = controller.listRules().handle(request);
 
-        assertEquals(200, response.statusCode());
-        JsonNode json = mapper.readTree(response.body());
+        assertEquals(200, response.getStatusCode());
+        JsonNode json = mapper.readTree(response.getBody());
         assertTrue(json.isArray());
         assertEquals(1, json.size());
         assertEquals("Test Rule", json.get(0).get("name").asText());
@@ -70,8 +70,8 @@ class RulesControllerTest {
 
         HttpResponse response = controller.listRules().handle(request);
 
-        assertEquals(400, response.statusCode());
-        assertTrue(response.body().contains("workspaceId is required"));
+        assertEquals(400, response.getStatusCode());
+        assertTrue(response.getBody().contains("workspaceId is required"));
     }
 
     @Test
@@ -95,8 +95,8 @@ class RulesControllerTest {
 
         HttpResponse response = controller.saveRule().handle(request);
 
-        assertEquals(200, response.statusCode());
-        JsonNode json = mapper.readTree(response.body());
+        assertEquals(200, response.getStatusCode());
+        JsonNode json = mapper.readTree(response.getBody());
         assertEquals("Test Rule", json.get("name").asText());
         assertNotNull(json.get("id").asText());
 
@@ -119,7 +119,7 @@ class RulesControllerTest {
 
         HttpResponse response = controller.saveRule().handle(request);
 
-        assertEquals(400, response.statusCode());
+        assertEquals(400, response.getStatusCode());
     }
 
     @Test
@@ -132,8 +132,8 @@ class RulesControllerTest {
 
         HttpResponse response = controller.deleteRule().handle(request);
 
-        assertEquals(200, response.statusCode());
-        JsonNode json = mapper.readTree(response.body());
+        assertEquals(200, response.getStatusCode());
+        JsonNode json = mapper.readTree(response.getBody());
         assertTrue(json.get("deleted").asBoolean());
 
         // Verify it was deleted
@@ -147,8 +147,8 @@ class RulesControllerTest {
 
         HttpResponse response = controller.deleteRule().handle(request);
 
-        assertEquals(200, response.statusCode());
-        JsonNode json = mapper.readTree(response.body());
+        assertEquals(200, response.getStatusCode());
+        JsonNode json = mapper.readTree(response.getBody());
         assertFalse(json.get("deleted").asBoolean());
     }
 

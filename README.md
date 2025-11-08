@@ -128,6 +128,23 @@ CI generates an aggregate JaCoCo coverage site and uploads it as an artifact. A 
 
 Build status: ![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
 
+### Routing note (SDK)
+
+The SDK routes only exact endpoint paths (no wildcards). If you need to pass an identifier in a REST-ish
+operation (e.g., delete), prefer query/body parameters with the exact registered path:
+
+```
+// Register once
+addon.registerCustomEndpoint("/api/items", handler);
+
+// Client deletes by id
+DELETE /api/items?id=<ID>
+// or body {"id":"..."}
+```
+
+Alternatively, register additional exact paths if needed. Keep the runtime manifest in sync by using SDK
+helpers (`registerLifecycleHandler`, `registerWebhookHandler`) which auto-update manifest entries.
+
 
 ## Auto-Tag Assistant Walkthrough
 

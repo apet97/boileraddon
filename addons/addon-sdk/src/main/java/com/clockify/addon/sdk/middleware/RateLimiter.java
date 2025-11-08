@@ -3,7 +3,8 @@ package com.clockify.addon.sdk.middleware;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.RateLimiter as GuavaRateLimiter;
+// Do not import Guava RateLimiter by simple name to avoid clashing with this class name
+// Use the fully-qualified name com.google.common.util.concurrent.RateLimiter instead
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 public class RateLimiter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(RateLimiter.class);
 
-    private final LoadingCache<String, GuavaRateLimiter> limiters;
+    private final LoadingCache<String, com.google.common.util.concurrent.RateLimiter> limiters;
     private final double permitsPerSecond;
     private final String limitBy;
 
@@ -40,11 +41,11 @@ public class RateLimiter implements Filter {
         this.limiters = CacheBuilder.newBuilder()
                 .expireAfterAccess(5, TimeUnit.MINUTES)
                 .maximumSize(10000) // Max 10k unique identifiers
-                .build(new CacheLoader<String, GuavaRateLimiter>() {
+                .build(new CacheLoader<String, com.google.common.util.concurrent.RateLimiter>() {
                     @Override
-                    public GuavaRateLimiter load(String key) {
+                    public com.google.common.util.concurrent.RateLimiter load(String key) {
                         logger.debug("Creating new rate limiter for: {}", key);
-                        return GuavaRateLimiter.create(permitsPerSecond);
+                        return com.google.common.util.concurrent.RateLimiter.create(permitsPerSecond);
                     }
                 });
 
@@ -73,7 +74,7 @@ public class RateLimiter implements Filter {
         String identifier = getIdentifier(httpRequest);
 
         try {
-            GuavaRateLimiter limiter = limiters.get(identifier);
+            com.google.common.util.concurrent.RateLimiter limiter = limiters.get(identifier);
 
             // Try to acquire a permit (non-blocking)
             if (limiter.tryAcquire()) {
