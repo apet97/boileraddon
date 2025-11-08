@@ -110,7 +110,7 @@ docker-run:
 
 dev: build-template
 	@if [ ! -f .env ]; then \
-		echo "Missing .env file. Run: cp .env.example .env"; \
+		@echo "Missing .env file. Run: cp .env.example .env"; \
 		exit 1; \
 	fi
 	@echo "Starting _template-addon with settings from .env..."
