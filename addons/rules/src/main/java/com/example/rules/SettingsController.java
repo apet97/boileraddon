@@ -5,121 +5,209 @@ import com.clockify.addon.sdk.RequestHandler;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * Renders the settings UI for the Rules add-on.
- * This is displayed in the sidebar component in Clockify.
+ * Renders the settings UI (no‑code rule builder) for the Rules add‑on.
  */
 public class SettingsController implements RequestHandler {
 
     @Override
     public HttpResponse handle(HttpServletRequest request) {
         String html = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Rules Add-on</title>
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        margin: 0;
-                        padding: 20px;
-                        background: #f5f5f5;
-                    }
-                    h1 {
-                        font-size: 20px;
-                        margin-top: 0;
-                        color: #333;
-                    }
-                    h2 {
-                        font-size: 16px;
-                        margin-top: 20px;
-                        color: #555;
-                    }
-                    p {
-                        font-size: 14px;
-                        color: #666;
-                        line-height: 1.5;
-                    }
-                    code {
-                        background: #e8e8e8;
-                        padding: 2px 6px;
-                        border-radius: 3px;
-                        font-size: 12px;
-                    }
-                    .section {
-                        background: white;
-                        padding: 15px;
-                        margin-bottom: 15px;
-                        border-radius: 6px;
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                    }
-                    ul {
-                        font-size: 14px;
-                        color: #666;
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>Rules Automation</h1>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset=\"UTF-8\" />
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />
+  <title>Rules Add-on</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin:0; padding:20px; background:#f5f5f5; }
+    h1 { font-size:20px; margin-top:0; color:#333; }
+    h2 { font-size:16px; margin-top:20px; color:#555; }
+    .section { background:white; padding:15px; margin-bottom:15px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+    label { font-size:13px; color:#444; }
+    input[type=text], select { padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; }
+    button { padding:6px 10px; font-size:13px; cursor:pointer; border:1px solid #1976d2; background:#1976d2; color:white; border-radius:4px; }
+    button.secondary { background:#eee; color:#333; border-color:#bbb; }
+    .pill { background:#eef6ff; padding:2px 6px; border-radius:10px; font-size:12px; color:#1976d2; }
+    .list { font-size:13px; }
+    .list li { margin-bottom:4px; }
+    .muted { color:#777; font-size:12px; }
+    .error { color:#b00020 }
+    .ok { color:#1b5e20 }
+    code { background:#f3f3f3; padding:2px 6px; border-radius:3px; }
+  </style>
+</head>
+<body>
+  <h1>Rules Automation</h1>
 
-                <div class="section">
-                    <h2>Overview</h2>
-                    <p>Create automation rules to automatically modify time entries based on conditions.</p>
-                    <p>Rules can add/remove tags, set descriptions, and more when time entries match your criteria.</p>
-                </div>
+  <div class=\"section\">
+    <h2>Create / Update Rule</h2>
+    <div class=\"row\">
+      <label>Workspace ID</label>
+      <input id=\"wsid\" type=\"text\" placeholder=\"workspaceId\" style=\"min-width:260px\" />
+      <span class=\"muted\">Required for API calls</span>
+    </div>
+    <div class=\"row\">
+      <label>Name</label>
+      <input id=\"ruleName\" type=\"text\" placeholder=\"Rule name\" style=\"min-width:260px\" />
+      <label><input id=\"ruleEnabled\" type=\"checkbox\" checked /> Enabled</label>
+      <label>Combinator</label>
+      <select id=\"ruleComb\">
+        <option value=\"\">(auto: OR)</option>
+        <option value=\"AND\">AND</option>
+        <option value=\"OR\">OR</option>
+      </select>
+    </div>
 
-                <div class="section">
-                    <h2>API Endpoints</h2>
-                    <ul>
-                        <li><code>GET /api/rules</code> - List all rules</li>
-                        <li><code>POST /api/rules</code> - Create or update a rule</li>
-                        <li><code>DELETE /api/rules?id={id}</code> - Delete a rule</li>
-                        <li><code>POST /api/test</code> - Test rules against sample data</li>
-                    </ul>
-                </div>
+    <div class=\"row\"><span class=\"pill\">Conditions</span></div>
+    <div id=\"conds\"></div>
+    <div class=\"row\"><button class=\"secondary\" onclick=\"addCond()\" type=\"button\">+ Condition</button></div>
 
-                <div class="section">
-                    <h2>Example Rule</h2>
-                    <p>Create a rule to tag client meetings as billable:</p>
-                    <pre style="background:#f8f8f8;padding:10px;border-radius:4px;overflow-x:auto;"><code>{
-  "name": "Tag client meetings",
-  "enabled": true,
-  "combinator": "AND",
-  "conditions": [
-    {"type": "descriptionContains", "operator": "CONTAINS", "value": "meeting"},
-    {"type": "hasTag", "operator": "EQUALS", "value": "client"}
-  ],
-  "actions": [
-    {"type": "add_tag", "args": {"tag": "billable"}}
-  ]
-}</code></pre>
-                </div>
+    <div class=\"row\"><span class=\"pill\">Actions</span></div>
+    <div id=\"acts\"></div>
+    <div class=\"row\"><button class=\"secondary\" onclick=\"addAct()\" type=\"button\">+ Action</button></div>
 
-                <div class="section">
-                    <h2>Supported Conditions</h2>
-                    <ul>
-                        <li><code>descriptionContains</code> - Check if description contains text</li>
-                        <li><code>descriptionEquals</code> - Check if description matches exactly</li>
-                        <li><code>hasTag</code> - Check if time entry has a specific tag</li>
-                        <li><code>projectIdEquals</code> - Check if project matches</li>
-                        <li><code>isBillable</code> - Check billable status</li>
-                    </ul>
-                </div>
+    <div class=\"row\">
+      <button onclick=\"saveRule()\" type=\"button\">Save Rule</button>
+      <span id=\"saveMsg\" class=\"muted\"></span>
+    </div>
+  </div>
 
-                <div class="section">
-                    <h2>Supported Actions</h2>
-                    <ul>
-                        <li><code>add_tag</code> - Add a tag to the time entry</li>
-                        <li><code>remove_tag</code> - Remove a tag from the time entry</li>
-                        <li><code>set_description</code> - Set the description</li>
-                        <li><code>set_billable</code> - Set billable status</li>
-                    </ul>
-                </div>
-            </body>
-            </html>
-            """;
+  <div class=\"section\">
+    <h2>Existing Rules</h2>
+    <div class=\"row\"><button class=\"secondary\" type=\"button\" onclick=\"loadRules()\">Refresh</button></div>
+    <ul id=\"rulesList\" class=\"list\"></ul>
+  </div>
+
+  <div class=\"section\">
+    <h2>Supported Conditions</h2>
+    <ul>
+      <li><code>descriptionContains</code>, <code>descriptionEquals</code></li>
+      <li><code>hasTag</code> (by ID)</li>
+      <li><code>projectIdEquals</code>, <code>projectNameContains</code></li>
+      <li><code>clientIdEquals</code>, <code>clientNameContains</code></li>
+      <li><code>isBillable</code> (value: true/false)</li>
+    </ul>
+  </div>
+
+  <div class=\"section\">
+    <h2>Supported Actions</h2>
+    <ul>
+      <li><code>add_tag</code>, <code>remove_tag</code> (arg: tag/name)</li>
+      <li><code>set_description</code> (arg: value)</li>
+      <li><code>set_billable</code> (arg: value=true|false)</li>
+      <li><code>set_project_by_id</code> (arg: projectId), <code>set_project_by_name</code> (arg: name)</li>
+      <li><code>set_task_by_id</code> (arg: taskId), <code>set_task_by_name</code> (arg: name)</li>
+    </ul>
+  </div>
+
+  <script>
+    const COND_TYPES = [
+      'descriptionContains','descriptionEquals','hasTag','projectIdEquals','projectNameContains','clientIdEquals','clientNameContains','isBillable'
+    ];
+    const OPS = ['EQUALS','NOT_EQUALS','CONTAINS','NOT_CONTAINS'];
+    const ACT_TYPES = [
+      'add_tag','remove_tag','set_description','set_billable','set_project_by_id','set_project_by_name','set_task_by_id','set_task_by_name'
+    ];
+
+    function addCond(pref={}){
+      const el = document.createElement('div');
+      el.className = 'row';
+      el.innerHTML = `
+        <select class=\"cond-type\">${COND_TYPES.map(t=>`<option value=\"${t}\">${t}</option>`).join('')}</select>
+        <select class=\"cond-op\">${OPS.map(o=>`<option value=\"${o}\">${o}</option>`).join('')}</select>
+        <input class=\"cond-val\" type=\"text\" placeholder=\"value\" />
+        <button class=\"secondary\" type=\"button\" onclick=\"this.parentElement.remove()\">Remove</button>
+      `;
+      if(pref.type) el.querySelector('.cond-type').value = pref.type;
+      if(pref.operator) el.querySelector('.cond-op').value = pref.operator;
+      if(pref.value) el.querySelector('.cond-val').value = pref.value;
+      document.getElementById('conds').appendChild(el);
+    }
+
+    function addAct(pref={}){
+      const el = document.createElement('div');
+      el.className = 'row';
+      el.innerHTML = `
+        <select class=\"act-type\">${ACT_TYPES.map(t=>`<option value=\"${t}\">${t}</option>`).join('')}</select>
+        <input class=\"act-k\" type=\"text\" placeholder=\"arg key (e.g., tag,name,projectId,taskId,value)\" style=\"min-width:240px\"/>
+        <input class=\"act-v\" type=\"text\" placeholder=\"arg value\" style=\"min-width:240px\"/>
+        <button class=\"secondary\" type=\"button\" onclick=\"this.parentElement.remove()\">Remove</button>
+      `;
+      if(pref.type) el.querySelector('.act-type').value = pref.type;
+      if(pref.k) el.querySelector('.act-k').value = pref.k;
+      if(pref.v) el.querySelector('.act-v').value = pref.v;
+      document.getElementById('acts').appendChild(el);
+    }
+
+    function baseUrl(){
+      const url = new URL(window.location.href);
+      return url.origin + url.pathname.replace(/\\/settings$/, '');
+    }
+
+    async function saveRule(){
+      const ws = document.getElementById('wsid').value.trim();
+      if(!ws){ document.getElementById('saveMsg').textContent = 'workspaceId is required'; document.getElementById('saveMsg').className='error'; return; }
+
+      const name = document.getElementById('ruleName').value.trim() || 'Untitled';
+      const enabled = document.getElementById('ruleEnabled').checked;
+      const comb = document.getElementById('ruleComb').value;
+
+      const conditions = Array.from(document.querySelectorAll('#conds .row')).map(row=>{
+        return {
+          type: row.querySelector('.cond-type').value,
+          operator: row.querySelector('.cond-op').value,
+          value: row.querySelector('.cond-val').value
+        };
+      });
+      const actions = Array.from(document.querySelectorAll('#acts .row')).map(row=>{
+        const t = row.querySelector('.act-type').value;
+        const k = row.querySelector('.act-k').value.trim();
+        const v = row.querySelector('.act-v').value;
+        const args = k ? { [k]: v } : {};
+        return { type: t, args };
+      });
+
+      const payload = { name, enabled, conditions, actions };
+      if(comb) payload.combinator = comb;
+
+      const resp = await fetch(baseUrl()+`/api/rules?workspaceId=${encodeURIComponent(ws)}`,{
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      const msg = document.getElementById('saveMsg');
+      if(resp.ok){ msg.textContent = 'Saved'; msg.className='ok'; loadRules(); }
+      else { const t = await resp.text(); msg.textContent = 'Error: '+t; msg.className='error'; }
+    }
+
+    async function loadRules(){
+      const ws = document.getElementById('wsid').value.trim();
+      if(!ws){ return; }
+      const ul = document.getElementById('rulesList'); ul.innerHTML='';
+      const r = await fetch(baseUrl()+`/api/rules?workspaceId=${encodeURIComponent(ws)}`);
+      if(!r.ok){ ul.innerHTML = '<li class=\"error\">Failed to load rules</li>'; return; }
+      const arr = await r.json();
+      if(!Array.isArray(arr) || arr.length===0){ ul.innerHTML = '<li class=\"muted\">No rules yet.</li>'; return; }
+      arr.forEach(rule=>{
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${rule.name||'(unnamed)'}</strong> <span class=\"muted\">(${rule.enabled?'enabled':'disabled'})</span>
+          <button class=\"secondary\" type=\"button\">Delete</button>`;
+        li.querySelector('button').onclick = async ()=>{
+          await fetch(baseUrl()+`/api/rules?workspaceId=${encodeURIComponent(ws)}&id=${encodeURIComponent(rule.id||'')}`,{method:'DELETE'});
+          loadRules();
+        };
+        ul.appendChild(li);
+      });
+    }
+
+    // Seed one row each
+    addCond({type:'descriptionContains',operator:'CONTAINS'});
+    addAct({type:'add_tag',k:'tag',v:'billable'});
+  </script>
+</body>
+</html>
+""";
 
         return HttpResponse.ok(html, "text/html; charset=utf-8");
     }
 }
+
