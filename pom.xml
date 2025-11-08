@@ -19,6 +19,7 @@
     <modules>
         <!-- Templates -->
         <!-- <module>templates/java-basic-addon</module> - Excluded: uses external SDK -->
+        <module>addons/_template-addon</module>
 
         <!-- Working add-ons -->
         <module>addons/auto-tag-assistant</module>

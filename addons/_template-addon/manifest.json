@@ -1,0 +1,36 @@
+{
+  "$schema": "https://app.clockify.me/api/addons/json-schema/1-3.schema.json",
+  "schemaVersion": "1.3",
+  "key": "_template-addon",
+  "name": "Template Add-on",
+  "description": "TODO: Replace with your add-on summary",
+  "baseUrl": "http://localhost:8080/_template-addon",
+  "minimalSubscriptionPlan": "FREE",
+  "scopes": [
+    "WORKSPACE_READ"
+  ],
+  "components": [
+    {
+      "type": "sidebar",
+      "path": "/settings",
+      "label": "Template Add-on",
+      "accessLevel": "ADMIN"
+    }
+  ],
+  "lifecycle": [
+    {
+      "type": "INSTALLED",
+      "path": "/lifecycle/installed"
+    },
+    {
+      "type": "DELETED",
+      "path": "/lifecycle/deleted"
+    }
+  ],
+  "webhooks": [
+    {
+      "event": "TIME_ENTRY_CREATED",
+      "path": "/webhook"
+    }
+  ]
+}
