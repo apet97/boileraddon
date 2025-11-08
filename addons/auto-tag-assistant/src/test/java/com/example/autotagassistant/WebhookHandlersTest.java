@@ -4,7 +4,7 @@ import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
-import com.example.autotagassistant.security.WebhookSignatureValidator;
+import com.clockify.addon.sdk.security.WebhookSignatureValidator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -70,7 +70,7 @@ class WebhookHandlersTest {
         if (server != null) {
             server.stop(0);
         }
-        TokenStore.clear();
+        com.clockify.addon.sdk.security.TokenStore.clear();
     }
 
     @Test
@@ -131,7 +131,7 @@ class WebhookHandlersTest {
         server.start();
 
         String baseUrl = "http://localhost:" + port + "/api";
-        TokenStore.save(workspaceId, "token-value", baseUrl);
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, "token-value", baseUrl);
 
         ClockifyManifest manifest = ClockifyManifest
             .v1_3Builder()
@@ -184,7 +184,7 @@ class WebhookHandlersTest {
     void webhookRejectsMissingSignature() throws Exception {
         String workspaceId = "workspace-id";
 
-        TokenStore.save(workspaceId, "token-value", "https://api.clockify.me/api");
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, "token-value", "https://api.clockify.me/api");
 
         ClockifyManifest manifest = ClockifyManifest
             .v1_3Builder()
@@ -215,7 +215,7 @@ class WebhookHandlersTest {
     void webhookRejectsInvalidSignature() throws Exception {
         String workspaceId = "workspace-id";
 
-        TokenStore.save(workspaceId, "token-value", "https://api.clockify.me/api");
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, "token-value", "https://api.clockify.me/api");
 
         ClockifyManifest manifest = ClockifyManifest
             .v1_3Builder()

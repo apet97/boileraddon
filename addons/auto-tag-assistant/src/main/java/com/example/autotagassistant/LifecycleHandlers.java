@@ -58,7 +58,7 @@ public class LifecycleHandlers {
                 } else if (workspaceId == null || workspaceId.isEmpty()) {
                     System.out.println("⚠️  Unable to store auth token because workspaceId is missing.");
                 } else {
-                    TokenStore.save(workspaceId, authToken, apiUrl);
+                    com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, apiUrl);
                     System.out.println("✅ Stored auth token for workspace " + workspaceId);
                 }
                 System.out.println();
@@ -106,7 +106,7 @@ public class LifecycleHandlers {
                 if (workspaceId == null || workspaceId.isEmpty()) {
                     System.out.println("⚠️  Unable to remove auth token because workspaceId is missing.");
                 } else {
-                    boolean removed = TokenStore.delete(workspaceId);
+                    boolean removed = com.clockify.addon.sdk.security.TokenStore.delete(workspaceId);
                     if (removed) {
                         System.out.println("✅ Removed stored auth token for workspace " + workspaceId);
                     } else {

@@ -2,7 +2,7 @@ package com.example.autotagassistant;
 
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.HttpResponse;
-import com.example.autotagassistant.security.WebhookSignatureValidator;
+import com.clockify.addon.sdk.security.WebhookSignatureValidator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -121,13 +121,13 @@ public class WebhookHandlers {
                             System.out.println("  ❌ No tag suggestions available for this time entry.");
                             response = skipResponse("No tag suggestions available for this time entry.");
                         } else {
-                            Optional<TokenStore.WorkspaceToken> workspaceToken = TokenStore.get(workspaceId);
+                            Optional<com.clockify.addon.sdk.security.TokenStore.WorkspaceToken> workspaceToken = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
                             if (workspaceToken.isEmpty()) {
                                 String message = "Missing stored auth token/API base URL for workspace " + workspaceId;
                                 System.err.println("❌ " + message);
                                 response = errorResponse(500, message);
                             } else {
-                                TokenStore.WorkspaceToken token = workspaceToken.get();
+                                com.clockify.addon.sdk.security.TokenStore.WorkspaceToken token = workspaceToken.get();
                                 ClockifyApiClient apiClient = new ClockifyApiClient(token.apiBaseUrl(), token.authToken());
 
                                 try {

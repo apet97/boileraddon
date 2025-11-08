@@ -1,7 +1,6 @@
-package com.example.autotagassistant.security;
+package com.clockify.addon.sdk.security;
 
 import com.clockify.addon.sdk.HttpResponse;
-import com.example.autotagassistant.TokenStore;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,17 +24,8 @@ public final class WebhookSignatureValidator {
     private static final Logger logger = LoggerFactory.getLogger(WebhookSignatureValidator.class);
     private static final String RAW_BODY_ATTRIBUTE = "clockify.rawBody";
 
-    private WebhookSignatureValidator() {
-        // Utility class
-    }
+    private WebhookSignatureValidator() {}
 
-    /**
-     * Validate the webhook signature using the stored installation token for the workspace.
-     *
-     * @param request     incoming HTTP request
-     * @param workspaceId workspace identifier extracted from the payload
-     * @return {@link VerificationResult} describing whether the signature is valid
-     */
     public static VerificationResult verify(HttpServletRequest request, String workspaceId) {
         if (workspaceId == null || workspaceId.isBlank()) {
             logger.warn("Webhook request missing workspaceId claim; rejecting request");
@@ -66,14 +56,9 @@ public final class WebhookSignatureValidator {
         }
     }
 
-    /**
-     * Compute the expected signature for a raw webhook body.
-     * This is exposed to facilitate tests and local tooling.
-     */
     public static String computeSignature(String installationToken, String rawBody) {
         Objects.requireNonNull(installationToken, "installationToken");
         Objects.requireNonNull(rawBody, "rawBody");
-
         try {
             byte[] keyBytes = deriveKey(installationToken);
             Mac mac = Mac.getInstance("HmacSHA256");
@@ -87,7 +72,6 @@ public final class WebhookSignatureValidator {
 
     private static boolean verifySignature(String installationToken, String rawBody, String providedSignature) {
         String expectedSignature = computeSignature(installationToken, rawBody);
-
         try {
             byte[] expectedBytes = Base64.getDecoder().decode(expectedSignature);
             byte[] providedBytes = Base64.getDecoder().decode(providedSignature);
@@ -103,15 +87,11 @@ public final class WebhookSignatureValidator {
         if (cachedBody instanceof String) {
             return (String) cachedBody;
         }
-
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = request.getReader()) {
             String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
+            while ((line = reader.readLine()) != null) sb.append(line);
         }
-
         String body = sb.toString();
         request.setAttribute(RAW_BODY_ATTRIBUTE, body);
         return body;
@@ -131,26 +111,12 @@ public final class WebhookSignatureValidator {
         }
     }
 
-    /**
-     * Outcome of webhook signature verification.
-     */
     public record VerificationResult(boolean valid, HttpResponse response) {
         private static final VerificationResult VALID = new VerificationResult(true, null);
-
-        public boolean isValid() {
-            return valid;
-        }
-
-        public static VerificationResult success() {
-            return VALID;
-        }
-
-        public static VerificationResult unauthorized(String message) {
-            return new VerificationResult(false, HttpResponse.error(401, message));
-        }
-
-        public static VerificationResult forbidden(String message) {
-            return new VerificationResult(false, HttpResponse.error(403, message));
-        }
+        public boolean isValid() { return valid; }
+        public static VerificationResult success() { return VALID; }
+        public static VerificationResult unauthorized(String message) { return new VerificationResult(false, HttpResponse.error(401, message)); }
+        public static VerificationResult forbidden(String message) { return new VerificationResult(false, HttpResponse.error(403, message)); }
     }
 }
+
