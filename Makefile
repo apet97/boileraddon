@@ -215,6 +215,11 @@ ai-cheatsheet:
 	@echo "6) Optional run: TEMPLATE=auto-tag-assistant make zero-shot-run"
 	@echo "Docs: docs/AI_ZERO_SHOT_PLAYBOOK.md"
 
+# Run Flyway migrations (requires DB_URL/DB_USER/DB_PASSWORD)
+db-migrate:
+	@if [ -z "$(DB_URL)" ]; then echo "DB_URL is required"; exit 2; fi
+	mvn -q -Pflyway -DskipTests flyway:migrate
+
 # AI verification helper: runs validator, addon-sdk tests, and reactor verify, then prints proof lines
 ai-verify:
 	@bash -euo pipefail -c "\

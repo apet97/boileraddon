@@ -40,6 +40,7 @@ Zero‑shot
 - `make manifest-print` — fetch and pretty‑print the runtime manifest (uses `ADDON_BASE_URL` or defaults).
 - `make manifest-validate-runtime` — fetch the runtime manifest and validate it against `tools/manifest.schema.json`.
 - `make manifest-validate-all URLS="https://.../rules https://.../auto-tag-assistant"` — fetch and validate multiple runtime manifests.
+- `make db-migrate` — run Flyway migrations using the root `flyway` profile (requires `DB_URL`, `DB_USER`, `DB_PASSWORD`).
 
 Testing
 - `make test` — run tests for the selected module or full reactor depending on setup; prefer Maven directly for fine control:

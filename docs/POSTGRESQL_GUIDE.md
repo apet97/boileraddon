@@ -174,6 +174,47 @@ services:
 - Migrations: test applying migrations on a clean DB in CI.
 - CI: add a Postgres service, or rely on Testcontainers.
 
+### Testcontainers example (integration test)
+
+```java
+@Testcontainers
+class DatabaseTokenStoreIT {
+  @Container
+  static final PostgreSQLContainer<?> pg = new PostgreSQLContainer<>("postgres:15-alpine");
+
+  @Test void saveGet() {
+    DatabaseTokenStore store = new DatabaseTokenStore(pg.getJdbcUrl(), pg.getUsername(), pg.getPassword());
+    store.save("ws1", "tkn");
+    assertEquals("tkn", store.get("ws1").orElseThrow());
+  }
+}
+```
+
+This pattern is already included under `addons/addon-sdk` as `DatabaseTokenStoreIT`. It starts an ephemeral PostgreSQL and exercises the JDBC store end‑to‑end.
+
+### Flyway sample migrations (profile)
+
+Place migrations under `db/migrations` (example `V1__init.sql` is included). Configure Flyway in a Maven profile or as a plugin, pointing at `${env.DB_URL}`, `${env.DB_USER}`, and `${env.DB_PASSWORD}` to reuse your environment.
+
+```xml
+The root POM defines a `flyway` profile configured to read `DB_URL`, `DB_USER`, and `DB_PASSWORD` from the environment and to load migrations from `db/migrations`.
+```
+
+Run with (from repo root):
+
+```
+mvn -Pflyway -DskipTests flyway:migrate
+
+Make target shortcut:
+
+```
+DB_URL=jdbc:postgresql://localhost:5432/addons DB_USER=addons DB_PASSWORD=addons \
+  make db-migrate
+```
+```
+
+Keep Flyway optional (via a profile) so regular builds don’t require a running DB.
+
 ## Quick links
 - Compose: `docker-compose.dev.yml`
 - Example schema: `extras/sql/token_store.sql`

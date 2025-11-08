@@ -463,6 +463,8 @@ healthCheck.addHealthCheckProvider(new HealthCheck.HealthCheckProvider() {
 addon.registerCustomEndpoint("/health", healthCheck);
 ```
 
+Consider adding a lightweight DB check to the health response (e.g., call `tokenStore.count()` and return DOWN if it fails). This allows external monitors to catch DB outages even if the JVM is alive.
+
 **Response:**
 
 ```json

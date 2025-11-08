@@ -120,6 +120,26 @@
                 </plugins>
             </build>
         </profile>
+        <profile>
+            <id>flyway</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-maven-plugin</artifactId>
+                        <version>10.18.2</version>
+                        <configuration>
+                            <url>${env.DB_URL}</url>
+                            <user>${env.DB_USER}</user>
+                            <password>${env.DB_PASSWORD}</password>
+                            <locations>
+                                <location>filesystem:${project.basedir}/db/migrations</location>
+                            </locations>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 
 </project>
