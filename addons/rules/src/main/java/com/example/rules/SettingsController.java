@@ -43,6 +43,14 @@ public class SettingsController implements RequestHandler {
 <body>
   <h1>Rules Automation</h1>
 
+  <div class=\"section\" style=\"background:#e3f2fd; border-left:4px solid #1976d2\">
+    <div class=\"row\">
+      <span style=\"font-size:14px; font-weight:500\">⚡ Try the new IFTTT Builder!</span>
+      <button class=\"secondary\" type=\"button\" onclick=\"window.location.href=baseUrl+'/ifttt'\">Open IFTTT Builder →</button>
+    </div>
+    <p class=\"muted\">Build powerful automations with any Clockify webhook as a trigger and custom API actions</p>
+  </div>
+
   <div class=\"section\" style=\"border-left:4px solid #1976d2\">
     <div class=\"row\">
       <span class=\"pill\">Mode: %s</span>

@@ -28,17 +28,20 @@ public class Condition {
     private final Operator operator;
     private final String value;
     private final List<String> values;
+    private final String path; // For jsonPathContains/jsonPathEquals
 
     @JsonCreator
     public Condition(
             @JsonProperty("type") String type,
             @JsonProperty("operator") Operator operator,
             @JsonProperty("value") String value,
-            @JsonProperty("values") List<String> values) {
+            @JsonProperty("values") List<String> values,
+            @JsonProperty("path") String path) {
         this.type = type;
         this.operator = operator != null ? operator : Operator.EQUALS;
         this.value = value;
         this.values = values;
+        this.path = path;
     }
 
     public String getType() {
@@ -57,6 +60,10 @@ public class Condition {
         return values;
     }
 
+    public String getPath() {
+        return path;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -65,12 +72,13 @@ public class Condition {
         return Objects.equals(type, condition.type) &&
                 operator == condition.operator &&
                 Objects.equals(value, condition.value) &&
-                Objects.equals(values, condition.values);
+                Objects.equals(values, condition.values) &&
+                Objects.equals(path, condition.path);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(type, operator, value, values);
+        return Objects.hash(type, operator, value, values, path);
     }
 
     @Override
@@ -80,6 +88,7 @@ public class Condition {
                 ", operator=" + operator +
                 ", value='" + value + '\'' +
                 ", values=" + values +
+                ", path='" + path + '\'' +
                 '}';
     }
 }

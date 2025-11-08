@@ -77,13 +77,48 @@ curl "https://<sub>.ngrok-free.app/rules/api/cache/data?workspaceId=<YOUR_WS>" |
 - Open the add‑on in Clockify (Admins only). The UI is embeddable only inside Clockify when you set:
   - `ADDON_FRAME_ANCESTORS='self' https://*.clockify.me`
   - `ADDON_CORS_ORIGINS=https://app.clockify.me,https://developer.clockify.me` (optional)
-- In `/rules/settings`:
-  - Enter `workspaceId`
-  - Click “Load Data” (preloaded entities enable autocompletes)
-  - Create a rule, e.g.:
-    - Condition: descriptionContains CONTAINS “meeting”
-    - Action: add_tag tag “billable”
-  - Save
+
+### Option A: Simple Rules Builder (`/rules/settings`)
+- Enter `workspaceId`
+- Click "Load Data" (preloaded entities enable autocompletes)
+- Create a rule, e.g.:
+  - Condition: descriptionContains CONTAINS "meeting"
+  - Action: add_tag tag "billable"
+- Save
+
+### Option B: IFTTT Builder (`/rules/ifttt`) — Advanced Automations
+The IFTTT builder lets you create powerful automations with any webhook trigger and custom API actions:
+
+1. **Navigate to the IFTTT Builder**:
+   - Click "Open IFTTT Builder" from `/rules/settings`, or
+   - Browse directly to `<baseUrl>/ifttt`
+
+2. **Configure Workspace**:
+   - Enter your `workspaceId`
+   - Click "Load Workspace Data" to enable autocompletes
+
+3. **Select a Trigger**:
+   - Browse or search webhook events (e.g., NEW_TIME_ENTRY, PROJECT_UPDATED, NEW_CLIENT)
+   - Click an event to select it
+   - Optionally add filter conditions using JSON path queries (e.g., `project.name contains "ACME"`)
+
+4. **Compose Actions**:
+   - Click "+ Add Action"
+   - Click "Select Endpoint" and choose from the OpenAPI catalog
+   - Fill in required parameters and body fields
+   - Use placeholders like `{{timeEntry.id}}`, `{{project.name}}` to insert dynamic values
+   - Preview the HTTP request before saving
+
+5. **Save and Test**:
+   - Enter a rule name
+   - Click "Save Rule"
+   - Perform the trigger action in Clockify to test (e.g., create a time entry)
+   - Watch server logs for webhook processing and action execution
+
+**Example IFTTT Rule**:
+- **Trigger**: NEW_TIME_ENTRY where `project.clientName` contains "ACME"
+- **Action**: Update time entry to set `billable: true` and add tag
+- **Result**: All time entries for ACME projects are automatically marked billable
 
 ## 7) Test in Developer
 - Create/Update time entries that match your rule in the installed workspace.
