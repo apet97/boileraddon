@@ -74,7 +74,14 @@ ADDON_BASE_URL=https://YOUR-NGROK.ngrok-free.app/rules make run-rules
 To log actions without changing Clockify, leave `RULES_APPLY_CHANGES` unset (default) or set it to `false`.
 To apply actions, set `RULES_APPLY_CHANGES=true`.
 
-See docs/ADDON_RULES.md for API, schema, and examples.
+See docs/ADDON_RULES.md for API, schema, and examples. For faster local usage, try:
+
+```
+cp .env.rules.example .env.rules
+make dev-rules
+# Health
+curl http://localhost:8080/rules/health
+```
 
 ### Use a database-backed token store (recommended)
 
@@ -485,6 +492,7 @@ After cloning and building, verify:
 * [Architecture Overview](docs/ARCHITECTURE.md) – SDK modules, routing, claim handling, and endpoint registration flow.
 * [SDK Overview](docs/SDK_OVERVIEW.md) – Routing core, middleware, and consolidated security utilities.
 * [Building Your Own Add-on](docs/BUILDING-YOUR-OWN-ADDON.md) – Copy/rename checklist, manifest customization, token storage, and deployment guidance.
+* [Quick Start (Local)](docs/QUICK_START_LOCAL.md) – Minimal steps to run add-ons locally
 * [Clockify Parameters](docs/CLOCKIFY_PARAMETERS.md) – Manifest fields, headers, webhooks, and env flags.
 * [Overtime Add-on (PM)](docs/ADDON_OVERTIME.md) – Product spec for an overtime policy add-on.
 

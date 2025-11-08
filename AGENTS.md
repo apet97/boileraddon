@@ -14,6 +14,7 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
 - Quick run targets:
   - `make build` or `make build-template`
   - `make run-auto-tag-assistant`
+  - `make dev-rules` (reads `.env.rules`)
 - Validate manifests:
   - `make validate` (built‑in checks)
   - `make schema-validate` (strong JSON Schema; requires `pip install jsonschema`)
@@ -98,6 +99,8 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
 - `make dev-check` — verifies local toolchain (java, mvn, ngrok)
 - `make manifest-url` — prints the install URL
 - `make briefings-open` / `make briefings-verify`
+- `make rules-seed-demo` — seeds a demo rule and executes `/api/test`
+- `make rules-webhook-sim` — computes HMAC and posts a signed webhook
 
 ---
 If you’re an AI agent, start at `docs/AI_ONBOARDING.md` for a role‑friendly path and examples.

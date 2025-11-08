@@ -17,25 +17,16 @@ if [[ -z "$WS" || -z "$SECRET" ]]; then
   exit 1
 fi
 
-BODY='{
-  "workspaceId": "'"$WS"'",
-  "event": "TIME_ENTRY_CREATED",
-  "timeEntry": {"id":"e1","description":"Client meeting","tagIds":[]}
-}'
+BODY='{"workspaceId":"'"$WS"'","event":"TIME_ENTRY_CREATED","timeEntry":{"id":"e1","description":"Client meeting","tagIds":[]}}'
 
-sig_hex=""
-if command -v openssl >/dev/null 2>&1; then
-  sig_hex=$(printf "%s" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -binary | xxd -p -c 256)
-else
-  # Fallback to Python
-  sig_hex=$(python3 - << 'PY'
-import hmac, hashlib, os, sys
-secret = os.environ.get('CLOCKIFY_INSTALLATION_TOKEN','').encode('utf-8')
-body = os.environ.get('BODY','').encode('utf-8')
+# Compute HMAC via Python for consistency
+sig_hex=$(BODY="$BODY" CLOCKIFY_INSTALLATION_TOKEN="$SECRET" python3 - << 'PY'
+import hmac, hashlib, os
+secret = os.environ['CLOCKIFY_INSTALLATION_TOKEN'].encode('utf-8')
+body = os.environ['BODY'].encode('utf-8')
 print(hmac.new(secret, body, hashlib.sha256).hexdigest())
 PY
-  )
-fi
+)
 
 HEADER="sha256=${sig_hex}"
 
@@ -45,4 +36,3 @@ curl -sS -X POST "$BASE_URL/webhook" \
   -H "clockify-webhook-signature: $HEADER" \
   -d "$BODY" | sed -e 's/^/  /'
 echo
-

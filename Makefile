@@ -23,6 +23,7 @@ help:
 	@echo "  rules-apply                - Run rules with RULES_APPLY_CHANGES=true"
 	@echo "  rules-seed-demo            - Seed a demo rule and dry-run test"
 	@echo "  rules-webhook-sim          - Simulate a signed webhook locally"
+	@echo "  dev-rules                  - Run rules add-on using .env.rules"
 	@echo "  manifest-url               - Print the current manifest URL"
 	@echo "  clean                      - Clean all build artifacts"
 	@echo ""
@@ -210,3 +211,13 @@ rules-seed-demo:
 # Simulate a signed webhook request for local testing
 rules-webhook-sim:
 	@bash scripts/rules-webhook-sim.sh
+
+# Run Rules using .env.rules (similar to dev target for template)
+dev-rules: build-rules
+	@if [ ! -f .env.rules ]; then \
+		echo "Missing .env.rules. Create one: cp .env.rules.example .env.rules"; \
+		exit 1; \
+	fi
+	@echo "Starting Rules add-on with settings from .env.rules..."
+	@bash -c 'set -a; source .env.rules; set +a; \
+	  java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar'

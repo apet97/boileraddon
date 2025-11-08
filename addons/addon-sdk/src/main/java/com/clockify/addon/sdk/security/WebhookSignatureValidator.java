@@ -16,6 +16,8 @@ import java.nio.charset.StandardCharsets;
 public final class WebhookSignatureValidator {
     private WebhookSignatureValidator() {}
 
+    public static final String SIGNATURE_HEADER = "clockify-webhook-signature";
+
     public static class VerificationResult {
         private final boolean valid;
         private final HttpResponse response;
@@ -40,7 +42,7 @@ public final class WebhookSignatureValidator {
         if (tokenOpt.isEmpty()) {
             return new VerificationResult(false, HttpResponse.error(401, "{\"error\":\"installation token not found\"}", "application/json"));
         }
-        String sigHeader = request.getHeader("clockify-webhook-signature");
+        String sigHeader = request.getHeader(SIGNATURE_HEADER);
         if (sigHeader == null || sigHeader.isBlank()) {
             return new VerificationResult(false, HttpResponse.error(401, "{\"error\":\"signature header missing\"}", "application/json"));
         }

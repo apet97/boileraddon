@@ -128,7 +128,7 @@ public class WebhookHandlers {
                                 response = errorResponse(500, message);
                             } else {
                                 com.clockify.addon.sdk.security.TokenStore.WorkspaceToken token = workspaceToken.get();
-                                ClockifyApiClient apiClient = new ClockifyApiClient(token.apiBaseUrl(), token.authToken());
+                                ClockifyApiClient apiClient = new ClockifyApiClient(token.apiBaseUrl(), token.token());
 
                                 try {
                                     TagUpdateResult updateResult = applySuggestedTags(apiClient, workspaceId, timeEntryId, candidateTagNames);

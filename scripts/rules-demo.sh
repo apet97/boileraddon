@@ -34,7 +34,7 @@ curl -sS -X POST "$BASE_URL/api/rules?workspaceId=$WS" \
 echo
 
 echo "Dry-run test (no side effects)..."
-TEST_PAYLOAD="{\n  \"workspaceId\": \"$WS\",\n  \"timeEntry\": {\"id\": \"e1\", \"description\": \"Client meeting\", \"tagIds\": []}\n}"
+TEST_PAYLOAD=$(printf '{"workspaceId":"%s","timeEntry":{"id":"e1","description":"Client meeting","tagIds":[]}}' "$WS")
 curl -sS -X POST "$BASE_URL/api/test" \
   -H 'Content-Type: application/json' \
   -d "$TEST_PAYLOAD" | sed -e 's/^/  /'
