@@ -1,6 +1,6 @@
 # Auto-Tag Assistant
 
-A Clockify add-on that automatically manages tags on time entries, ensuring every entry is categorized correctly.
+A Clockify add-on that automatically manages tags on time entries, ensuring every entry is categorized correctly. For a deep dive into the inline SDK and routing flow that power this example, see [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md).
 
 ## Overview
 
@@ -45,6 +45,7 @@ Install the following tools:
 - **Java 17+** – Verify with `java -version`.
 - **Maven 3.6+** – Verify with `mvn -version`.
 - **ngrok** – Required only when exposing localhost to Clockify (https://ngrok.com/download).
+- **(Optional) Make** – Provides shortcuts defined in the repository `Makefile`.
 
 ## Quick Start
 
@@ -152,6 +153,7 @@ python3 ../../tools/validate-manifest.py manifest.json
 
 - [Clockify API Documentation](https://docs.clockify.me/)
 - [Clockify Marketplace Developer Docs](https://dev-docs.marketplace.cake.com/)
+- [Build your own add-on guide](../../docs/BUILDING-YOUR-OWN-ADDON.md)
 
 ## License
 
