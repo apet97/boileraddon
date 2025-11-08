@@ -30,14 +30,26 @@ public class PathSanitizer {
 
         // Detect common null-byte representations
         boolean hasNullChar = sanitized.indexOf('\u0000') >= 0;
-        boolean hasBackslashZero = sanitized.contains("\\0"); // literal backslash + zero
         boolean hasPercent00 = sanitized.toLowerCase().contains("%00"); // URL-encoded null byte
+        boolean hasBackslashZero = false; // robust detection for "\\0" (backslash then zero)
+        for (int i = 0; i + 1 < sanitized.length(); i++) {
+            if (sanitized.charAt(i) == '\\' && sanitized.charAt(i + 1) == '0') {
+                hasBackslashZero = true;
+                break;
+            }
+        }
 
         // Check for null bytes (potential security issue) or common encodings
         if (hasNullChar || hasBackslashZero || hasPercent00) {
             logger.warn("Path contains null byte or encoding (nullChar?={}, \\0?={}, %00?={}): {}",
                     hasNullChar, hasBackslashZero, hasPercent00, path);
             throw new IllegalArgumentException("Path contains null bytes");
+        }
+
+        // Disallow backslash outright (only forward-slash path separators are permitted)
+        if (sanitized.indexOf('\\') >= 0) {
+            logger.warn("Path contains backslash character: {}", path);
+            throw new IllegalArgumentException("Path contains invalid characters");
         }
 
         // Check for path traversal attempts

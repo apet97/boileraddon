@@ -41,8 +41,9 @@ class PathSanitizerTest {
 
     @Test
     void testSanitize_RejectsNullBytes() {
-        assertThrows(IllegalArgumentException.class, () ->
-                PathSanitizer.sanitize("/test\0"));
+        // Actual null byte and encoded null byte must be rejected
+        assertThrows(IllegalArgumentException.class, () -> PathSanitizer.sanitize("/test\u0000"));
+        assertThrows(IllegalArgumentException.class, () -> PathSanitizer.sanitize("/test%00"));
     }
 
     @Test
