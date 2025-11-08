@@ -11,6 +11,8 @@ import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
 import com.example.rules.store.RulesStore;
+import com.example.rules.store.RulesStoreSPI;
+import com.example.rules.store.DatabaseRulesStore;
 
 /**
  * Rules Add-on for Clockify
@@ -75,7 +77,7 @@ public class RulesApp {
         ClockifyAddon addon = new ClockifyAddon(manifest);
 
         // Initialize stores
-        RulesStore rulesStore = new RulesStore();
+        RulesStoreSPI rulesStore = selectRulesStore();
         RulesController rulesController = new RulesController(rulesStore);
 
         // Register endpoints
@@ -178,6 +180,20 @@ public class RulesApp {
         }));
 
         server.start(port);
+    }
+
+    private static RulesStoreSPI selectRulesStore() {
+        // Prefer RULES_DB_URL if present; fallback to DB_URL; else in-memory
+        String rulesDbUrl = System.getenv("RULES_DB_URL");
+        String dbUrl = System.getenv("DB_URL");
+        if ((rulesDbUrl != null && !rulesDbUrl.isBlank()) || (dbUrl != null && !dbUrl.isBlank())) {
+            try {
+                return DatabaseRulesStore.fromEnvironment();
+            } catch (Exception e) {
+                System.err.println("Failed to init DatabaseRulesStore: " + e.getMessage() + "; falling back to in-memory");
+            }
+        }
+        return new RulesStore();
     }
 
     private static void preloadLocalSecrets() {

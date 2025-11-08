@@ -60,6 +60,15 @@ public final class WebhookSignatureValidator {
         return constantTimeEquals(expected, provided);
     }
 
+    /** Utility for tests and tooling: returns header-style signature ("sha256=<hex>"). */
+    public static String computeSignature(String sharedSecret, String body) {
+        if (sharedSecret == null) throw new IllegalArgumentException("sharedSecret is required");
+        byte[] key = sharedSecret.getBytes(StandardCharsets.UTF_8);
+        byte[] data = body != null ? body.getBytes(StandardCharsets.UTF_8) : new byte[0];
+        String hex = hmacHex(key, data);
+        return "sha256=" + hex;
+    }
+
     private static String readRawBody(HttpServletRequest request) {
         Object cached = request.getAttribute("clockify.rawBody");
         if (cached instanceof String s) return s;

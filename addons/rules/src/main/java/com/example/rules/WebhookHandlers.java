@@ -29,10 +29,10 @@ public class WebhookHandlers {
     private static final Logger logger = LoggerFactory.getLogger(WebhookHandlers.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static RulesStore rulesStore;
+    private static com.example.rules.store.RulesStoreSPI rulesStore;
     private static Evaluator evaluator;
 
-    public static void register(ClockifyAddon addon, RulesStore store) {
+    public static void register(ClockifyAddon addon, com.example.rules.store.RulesStoreSPI store) {
         rulesStore = store;
         evaluator = new Evaluator();
 
@@ -89,6 +89,13 @@ public class WebhookHandlers {
                     if (actionsToApply.isEmpty()) {
                         logger.debug("No rules matched for time entry");
                         return createResponse(eventType, "no_match", new ArrayList<>());
+                    }
+
+                    // If not enabled to mutate, log and exit (backward-compatible behavior for tests)
+                    if (!"true".equalsIgnoreCase(System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false"))) {
+                        logger.info("RULES_APPLY_CHANGES=false — logging actions only");
+                        logActions(actionsToApply);
+                        return createResponse(eventType, "actions_logged", actionsToApply);
                     }
 
                     // Apply actions idempotently using SDK HTTP client

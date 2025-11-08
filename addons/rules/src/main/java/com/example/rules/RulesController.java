@@ -3,7 +3,7 @@ package com.example.rules;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
 import com.example.rules.engine.Rule;
-import com.example.rules.store.RulesStore;
+import com.example.rules.store.RulesStoreSPI;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,9 +22,9 @@ public class RulesController {
     private static final Logger logger = LoggerFactory.getLogger(RulesController.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final RulesStore rulesStore;
+    private final RulesStoreSPI rulesStore;
 
-    public RulesController(RulesStore rulesStore) {
+    public RulesController(RulesStoreSPI rulesStore) {
         this.rulesStore = rulesStore;
     }
 

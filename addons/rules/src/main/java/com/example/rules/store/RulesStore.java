@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  * Thread-safe implementation using ConcurrentHashMap.
  * For production, replace with database-backed storage.
  */
-public class RulesStore {
+public class RulesStore implements RulesStoreSPI {
 
     private static final Logger logger = LoggerFactory.getLogger(RulesStore.class);
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -33,6 +33,7 @@ public class RulesStore {
      * @param rule the rule to save
      * @return the saved rule
      */
+    @Override
     public synchronized Rule save(String workspaceId, Rule rule) {
         if (workspaceId == null || rule == null) {
             throw new IllegalArgumentException("workspaceId and rule cannot be null");
@@ -64,6 +65,7 @@ public class RulesStore {
      * @param ruleId the rule ID
      * @return Optional containing the rule if found
      */
+    @Override
     public synchronized Optional<Rule> get(String workspaceId, String ruleId) {
         if (workspaceId == null || ruleId == null) {
             return Optional.empty();
@@ -83,6 +85,7 @@ public class RulesStore {
      * @param workspaceId the workspace ID
      * @return list of rules (may be empty)
      */
+    @Override
     public synchronized List<Rule> getAll(String workspaceId) {
         if (workspaceId == null) {
             return Collections.emptyList();
@@ -102,6 +105,7 @@ public class RulesStore {
      * @param workspaceId the workspace ID
      * @return list of enabled rules (may be empty)
      */
+    @Override
     public synchronized List<Rule> getEnabled(String workspaceId) {
         return getAll(workspaceId).stream()
                 .filter(Rule::isEnabled)
@@ -115,6 +119,7 @@ public class RulesStore {
      * @param ruleId the rule ID
      * @return true if deleted, false if not found
      */
+    @Override
     public synchronized boolean delete(String workspaceId, String ruleId) {
         if (workspaceId == null || ruleId == null) {
             return false;
@@ -139,6 +144,7 @@ public class RulesStore {
      * @param workspaceId the workspace ID
      * @return number of rules deleted
      */
+    @Override
     public synchronized int deleteAll(String workspaceId) {
         if (workspaceId == null) {
             return 0;
@@ -160,6 +166,7 @@ public class RulesStore {
      * @param ruleId the rule ID
      * @return true if exists, false otherwise
      */
+    @Override
     public synchronized boolean exists(String workspaceId, String ruleId) {
         if (workspaceId == null || ruleId == null) {
             return false;
@@ -175,6 +182,7 @@ public class RulesStore {
      * @param workspaceId the workspace ID
      * @return number of rules
      */
+    @Override
     public synchronized int count(String workspaceId) {
         if (workspaceId == null) {
             return 0;
@@ -187,6 +195,7 @@ public class RulesStore {
     /**
      * Clears all rules from all workspaces. Used for testing.
      */
+    @Override
     public synchronized void clear() {
         workspaceRules.clear();
         logger.info("Cleared all rules from store");

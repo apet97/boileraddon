@@ -2,7 +2,7 @@ package com.example.rules;
 
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.HttpResponse;
-import com.example.rules.store.RulesStore;
+import com.example.rules.store.RulesStoreSPI;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,9 +23,9 @@ import java.io.BufferedReader;
  */
 public class LifecycleHandlers {
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static RulesStore rulesStore;
+    private static RulesStoreSPI rulesStore;
 
-    public static void register(ClockifyAddon addon, RulesStore store) {
+    public static void register(ClockifyAddon addon, RulesStoreSPI store) {
         rulesStore = store;
 
         // Handle INSTALLED event
