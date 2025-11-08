@@ -27,6 +27,74 @@ class AddonServletTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Test
+    void lifecyclePostByExplicitPathRoutesToHandler() throws Exception {
+        int port = findFreePort();
+        String contextPath = "/auto-tag-assistant";
+        String baseUrl = "http://localhost:" + port + contextPath;
+
+        ClockifyManifest manifest = ClockifyManifest
+                .v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Test manifest")
+                .baseUrl(baseUrl)
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ"})
+                .build();
+
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        // Register lifecycle handler explicitly at /lifecycle/installed
+        addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> {
+            // Ensure body can be read if present
+            Object raw = request.getAttribute("clockify.rawBody");
+            String body = raw instanceof String ? (String) raw : "";
+            return HttpResponse.ok(OBJECT_MAPPER.createObjectNode()
+                    .put("status", "installed")
+                    .put("echo", body).toString(), "application/json");
+        });
+
+        AddonServlet servlet = new AddonServlet(addon);
+        EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<?> serverFuture = executor.submit(() -> {
+            try {
+                server.start(port);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        waitForServer(port);
+
+        try {
+            String body = OBJECT_MAPPER.createObjectNode()
+                    .put("workspaceId", "ws-1")
+                    .put("userId", "u-1")
+                    .toString();
+
+            HttpURLConnection connection = (HttpURLConnection) new URL(baseUrl + "/lifecycle/installed").openConnection();
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setDoOutput(true);
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            connection.setRequestProperty("Content-Length", Integer.toString(bytes.length));
+            try (OutputStream os = connection.getOutputStream()) {
+                os.write(bytes);
+            }
+
+            int status = connection.getResponseCode();
+            String responseBody = readBody(connection, status);
+
+            assertEquals(200, status);
+            JsonNode json = OBJECT_MAPPER.readTree(responseBody);
+            assertEquals("installed", json.get("status").asText());
+        } finally {
+            stopServer(server, serverFuture, executor);
+        }
+    }
+
+    @Test
     void webhookUsesHeaderEventTypeWhenPresent() throws Exception {
         int port = findFreePort();
         String contextPath = "/auto-tag-assistant";

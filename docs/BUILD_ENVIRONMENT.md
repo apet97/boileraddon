@@ -88,3 +88,30 @@ You should see `FORK JVM: 17.x` in the test output.
 - The docs/Pages job builds docs and copies coverage with `-Djacoco.skip=true` since it doesn’t run tests.
 
 If you still see test forks failing on a newer JDK locally, ensure `JAVA_HOME` and Toolchains are set as above.
+
+## 7) Mockito on newer JDKs (local convenience)
+
+If you run tests on JDKs newer than 17 locally (e.g., JDK 21/25), Mockito’s default inline mock-maker may attempt self-attach and Byte Buddy might complain about unsupported class file versions. The CI runs on JDK 17, but for local comfort you can:
+
+- Use the subclass mock-maker in modules that mock concrete classes. Create:
+
+```
+<module>/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker
+```
+
+with content:
+
+```
+mock-maker-subclass
+```
+
+- Optionally set a system property in that module’s Surefire config to allow experimental Byte Buddy support:
+
+```xml
+<systemPropertyVariables>
+  <net.bytebuddy.experimental>true</net.bytebuddy.experimental>
+  <!-- for verbose diagnosis locally: <mixin> -->
+</systemPropertyVariables>
+```
+
+These are already wired in `addons/rules` and do not affect CI stability (CI remains JDK 17).

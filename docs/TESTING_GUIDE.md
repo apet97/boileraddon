@@ -1,0 +1,69 @@
+# Testing Guide
+
+This guide covers how to run tests locally, what to expect from coverage gates, and how to troubleshoot common issues.
+
+## Running tests
+
+- Single module (addon-sdk):
+
+```
+mvn -e -DtrimStackTrace=false -pl addons/addon-sdk -am test
+```
+
+- Single test class or method:
+
+```
+mvn -e -DtrimStackTrace=false -pl addons/addon-sdk -Dtest=PathSanitizerTest test
+mvn -e -DtrimStackTrace=false -pl addons/addon-sdk -Dtest=PathSanitizerTest#testSanitize_RejectsNullBytes test
+```
+
+- Full reactor:
+
+```
+mvn -e -DtrimStackTrace=false -fae verify
+```
+
+## Coverage gates
+
+JaCoCo is bound so `verify` always has execution data. Coverage thresholds are intentionally scoped to tested packages so we can iterate without blocking.
+
+- `addons/addon-sdk`:
+  - `com.clockify.addon.sdk.util` — INSTRUCTION ≥ 0.60
+  - `com.clockify.addon.sdk.middleware` — INSTRUCTION ≥ 0.40
+
+- `addons/rules` (bundle) — INSTRUCTION ≥ 0.35
+
+CI publishes aggregate coverage to Pages (see README for link). The docs job uses `-Djacoco.skip=true` because it doesn’t run tests.
+
+## JSON error shapes
+
+Errors returned by the SDK convenience helpers are JSON bodies, not plain text. For example, webhook signature errors look like:
+
+```json
+{"error":"signature header missing"}
+{"error":"invalid signature"}
+```
+
+Update downstream tests to parse JSON bodies when asserting failures.
+
+## Lifecycle vs Webhook routing
+
+The SDK does not treat lifecycle endpoints as webhooks. Use explicit registration:
+
+```java
+addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> HttpResponse.ok("{}","application/json"));
+```
+
+Posting to `/lifecycle/installed` is dispatched to the handler-by-path. The servlet does not pre-parse JSON for explicit lifecycle paths; your handler can read the body via `clockify.rawBody` or `request.getReader()`.
+
+## Troubleshooting
+
+- Ensure you’re on Java 17 for both Maven and the forked test JVM (see docs/BUILD_ENVIRONMENT.md). Newer JDKs can cause the test JVM to die or Mockito to fail.
+- Clear tool caches when switching JDKs:
+
+```
+rm -rf ~/.m2/repository/org/jacoco ~/.m2/repository/org/apache/maven/surefire
+```
+
+- On newer JDKs locally, if Mockito fails to mock classes, use the subclass mock-maker under `src/test/resources/mockito-extensions` and (optionally) set `net.bytebuddy.experimental=true` in Surefire.
+

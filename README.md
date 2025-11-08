@@ -25,6 +25,7 @@ Table of contents
 - Why this boilerplate
 - Documentation
 - Coverage & CI
+- Testing Guide
 - Troubleshooting
 
 ## 🚀 New: Production-Ready Improvements
@@ -162,6 +163,15 @@ CI generates an aggregate JaCoCo coverage site and uploads it as an artifact. A 
 - Artifact: `jacoco-aggregate` in the build run
 
 Build status: ![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
+
+### Testing Guide
+
+See docs/TESTING_GUIDE.md for:
+- Running single tests and modules
+- Current coverage gates and how they’re scoped
+- JSON error body expectations in downstream tests
+- How lifecycle endpoints are dispatched (explicit handler-by-path)
+- Mockito notes for newer JDKs during local development
 
 ### Routing note (SDK)
 

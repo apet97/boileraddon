@@ -47,6 +47,14 @@ class PathSanitizerTest {
     }
 
     @Test
+    void testSanitize_RejectsLiteralUnicodeEscapeAndBackslashZero() {
+        // Literal backslash-u-0000 sequence should be rejected
+        assertThrows(IllegalArgumentException.class, () -> PathSanitizer.sanitize("/test\\u0000"));
+        // Backslash followed by zero ("\\0") should be rejected
+        assertThrows(IllegalArgumentException.class, () -> PathSanitizer.sanitize("/test\\0"));
+    }
+
+    @Test
     void testSanitize_AllowsValidCharacters() {
         assertEquals("/test_file-123.json", PathSanitizer.sanitize("/test_file-123.json"));
         assertEquals("/api/v1/users", PathSanitizer.sanitize("/api/v1/users"));
