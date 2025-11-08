@@ -223,6 +223,13 @@ This document summarizes the comprehensive improvements made to the Clockify Add
 - Enforced Java 17 across the build via POM properties and Toolchains support.
 - Pinned Surefire/Failsafe to 3.2.5 to avoid fork JVM incompatibilities.
 - Bound JaCoCo prepare/report/check; scoped coverage gate in `addon-sdk` to packages with unit tests (util, middleware).
+- Raised coverage thresholds as tests improved:
+  - `addon-sdk.middleware` from 0.40 → 0.50
+  - `rules` bundle from 0.35 → 0.40
+- Added unit/integration tests:
+  - BaseUrlDetector proxy/IPv6 matrix, WebhookSignatureValidator, RateLimiter (IP/workspace modes)
+  - Rules token persistence via lifecycle installed/deleted; ClockifyClient util helpers; SettingsController HTML
+- Pages publishes a small coverage badge (docs/coverage/badge.svg), generated from the aggregate report if present.
 - Added docs/BUILD_ENVIRONMENT.md with clear steps to set JAVA_HOME, configure Toolchains, and verify the forked JVM.
   - Troubleshooting
   - Pre-production checklist

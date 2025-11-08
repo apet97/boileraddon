@@ -28,6 +28,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - name: Set up JDK 17 (for coverage copy)
         uses: actions/setup-java@v4
         with:
@@ -39,6 +43,8 @@ jobs:
           mvn -B -q verify -DskipTests -Djacoco.skip=true || true
           mkdir -p docs/coverage
           cp -R target/site/jacoco-aggregate/* docs/coverage/ || true
+          # Generate coverage badge/summary (handles missing jacoco.xml gracefully)
+          python3 tools/coverage_badge.py target/site/jacoco-aggregate/jacoco.xml docs/coverage || true
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Build with Jekyll (docs/ as source)
