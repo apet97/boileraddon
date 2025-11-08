@@ -50,6 +50,7 @@ public class SettingsController implements RequestHandler {
       <span class=\"pill\">Base: %s</span>
     </div>
     <div class=\"row\"><span id=\"tokenStatus\" class=\"muted\">Token: (checking...)</span></div>
+    <div class=\"row\">\n      <button class=\"secondary\" type=\"button\" onclick=\"copyManifest()\">Copy manifest URL</button>\n      <button class=\"secondary\" type=\"button\" onclick=\"openInstall()\">Open install page</button>\n      <span id=\"installMsg\" class=\"muted\"></span>\n    </div>
     <p class=\"muted\">Install the manifest after the server is running so the Developer workspace sends webhooks to this exact URL. For signed webhooks, leave signature bypass OFF; while testing, turn it ON with <code>ADDON_SKIP_SIGNATURE_VERIFY=true</code>.</p>
   </div>
 
@@ -278,6 +279,30 @@ public class SettingsController implements RequestHandler {
       const ws = wsQ || wsS;
       if(ws){ document.getElementById('wsid').value = ws; loadRules(); refreshStatus(); }
     } catch(e) {}
+
+    // UX helpers: copy manifest URL and open install page
+    async function copyManifest(){
+      try {
+        const url = baseUrl() + '/manifest.json';
+        await navigator.clipboard.writeText(url);
+        const el = document.getElementById('installMsg');
+        el.textContent = 'Copied: ' + url; el.className = 'ok';
+        setTimeout(()=>{ el.textContent=''; }, 3000);
+      } catch(e) {
+        const el = document.getElementById('installMsg');
+        el.textContent = 'Unable to copy (clipboard denied)'; el.className = 'error';
+      }
+    }
+    function openInstall(){
+      const ws = document.getElementById('wsid').value.trim();
+      const el = document.getElementById('installMsg');
+      if(!ws){ el.textContent='Workspace ID required'; el.className='error'; return; }
+      const link = `https://developer.clockify.me/workspaces/${encodeURIComponent(ws)}/settings`;
+      window.open(link, '_blank', 'noopener');
+      el.textContent = 'Opened Developer workspace settings in a new tab';
+      el.className = 'muted';
+      setTimeout(()=>{ el.textContent=''; }, 3000);
+    }
   </script>
 </body>
 </html>
