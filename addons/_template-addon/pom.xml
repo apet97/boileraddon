@@ -113,6 +113,11 @@
             <goals>
               <goal>prepare-agent</goal>
             </goals>
+            <configuration>
+              <includes>
+                <include>com.example.templateaddon.*</include>
+              </includes>
+            </configuration>
           </execution>
           <execution>
             <id>report</id>

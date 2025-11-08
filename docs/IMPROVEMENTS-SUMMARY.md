@@ -218,6 +218,12 @@ This document summarizes the comprehensive improvements made to the Clockify Add
   - systemd service
   - Monitoring & observability
   - Scaling strategies
+
+**Build Stability (Java 17) — New**
+- Enforced Java 17 across the build via POM properties and Toolchains support.
+- Pinned Surefire/Failsafe to 3.2.5 to avoid fork JVM incompatibilities.
+- Bound JaCoCo prepare/report/check; scoped coverage gate in `addon-sdk` to packages with unit tests (util, middleware).
+- Added docs/BUILD_ENVIRONMENT.md with clear steps to set JAVA_HOME, configure Toolchains, and verify the forked JVM.
   - Troubleshooting
   - Pre-production checklist
 

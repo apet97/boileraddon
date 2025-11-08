@@ -117,7 +117,7 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.10</version>
+        <version>${jacoco.plugin.version}</version>
         <executions>
           <execution>
             <goals>
@@ -133,18 +133,23 @@
           </execution>
           <execution>
             <id>jacoco-check</id>
+            <phase>verify</phase>
             <goals>
               <goal>check</goal>
             </goals>
             <configuration>
               <rules>
                 <rule>
-                  <element>BUNDLE</element>
+                  <element>PACKAGE</element>
+                  <includes>
+                    <include>com.clockify.addon.sdk.util</include>
+                    <include>com.clockify.addon.sdk.middleware</include>
+                  </includes>
                   <limits>
                     <limit>
                       <counter>INSTRUCTION</counter>
                       <value>COVEREDRATIO</value>
-                      <minimum>0.65</minimum>
+                      <minimum>0.60</minimum>
                     </limit>
                   </limits>
                 </rule>

@@ -7,10 +7,12 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
 - Keep links to the repo SHA‑pinned in docs and briefings — never link to `main`.
 - Prefer Maven Central dependencies; do not add external repos.
 - Java 17; use SLF4J for logging in SDK/runtime code. `System.out` is acceptable only in demo/CLI helper prints.
+- Always run Maven and forked tests on Java 17. If your host JDK is newer (e.g., 21/25), set `JAVA_HOME` to a JDK 17 and add `~/.m2/toolchains.xml` so Surefire forks 17. See docs/BUILD_ENVIRONMENT.md.
 - Security first: validate config, never echo secrets, and keep manifests schema‑compliant.
 
 ## Build + Test
 - Java & Maven: `java -version`, `mvn -version`
+  - Both should report Java 17.x; otherwise configure Toolchains.
 - Quick run targets:
   - `make build` or `make build-template`
   - `make run-auto-tag-assistant`

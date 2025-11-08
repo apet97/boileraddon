@@ -119,6 +119,11 @@
             <goals>
               <goal>prepare-agent</goal>
             </goals>
+            <configuration>
+              <includes>
+                <include>com.example.rules.*</include>
+              </includes>
+            </configuration>
           </execution>
           <execution>
             <id>report</id>

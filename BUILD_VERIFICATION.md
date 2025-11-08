@@ -218,6 +218,17 @@ mvn clean package -DskipTests -o  # -o = offline mode
 
 **Solution:**
 - Ensure you're using Java 17+
+
+### Tests fail with generic "resume with -rf :addon-sdk" and no Surefire reports
+
+**Symptom:** Maven suggests resuming with `-rf :addon-sdk`, but there are no failing test reports and the forked JVM dies.
+
+**Root cause:** Tests are forking on a newer JDK (e.g., 21/25) instead of Java 17.
+
+**Solution:**
+- Set `JAVA_HOME` to a JDK 17 and ensure `mvn -version` shows 17.
+- Add `~/.m2/toolchains.xml` pointing to a JDK 17 so the forked test JVM also uses 17.
+- See docs/BUILD_ENVIRONMENT.md for step-by-step commands.
 - Check that `jakarta.servlet:jakarta.servlet-api:5.0.0` is in your POM
 - Clear and rebuild: `mvn clean compile`
 

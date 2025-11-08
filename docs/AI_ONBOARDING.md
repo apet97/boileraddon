@@ -2,6 +2,10 @@
 
 Use this guide to start building immediately. It’s optimized for AI agents and junior contributors. For a condensed, action-only version, see docs/ZERO_SHOT.md.
 
+Important: Build with Java 17
+- Ensure your environment runs Maven on JDK 17 and the forked test JVM is also 17.
+- If your host default is newer (e.g., JDK 21/25), set JAVA_HOME to 17 and add a Toolchains file (`~/.m2/toolchains.xml`). See docs/BUILD_ENVIRONMENT.md.
+
 ## 1) Read the essentials (10 minutes)
 - README.md (Quickstart + runtime manifest rules)
 - docs/ZERO_SHOT.md (Checklist for zero‑shot start)

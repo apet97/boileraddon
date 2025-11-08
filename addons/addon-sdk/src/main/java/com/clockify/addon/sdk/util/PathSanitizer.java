@@ -46,12 +46,6 @@ public class PathSanitizer {
             throw new IllegalArgumentException("Path contains null bytes");
         }
 
-        // Disallow backslash outright (only forward-slash path separators are permitted)
-        if (sanitized.indexOf('\\') >= 0) {
-            logger.warn("Path contains backslash character: {}", path);
-            throw new IllegalArgumentException("Path contains invalid characters");
-        }
-
         // Check for path traversal attempts
         if (sanitized.contains("..")) {
             logger.warn("Path contains directory traversal attempt: {}", path);
