@@ -14,6 +14,7 @@ Quick links
 - Zero‑Shot: docs/ZERO_SHOT.md
 - Ngrok Testing: docs/NGROK_TESTING.md
 - SDK Overview: docs/SDK_OVERVIEW.md
+- Repo Structure: docs/REPO_STRUCTURE.md
 - Build Environment (Java 17): docs/BUILD_ENVIRONMENT.md
 - Parameters Reference: docs/CLOCKIFY_PARAMETERS.md
 - Rules Add‑on: docs/ADDON_RULES.md
