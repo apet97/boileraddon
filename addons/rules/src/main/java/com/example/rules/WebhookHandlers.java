@@ -127,12 +127,15 @@ public class WebhookHandlers {
                     com.fasterxml.jackson.databind.node.ObjectNode entry = api.getTimeEntry(workspaceId, timeEntry.path("id").asText());
                     com.fasterxml.jackson.databind.JsonNode tagsArray = api.getTags(workspaceId);
                     java.util.Map<String, String> tagsByNorm = ClockifyClient.mapTagsByNormalizedName(tagsArray);
+                    // Workspace cache for name→id mappings (projects, tasks, clients)
+                    var snap = com.example.rules.cache.WorkspaceCache.get(workspaceId);
 
                     boolean changed = false;
                     com.fasterxml.jackson.databind.node.ObjectNode patch = objectMapper.createObjectNode();
                     // seed patch with current tagIds for unified updates when needed
                     var patchTagIds = objectMapper.createArrayNode();
                     boolean patchHasTags = false;
+                    String pendingProjectId = null; // track if we set project later; affects task resolution
 
                     for (Action action : actionsToApply) {
                         String type = action.getType();
@@ -209,6 +212,85 @@ public class WebhookHandlers {
                                     if (desired != current) {
                                         patch.put("billable", desired);
                                         changed = true;
+                                    }
+                                }
+                                break;
+                            }
+                            case "set_project_by_id": {
+                                String pid = args != null ? args.get("projectId") : null;
+                                if (pid != null && !pid.isBlank()) {
+                                    String current = entry.path("projectId").asText("");
+                                    if (!pid.equals(current)) {
+                                        patch.put("projectId", pid);
+                                        pendingProjectId = pid;
+                                        changed = true;
+                                    }
+                                }
+                                break;
+                            }
+                            case "set_project_by_name": {
+                                String name = args != null ? args.get("name") : null;
+                                if (name != null && !name.isBlank()) {
+                                    String norm = name.trim().toLowerCase(java.util.Locale.ROOT);
+                                    String pid = snap.projectsByNameNorm.get(norm);
+                                    if (pid != null) {
+                                        String current = entry.path("projectId").asText("");
+                                        if (!pid.equals(current)) {
+                                            patch.put("projectId", pid);
+                                            pendingProjectId = pid;
+                                            changed = true;
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                            case "set_task_by_id": {
+                                String tid = args != null ? args.get("taskId") : null;
+                                if (tid != null && !tid.isBlank()) {
+                                    String current = entry.path("taskId").asText("");
+                                    if (!tid.equals(current)) {
+                                        patch.put("taskId", tid);
+                                        changed = true;
+                                    }
+                                }
+                                break;
+                            }
+                            case "set_task_by_name": {
+                                String tname = args != null ? args.get("name") : null;
+                                if (tname != null && !tname.isBlank()) {
+                                    String taskId = null;
+                                    // Determine target project to resolve task under: prefer pendingProjectId; else entry.project.name
+                                    String projectName = null;
+                                    if (pendingProjectId != null) {
+                                        projectName = snap.projectsById.getOrDefault(pendingProjectId, null);
+                                    }
+                                    if (projectName == null || projectName.isBlank()) {
+                                        var projNode = entry.path("project");
+                                        if (projNode.has("name") && projNode.get("name").isTextual()) {
+                                            projectName = projNode.get("name").asText("");
+                                        }
+                                    }
+                                    if (projectName != null && !projectName.isBlank()) {
+                                        String pnorm = projectName.trim().toLowerCase(java.util.Locale.ROOT);
+                                        var tmap = snap.tasksByProjectNameNorm.get(pnorm);
+                                        if (tmap != null) {
+                                            taskId = tmap.get(tname.trim().toLowerCase(java.util.Locale.ROOT));
+                                        }
+                                    }
+                                    // Fallback: scan any project map
+                                    if (taskId == null) {
+                                        String tnorm = tname.trim().toLowerCase(java.util.Locale.ROOT);
+                                        for (var e : snap.tasksByProjectNameNorm.entrySet()) {
+                                            var id = e.getValue().get(tnorm);
+                                            if (id != null) { taskId = id; break; }
+                                        }
+                                    }
+                                    if (taskId != null) {
+                                        String current = entry.path("taskId").asText("");
+                                        if (!taskId.equals(current)) {
+                                            patch.put("taskId", taskId);
+                                            changed = true;
+                                        }
                                     }
                                 }
                                 break;
