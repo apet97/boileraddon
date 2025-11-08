@@ -64,6 +64,12 @@ public class Evaluator {
                 return evaluateHasTag(condition, context);
             case "projectIdEquals":
                 return evaluateProjectIdEquals(condition, context);
+            case "projectNameContains":
+                return evaluateProjectNameContains(condition, context);
+            case "clientIdEquals":
+                return evaluateClientIdEquals(condition, context);
+            case "clientNameContains":
+                return evaluateClientNameContains(condition, context);
             case "isBillable":
                 return evaluateIsBillable(condition, context);
             default:
@@ -128,6 +134,61 @@ public class Evaluator {
         }
         if (condition.getValues() != null && !condition.getValues().isEmpty()) {
             boolean any = condition.getValues().contains(projectId);
+            return applyOperator(condition.getOperator(), any);
+        }
+        return false;
+    }
+
+    private boolean evaluateProjectNameContains(Condition condition, TimeEntryContext context) {
+        // project.name may be populated in webhook payloads
+        var projectNode = context.getTimeEntry().path("project");
+        String name = projectNode.has("name") && projectNode.get("name").isTextual()
+                ? projectNode.get("name").asText("") : "";
+        if (name.isEmpty()) return false;
+        String value = condition.getValue();
+        if (value != null) {
+            boolean contains = name.toLowerCase().contains(value.toLowerCase());
+            return applyOperator(condition.getOperator(), contains);
+        }
+        if (condition.getValues() != null && !condition.getValues().isEmpty()) {
+            boolean any = condition.getValues().stream()
+                    .filter(v -> v != null)
+                    .anyMatch(v -> name.toLowerCase().contains(v.toLowerCase()));
+            return applyOperator(condition.getOperator(), any);
+        }
+        return false;
+    }
+
+    private boolean evaluateClientIdEquals(Condition condition, TimeEntryContext context) {
+        var projectNode = context.getTimeEntry().path("project");
+        String clientId = projectNode.has("clientId") && projectNode.get("clientId").isTextual()
+                ? projectNode.get("clientId").asText("") : "";
+        if (clientId.isEmpty()) return false;
+        if (condition.getValue() != null) {
+            boolean equals = clientId.equals(condition.getValue());
+            return applyOperator(condition.getOperator(), equals);
+        }
+        if (condition.getValues() != null && !condition.getValues().isEmpty()) {
+            boolean any = condition.getValues().contains(clientId);
+            return applyOperator(condition.getOperator(), any);
+        }
+        return false;
+    }
+
+    private boolean evaluateClientNameContains(Condition condition, TimeEntryContext context) {
+        var projectNode = context.getTimeEntry().path("project");
+        String clientName = projectNode.has("clientName") && projectNode.get("clientName").isTextual()
+                ? projectNode.get("clientName").asText("") : "";
+        if (clientName.isEmpty()) return false;
+        String value = condition.getValue();
+        if (value != null) {
+            boolean contains = clientName.toLowerCase().contains(value.toLowerCase());
+            return applyOperator(condition.getOperator(), contains);
+        }
+        if (condition.getValues() != null && !condition.getValues().isEmpty()) {
+            boolean any = condition.getValues().stream()
+                    .filter(v -> v != null)
+                    .anyMatch(v -> clientName.toLowerCase().contains(v.toLowerCase()));
             return applyOperator(condition.getOperator(), any);
         }
         return false;

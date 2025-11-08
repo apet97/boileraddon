@@ -236,6 +236,14 @@ public class SettingsController implements RequestHandler {
           value: row.querySelector('.cond-val').value
         };
       });
+      // Convert friendly names to IDs where applicable using loaded cache maps
+      conditions.forEach(c => {
+        if(!c || !c.value) return;
+        const v = (c.value||'').toLowerCase();
+        if(c.type==='hasTag' && MAPS.tagNameToId && MAPS.tagNameToId[v]){ c.value = MAPS.tagNameToId[v]; }
+        if(c.type==='projectIdEquals' && MAPS.projectNameToId && MAPS.projectNameToId[v]){ c.value = MAPS.projectNameToId[v]; }
+        if(c.type==='clientIdEquals' && MAPS.clientNameToId && MAPS.clientNameToId[v]){ c.value = MAPS.clientNameToId[v]; }
+      });
       const actions = Array.from(document.querySelectorAll('#acts .row')).map(row=>{
         const t = row.querySelector('.act-type').value;
         const k = row.querySelector('.act-k').value.trim();
