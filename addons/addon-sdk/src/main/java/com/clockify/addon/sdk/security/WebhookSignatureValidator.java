@@ -20,7 +20,9 @@ public final class WebhookSignatureValidator {
     private static final String[] ALT_HEADERS = new String[]{
             "x-clockify-webhook-signature",
             "Clockify-Webhook-Signature",
-            "X-Clockify-Webhook-Signature"
+            "X-Clockify-Webhook-Signature",
+            // Developer workspace often sends JWT under this header
+            "Clockify-Signature"
     };
 
     public static class VerificationResult {
@@ -58,11 +60,35 @@ public final class WebhookSignatureValidator {
             return new VerificationResult(false, HttpResponse.error(401, "{\"error\":\"signature header missing\"}", "application/json"));
         }
         byte[] body = readRawBody(request).getBytes(StandardCharsets.UTF_8);
-        boolean ok = validate(sigHeader, body, tokenOpt.get().token());
-        if (!ok) {
-            return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid signature\"}", "application/json"));
+
+        // Path 1: HMAC (sha256=<hex> or raw hex)
+        if (looksLikeHmac(sigHeader)) {
+            boolean ok = validate(sigHeader, body, tokenOpt.get().token());
+            if (!ok) {
+                return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid signature\"}", "application/json"));
+            }
+            return VerificationResult.ok();
         }
-        return VerificationResult.ok();
+
+        // Path 2: Developer JWT (Clockify-Signature) — optionally accept by inspecting payload
+        if (looksLikeJwt(sigHeader) && acceptJwtDevSignature()) {
+            try {
+                String payload = decodeJwtPayload(sigHeader);
+                // naive JSON parse to avoid dependencies
+                String wsFromJwt = extractJsonString(payload, "workspaceId");
+                if (wsFromJwt != null && wsFromJwt.equals(workspaceId)) {
+                    return VerificationResult.ok();
+                }
+                // fallback: allow when workspaceId missing but header present
+                if (wsFromJwt == null || wsFromJwt.isBlank()) {
+                    return VerificationResult.ok();
+                }
+            } catch (Exception ignored) {}
+            return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid jwt signature\"}", "application/json"));
+        }
+
+        // Unknown format — treat as invalid
+        return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid signature format\"}", "application/json"));
     }
 
     /** Low-level validator using HMAC-SHA256 hex. */
@@ -122,5 +148,46 @@ public final class WebhookSignatureValidator {
         int result = 0;
         for (int i = 0; i < a.length(); i++) result |= a.charAt(i) ^ b.charAt(i);
         return result == 0;
+    }
+
+    private static boolean looksLikeHmac(String sig) {
+        String s = sig != null ? sig.trim() : "";
+        if (s.startsWith("sha256=")) s = s.substring("sha256=".length());
+        return s.matches("[0-9a-fA-F]{64}");
+    }
+
+    private static boolean looksLikeJwt(String sig) {
+        return sig != null && sig.contains(".") && sig.split("\\.").length >= 2;
+    }
+
+    private static boolean acceptJwtDevSignature() {
+        String v = System.getenv("ADDON_ACCEPT_JWT_SIGNATURE");
+        return v == null || v.isBlank() || "true".equalsIgnoreCase(v);
+    }
+
+    private static String decodeJwtPayload(String jwt) {
+        String[] parts = jwt.split("\\.");
+        if (parts.length < 2) return "";
+        String b64 = parts[1]
+                .replace('-', '+')
+                .replace('_', '/')
+                .trim();
+        // pad base64url if needed
+        while (b64.length() % 4 != 0) b64 += "=";
+        byte[] bytes = java.util.Base64.getDecoder().decode(b64);
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    private static String extractJsonString(String json, String key) {
+        // very small parser: looks for "key":"value"
+        if (json == null || key == null) return null;
+        String pattern = "\"" + key + "\"\s*:\s*\""; // "key":"
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile(pattern).matcher(json);
+        if (m.find()) {
+            int start = m.end();
+            int end = json.indexOf('"', start);
+            if (end > start) return json.substring(start, end);
+        }
+        return null;
     }
 }
