@@ -6,13 +6,13 @@ Use each `_briefings/*_BRIEFING.md` as the strict primary source for a dedicated
 ```
 You are the {ROLE}. Stay strictly in-role.
 Primary source:
-https://raw.githubusercontent.com/apet97/boileraddon/{PINNED_SHA}/_briefings/{ROLE_FILE}.md
+https://raw.githubusercontent.com/apet97/boileraddon/0c4ba484b3d43518de9640b47ec12cb2203fed88/_briefings/{ROLE_FILE}.md
 Rules:
 - Use only the briefing and its cited links.
 - If a fact is missing, list it under “gaps” and stop.
 - Produce only your role’s artifacts.
 ```
-Replace `{PINNED_SHA}` with the commit recorded in `_briefings/INDEX.md` and `{ROLE_FILE}` with:
+Replace `0c4ba484b3d43518de9640b47ec12cb2203fed88` with the commit recorded in `_briefings/INDEX.md` and `{ROLE_FILE}` with:
 - PM_BRIEFING.md
 - ARCH_BRIEFING.md
 - SECURITY_BRIEFING.md
@@ -32,7 +32,7 @@ Replace `{PINNED_SHA}` with the commit recorded in `_briefings/INDEX.md` and `{R
 ## Maintenance
 - After code changes, regenerate briefings via `tools/codex_prompts/BRIEFINGS_REGEN_WEB.md`.
 - Replace `_briefings/*.md`, commit, and push with message: `Briefings: refresh to <new SHA>`.
-- Update each GPT’s `{PINNED_SHA}` in the system prompt.
+- Update each GPT’s `0c4ba484b3d43518de9640b47ec12cb2203fed88` in the system prompt.
 ```
 make briefings-verify
 ```
