@@ -31,7 +31,7 @@ ClockifyManifest manifest = ClockifyManifest
 
 * Add or remove `components`, `webhooks`, and `lifecycle` entries using the manifest getters before starting the server.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/AutoTagAssistantApp.java†L35-L63】
 * Keep the runtime manifest lean—Clockify rejects unknown fields (such as `$schema`).
-* When exposing additional endpoints, ensure `ClockifyAddon.registerCustomEndpoint`, `registerLifecycleHandler`, or `registerWebhookHandler` are invoked so the manifest stays synchronized.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/ClockifyAddon.java†L31-L95】
+* When exposing additional endpoints, ensure the shared SDK helpers `ClockifyAddon.registerCustomEndpoint`, `registerLifecycleHandler`, or `registerWebhookHandler` are invoked so the manifest stays synchronized.【F:addons/addon-sdk/src/main/java/com/clockify/addon/sdk/ClockifyAddon.java†L37-L135】
 
 ## 3. Manage Tokens & Claims
 

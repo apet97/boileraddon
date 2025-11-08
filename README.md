@@ -44,7 +44,7 @@ The sample add-on demonstrates the complete lifecycle:
 1. `AutoTagAssistantApp` builds a manifest, registers endpoints, and launches Jetty with the inline SDK.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/AutoTagAssistantApp.java†L23-L96】
 2. `LifecycleHandlers` captures the workspace token and environment claims from the INSTALLED payload and stores them via `TokenStore`.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/LifecycleHandlers.java†L23-L93】【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/TokenStore.java†L19-L89】
 3. `WebhookHandlers` processes time-entry events, and `ClockifyApiClient` shows how to call back into Clockify using the stored credentials.
-4. The inline SDK (`sdk/` package) handles manifest modeling, request routing, and lifecycle/webhook dispatch without any external dependencies.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/ClockifyAddon.java†L9-L95】【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/AddonServlet.java†L15-L117】
+4. The shared SDK module (`addons/addon-sdk/src/main/java/com/clockify/addon/sdk/`) handles manifest modeling, request routing, and lifecycle/webhook dispatch without any external dependencies.【F:addons/addon-sdk/src/main/java/com/clockify/addon/sdk/ClockifyAddon.java†L20-L135】【F:addons/addon-sdk/src/main/java/com/clockify/addon/sdk/AddonServlet.java†L15-L200】
 
 Useful test commands while the server is running:
 

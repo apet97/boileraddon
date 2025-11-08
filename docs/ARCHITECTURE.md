@@ -9,7 +9,7 @@ The Auto-Tag Assistant example is implemented inside `addons/auto-tag-assistant/
 | Area | Key Classes | Responsibility |
 | --- | --- | --- |
 | Application | `AutoTagAssistantApp`, `ManifestController`, `SettingsController`, `LifecycleHandlers`, `WebhookHandlers`, `ClockifyApiClient`, `TokenStore` | Bootstraps the add-on, exposes business endpoints, and coordinates persistence of workspace data. |
-| Inline SDK | `sdk/ClockifyAddon`, `sdk/ClockifyManifest`, `sdk/AddonServlet`, `sdk/EmbeddedServer`, `sdk/RequestHandler`, `sdk/HttpResponse` | Provides a tiny runtime that replaces the external SDK—responsible for manifest modeling, endpoint registration, HTTP routing, and Jetty startup. |
+| Inline SDK | `addons/addon-sdk/src/main/java/com/clockify/addon/sdk/ClockifyAddon`, `ClockifyManifest`, `AddonServlet`, `EmbeddedServer`, `RequestHandler`, `HttpResponse` | Provides a tiny runtime that replaces the external SDK—responsible for manifest modeling, endpoint registration, HTTP routing, and Jetty startup. |
 
 ### Application Layer
 
@@ -20,17 +20,17 @@ The Auto-Tag Assistant example is implemented inside `addons/auto-tag-assistant/
 
 ### Inline SDK Layer
 
-* **`ClockifyManifest`** mirrors the runtime manifest and exposes builder helpers for schema 1.3.
-* **`ClockifyAddon`** is the in-memory registry for custom endpoints, lifecycle handlers, and webhook handlers. It also updates the manifest when routes are registered so Clockify sees accurate paths.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/ClockifyAddon.java†L9-L95】
-* **`AddonServlet`** receives every HTTP request, selects the appropriate registered handler, caches JSON payloads for reuse, and normalizes lifecycle/webhook routing.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/AddonServlet.java†L15-L121】
-* **`EmbeddedServer`** wraps Jetty configuration and deploys the servlet under the detected context path.
+* **`ClockifyManifest`** mirrors the runtime manifest and exposes builder helpers for schema 1.3.【F:addons/addon-sdk/src/main/java/com/clockify/addon/sdk/ClockifyManifest.java†L10-L131】
+* **`ClockifyAddon`** is the in-memory registry for custom endpoints, lifecycle handlers, and webhook handlers. It also updates the manifest when routes are registered so Clockify sees accurate paths.【F:addons/addon-sdk/src/main/java/com/clockify/addon/sdk/ClockifyAddon.java†L20-L135】
+* **`AddonServlet`** receives every HTTP request, selects the appropriate registered handler, caches JSON payloads for reuse, and normalizes lifecycle/webhook routing.【F:addons/addon-sdk/src/main/java/com/clockify/addon/sdk/AddonServlet.java†L15-L200】
+* **`EmbeddedServer`** wraps Jetty configuration and deploys the servlet under the detected context path.【F:addons/addon-sdk/src/main/java/com/clockify/addon/sdk/EmbeddedServer.java†L10-L55】
 
 ## Request Routing Flow
 
 1. **Jetty startup** – `EmbeddedServer` mounts a single `AddonServlet` instance on the context path extracted from `ADDON_BASE_URL`.
 2. **Incoming request** – `AddonServlet.service` logs the method/path and delegates into `handleRequest`.
 3. **Custom endpoints** – Any registered path (such as `/manifest.json`, `/settings`, `/health`) is mapped through `ClockifyAddon.getEndpoints()` to the provided handler.
-4. **Lifecycle events** – POST requests to `/lifecycle`, `/lifecycle/installed`, or `/lifecycle/deleted` are routed via `ClockifyAddon.getLifecycleHandlers()` or `getLifecycleHandlersByPath()`. JSON payloads are parsed once and cached on the request to avoid repeated stream reads.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/AddonServlet.java†L41-L117】
+4. **Lifecycle events** – POST requests to `/lifecycle`, `/lifecycle/installed`, or `/lifecycle/deleted` are routed via `ClockifyAddon.getLifecycleHandlers()` or `getLifecycleHandlersByPath()`. JSON payloads are parsed once and cached on the request to avoid repeated stream reads.【F:addons/addon-sdk/src/main/java/com/clockify/addon/sdk/AddonServlet.java†L41-L190】
 5. **Webhooks** – POST `/webhook` resolves the event type using the `clockify-webhook-event-type` header (fallback to body) before dispatching to `ClockifyAddon.getWebhookHandlers()`.
 6. **Fallbacks** – Unregistered routes respond with a 404, and unexpected exceptions return a 500 with structured JSON.
 
@@ -52,7 +52,7 @@ The add-on follows the sequence below when starting up:
 1. **Manifest construction** – `ClockifyManifest.v1_3Builder()` assembles the base manifest including scopes and the `baseUrl` derived from `ADDON_BASE_URL`.
 2. **ClockifyAddon instantiation** – `ClockifyAddon` receives the manifest and initializes empty registries for endpoints, lifecycle hooks, and webhook handlers.
 3. **Endpoint registration** – The application calls `registerCustomEndpoint` for `/manifest.json`, `/settings`, and `/health`. Each call adds the handler to the routing map.
-4. **Lifecycle registration** – `LifecycleHandlers.register` uses `registerLifecycleHandler` to bind INSTALLED/DELETED to explicit paths. The helper keeps `ClockifyManifest.getLifecycle()` synchronized so Clockify knows which URLs to invoke.【F:addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/ClockifyAddon.java†L31-L70】
+4. **Lifecycle registration** – `LifecycleHandlers.register` uses `registerLifecycleHandler` to bind INSTALLED/DELETED to explicit paths. The helper keeps `ClockifyManifest.getLifecycle()` synchronized so Clockify knows which URLs to invoke.【F:addons/addon-sdk/src/main/java/com/clockify/addon/sdk/ClockifyAddon.java†L37-L90】
 5. **Webhook registration** – `WebhookHandlers.register` calls `registerWebhookHandler` for each event; the SDK auto-adds missing entries into the manifest’s `webhooks` list.
 6. **Server start** – `EmbeddedServer.start` opens the listening port, and the add-on is ready for Clockify to fetch the manifest and deliver events.
 
