@@ -101,6 +101,14 @@ run-auto-tag-assistant:
 	ADDON_PORT=8080 ADDON_BASE_URL=http://localhost:8080/auto-tag-assistant \
 	java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
 
+# Run auto-tag-assistant with database-backed token store (set DB_URL/DB_USERNAME/DB_PASSWORD)
+run-auto-tag-assistant-db:
+	@echo "Starting Auto-Tag Assistant with DatabaseTokenStore..."
+	@echo "Ensure DB_URL, DB_USERNAME, DB_PASSWORD are set in your environment or .env"
+	ADDON_PORT=$(ADDON_PORT) ADDON_BASE_URL=$(ADDON_BASE_URL) \
+	DB_URL=$(DB_URL) DB_USERNAME=$(DB_USERNAME) DB_PASSWORD=$(DB_PASSWORD) \
+	java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
+
 docker-run:
 	@echo "Building Docker image for $(TEMPLATE)..."
 	docker build \

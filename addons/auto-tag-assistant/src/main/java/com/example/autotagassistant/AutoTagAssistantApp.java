@@ -56,6 +56,23 @@ public class AutoTagAssistantApp {
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
 
+        // Choose token store: prefer database if DB_URL is set; fallback to in-memory demo store.
+        try {
+            String dbUrl = System.getenv("DB_URL");
+            if (dbUrl != null && !dbUrl.isBlank()) {
+                com.clockify.addon.sdk.storage.DatabaseTokenStore store =
+                        com.clockify.addon.sdk.storage.DatabaseTokenStore.fromEnvironment();
+                addon.setTokenStore(store);
+                System.out.println("TokenStore: DatabaseTokenStore (from environment)");
+            } else {
+                addon.setTokenStore(new com.clockify.addon.sdk.storage.InMemoryTokenStore());
+                System.out.println("TokenStore: InMemoryTokenStore (demo)");
+            }
+        } catch (Throwable t) {
+            System.err.println("Warning: Failed to initialize DatabaseTokenStore, using InMemoryTokenStore. " + t.getMessage());
+            addon.setTokenStore(new com.clockify.addon.sdk.storage.InMemoryTokenStore());
+        }
+
         // Register endpoints
         // GET /auto-tag-assistant/manifest.json - Returns runtime manifest (NO $schema field)
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
