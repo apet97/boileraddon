@@ -132,7 +132,7 @@ class WebhookHandlersTest {
         WebhookHandlers.register(addon, store);
 
         // Get the registered handler
-        HttpResponse response = addon.getWebhookHandlers().get("TIME_ENTRY_CREATED").handle(request);
+        HttpResponse response = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
 
         assertEquals(200, response.getStatusCode());
         JsonNode json = mapper.readTree(response.getBody());
@@ -151,7 +151,7 @@ class WebhookHandlersTest {
         String payload = """
             {
                 "workspaceId": "workspace-1",
-                "event": "TIME_ENTRY_CREATED",
+                "event": "NEW_TIME_ENTRY",
                 "timeEntry": {
                     "id": "entry-1",
                     "description": "Test entry",
@@ -176,7 +176,7 @@ class WebhookHandlersTest {
         WebhookHandlers.register(addon, store);
 
         // Get the registered handler
-        HttpResponse response = addon.getWebhookHandlers().get("TIME_ENTRY_CREATED").handle(request);
+        HttpResponse response = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
 
         assertEquals(403, response.getStatusCode());
     }
@@ -200,7 +200,7 @@ class WebhookHandlersTest {
         String payload = """
             {
                 "workspaceId": "workspace-1",
-                "event": "TIME_ENTRY_CREATED",
+                "event": "NEW_TIME_ENTRY",
                 "timeEntry": {
                     "id": "entry-1",
                     "description": "Development work",
@@ -224,7 +224,7 @@ class WebhookHandlersTest {
         WebhookHandlers.register(addon, store);
 
         // Get the registered handler
-        HttpResponse response = addon.getWebhookHandlers().get("TIME_ENTRY_CREATED").handle(request);
+        HttpResponse response = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
 
         assertEquals(200, response.getStatusCode());
         JsonNode json = mapper.readTree(response.getBody());
