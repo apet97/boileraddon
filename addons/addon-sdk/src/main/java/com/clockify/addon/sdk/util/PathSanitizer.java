@@ -28,9 +28,15 @@ public class PathSanitizer {
 
         String sanitized = path.trim();
 
+        // Detect common null-byte representations
+        boolean hasNullChar = sanitized.indexOf('\u0000') >= 0;
+        boolean hasBackslashZero = sanitized.contains("\\0"); // literal backslash + zero
+        boolean hasPercent00 = sanitized.toLowerCase().contains("%00"); // URL-encoded null byte
+
         // Check for null bytes (potential security issue) or common encodings
-        if (sanitized.indexOf('\u0000') >= 0 || sanitized.contains("\\0") || sanitized.toLowerCase().contains("%00")) {
-            logger.warn("Path contains null byte or null-byte encoding: {}", path);
+        if (hasNullChar || hasBackslashZero || hasPercent00) {
+            logger.warn("Path contains null byte or encoding (nullChar?={}, \\0?={}, %00?={}): {}",
+                    hasNullChar, hasBackslashZero, hasPercent00, path);
             throw new IllegalArgumentException("Path contains null bytes");
         }
 
