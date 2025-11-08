@@ -22,6 +22,7 @@
         <module>addons/_template-addon</module>
 
         <!-- Working add-ons -->
+        <module>addons/addon-sdk</module>
         <module>addons/auto-tag-assistant</module>
     </modules>
 

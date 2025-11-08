@@ -79,15 +79,15 @@ All dependencies are resolved from **Maven Central ONLY**:
 
 All of these artifacts are available on Maven Central without authentication.
 
-> **Note:** The `templates/java-basic-addon` module still depends on the legacy external SDK and is therefore excluded from the
-> default reactor build. Only the `addons/auto-tag-assistant` module ships in the self-contained build.
+> **Note:** The `templates/java-basic-addon` module remains optional in the reactor, but it now relies on the shared in-repo SDK
+> (`addons/addon-sdk`) and no longer requires external artifacts.
 
-## Inline SDK Architecture
+## SDK Module Architecture
 
-Instead of depending on external `com.cake.clockify:addon-sdk`, this boilerplate now includes a **minimal inline SDK** directly in the `auto-tag-assistant` module:
+Instead of depending on external `com.cake.clockify:addon-sdk`, this boilerplate now includes a **first-party SDK module** packaged inside the repository:
 
 ```
-addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/
+addons/addon-sdk/src/main/java/com/clockify/addon/sdk/
 ├── ClockifyAddon.java          # Main addon coordinator
 ├── ClockifyManifest.java       # Manifest model with builder
 ├── AddonServlet.java           # HTTP servlet for routing
@@ -100,7 +100,7 @@ addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/
 - No external dependencies
 - No annotation processing complexity
 - No GitHub Packages authentication
-- Simple, readable code
+- Simple, readable code shared between add-ons
 - Easy to customize and extend
 
 ## Build Commands
@@ -116,6 +116,7 @@ mvn clean package -DskipTests
 [INFO] Reactor Summary:
 [INFO]
 [INFO] Clockify Add-on Boilerplate 1.0.0 .................. SUCCESS [  0.159 s]
+[INFO] addon-sdk 0.1.0 .................................... SUCCESS [  2.345 s]
 [INFO] auto-tag-assistant 0.1.0 ........................... SUCCESS [ 17.734 s]
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
@@ -254,7 +255,7 @@ mvn clean package -DskipTests -o  # -o = offline mode
 
 **SDK Location:**
 - Before: `dev-docs-marketplace-cake-snapshot/extras/addon-java-sdk/` (required annotation processing, complex build)
-- After: `addons/auto-tag-assistant/src/main/java/com/example/autotagassistant/sdk/` (inline, simple)
+- After: `addons/addon-sdk/src/main/java/com/clockify/addon/sdk/` (inline, simple)
 
 ## Verification Checklist
 

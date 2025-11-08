@@ -1,9 +1,9 @@
 package com.example.autotagassistant;
 
-import com.example.autotagassistant.sdk.AddonServlet;
-import com.example.autotagassistant.sdk.ClockifyAddon;
-import com.example.autotagassistant.sdk.ClockifyManifest;
-import com.example.autotagassistant.sdk.EmbeddedServer;
+import com.clockify.addon.sdk.AddonServlet;
+import com.clockify.addon.sdk.ClockifyAddon;
+import com.clockify.addon.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.EmbeddedServer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

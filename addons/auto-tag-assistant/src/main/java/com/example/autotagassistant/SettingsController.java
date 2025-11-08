@@ -1,7 +1,7 @@
 package com.example.autotagassistant;
 
-import com.example.autotagassistant.sdk.RequestHandler;
-import com.example.autotagassistant.sdk.HttpResponse;
+import com.clockify.addon.sdk.RequestHandler;
+import com.clockify.addon.sdk.HttpResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
