@@ -27,7 +27,7 @@ public class TemplateAddonApp {
                 .build();
 
         // TODO: Add or remove components as needed. For example, add a sidebar component.
-        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Template Add-on", "ADMIN"));
+        manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Template Add-on", "ADMINS"));
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
 

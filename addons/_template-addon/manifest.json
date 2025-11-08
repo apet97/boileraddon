@@ -14,7 +14,7 @@
       "type": "sidebar",
       "path": "/settings",
       "label": "Template Add-on",
-      "accessLevel": "ADMIN"
+      "accessLevel": "ADMINS"
     }
   ],
   "lifecycle": [
