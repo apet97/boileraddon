@@ -16,6 +16,9 @@ jobs:
           java-version: '17'
       - name: Validate manifests
         run: |
+          python3 -m pip install --user --upgrade pip
+          python3 -m pip install --user jsonschema
+
           python3 tools/check_briefing_links.py _briefings || true
           python3 tools/validate-manifest.py
       - name: Build and test
