@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Set;
 
 /**
  * SECURITY: CSRF (Cross-Site Request Forgery) protection filter.
@@ -46,16 +47,18 @@ public class CsrfProtectionFilter implements Filter {
 
     private final SecureRandom random = new SecureRandom();
 
-    /**
-     * List of paths that bypass CSRF checks.
-     * These use alternative security mechanisms (e.g., webhook signatures).
-     */
-    private static final String[] CSRF_EXEMPT_PATHS = {
+    private static final Set<String> EXEMPT_PREFIXES = Set.of(
             "/webhook",
             "/lifecycle",
             "/health",
-            "/metrics",
-            "/manifest.json"
+            "/actuator"
+    );
+
+    private static final String[] SIGNATURE_HEADERS = {
+            "clockify-webhook-signature",
+            "x-clockify-webhook-signature",
+            "Clockify-Signature",
+            "X-Clockify-Signature"
     };
 
     @Override
@@ -70,9 +73,9 @@ public class CsrfProtectionFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         String method = httpRequest.getMethod();
-        String path = httpRequest.getRequestURI();
+        String path = requestPath(httpRequest);
 
-        if (shouldExemptFromCsrf(path)) {
+        if (isExempt(httpRequest, path, method)) {
             logger.debug("CSRF check exempted for path: {}", path);
             chain.doFilter(request, response);
             return;
@@ -183,18 +186,25 @@ public class CsrfProtectionFilter implements Filter {
         return result == 0;
     }
 
-    /**
-     * Checks if a path should be exempt from CSRF checks.
-     */
-    private boolean shouldExemptFromCsrf(String path) {
-        if (path == null) return false;
-
-        for (String exemptPath : CSRF_EXEMPT_PATHS) {
-            if (path.startsWith(exemptPath) || path.equals(exemptPath)) {
+    private boolean isExempt(HttpServletRequest request, String path, String method) {
+        if (path == null) return true;
+        for (String prefix : EXEMPT_PREFIXES) {
+            if (path.startsWith(prefix)) {
                 return true;
             }
         }
+        if (hasSignatureHeader(request)) {
+            return true;
+        }
+        return isSafeMethod(method);
+    }
 
+    private boolean hasSignatureHeader(HttpServletRequest request) {
+        for (String header : SIGNATURE_HEADERS) {
+            if (request.getHeader(header) != null) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -253,6 +263,18 @@ public class CsrfProtectionFilter implements Filter {
         }
 
         return ip != null ? ip : "unknown";
+    }
+
+    private String requestPath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String context = request.getContextPath();
+        if (uri == null) {
+            return null;
+        }
+        if (context != null && !context.isBlank() && uri.startsWith(context)) {
+            return uri.substring(context.length());
+        }
+        return uri;
     }
 
     private record TokenState(String token, boolean generated) {}

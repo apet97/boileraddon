@@ -40,11 +40,13 @@ class WebhookHandlersTest {
 
         // Clear token store
         com.clockify.addon.sdk.security.TokenStore.clear();
+        System.setProperty("ADDON_ACCEPT_JWT_SIGNATURE", "true");
     }
 
     @AfterEach
     void tearDown() {
         com.clockify.addon.sdk.security.TokenStore.clear();
+        System.clearProperty("ADDON_ACCEPT_JWT_SIGNATURE");
     }
 
     @Test

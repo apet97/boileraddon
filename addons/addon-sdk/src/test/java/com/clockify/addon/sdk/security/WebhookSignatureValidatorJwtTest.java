@@ -26,6 +26,7 @@ class WebhookSignatureValidatorJwtTest {
     void setUp() {
         // Clear any existing tokens
         TokenStore.clear();
+        System.setProperty("ADDON_ACCEPT_JWT_SIGNATURE", "true");
         // Store a test token for the workspace
         TokenStore.save(WORKSPACE_ID, TOKEN, "https://api.clockify.me");
     }
@@ -33,6 +34,7 @@ class WebhookSignatureValidatorJwtTest {
     @AfterEach
     void tearDown() {
         TokenStore.clear();
+        System.clearProperty("ADDON_ACCEPT_JWT_SIGNATURE");
     }
 
     @Test

@@ -1,7 +1,9 @@
 package com.clockify.addon.sdk.security;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +23,11 @@ public final class TokenStore {
 
     private static final Map<String, WorkspaceToken> STORE = new ConcurrentHashMap<>();
     private static final Map<String, WorkspaceToken> ROTATED = new ConcurrentHashMap<>();
+
+    private static Clock clock = Clock.systemUTC();
+
+    public static void setClock(Clock custom) { clock = custom == null ? Clock.systemUTC() : custom; }
+    public static void resetClock() { clock = Clock.systemUTC(); }
 
     private static final long DEFAULT_TOKEN_TTL_MS = Duration.ofHours(24).toMillis();
     private static final long DEFAULT_ROTATION_GRACE_MS = Duration.ofMinutes(15).toMillis();
@@ -42,7 +49,7 @@ public final class TokenStore {
             throw new IllegalArgumentException("token is required");
         }
         String normalized = normalizeApiBaseUrl(apiBaseUrl);
-        long now = System.currentTimeMillis();
+        long now = Instant.now(clock).toEpochMilli();
         ROTATED.remove(workspaceId);
         saveRecord(workspaceId, token, normalized, now, true);
     }
@@ -101,7 +108,7 @@ public final class TokenStore {
         }
 
         WorkspaceToken current = STORE.get(workspaceId);
-        long now = System.currentTimeMillis();
+        long now = Instant.now(clock).toEpochMilli();
 
         if (current != null) {
             long grace = rotationGraceMs();
@@ -164,7 +171,11 @@ public final class TokenStore {
     }
 
     private static boolean isExpired(WorkspaceToken token) {
-        return token.expiresAt() > 0 && System.currentTimeMillis() > token.expiresAt();
+        return token.expiresAt() > 0 && currentTimeMs() > token.expiresAt();
+    }
+
+    private static long currentTimeMs() {
+        return Instant.now(clock).toEpochMilli();
     }
 
     private static String normalizeApiBaseUrl(String apiBaseUrl) {

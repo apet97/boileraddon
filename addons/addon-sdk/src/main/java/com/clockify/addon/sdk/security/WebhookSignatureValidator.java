@@ -166,8 +166,10 @@ public final class WebhookSignatureValidator {
      * Environment variable: ADDON_ACCEPT_JWT_SIGNATURE (set to "true" to enable)
      */
     private static boolean acceptJwtDevSignature() {
-        String v = System.getenv("ADDON_ACCEPT_JWT_SIGNATURE");
-        // Default to FALSE for production safety - requires explicit "true" opt-in
+        String v = System.getProperty("ADDON_ACCEPT_JWT_SIGNATURE");
+        if (v == null || v.isBlank()) {
+            v = System.getenv("ADDON_ACCEPT_JWT_SIGNATURE");
+        }
         return "true".equalsIgnoreCase(v);
     }
 

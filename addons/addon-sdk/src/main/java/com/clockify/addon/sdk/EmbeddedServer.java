@@ -123,20 +123,25 @@ public class EmbeddedServer {
      * @return true if HTTPS should be enforced
      */
     private boolean shouldEnforceHttps() {
-        // Check environment variable
         String enforceEnv = System.getenv("ENFORCE_HTTPS");
         if (enforceEnv != null) {
             return "true".equalsIgnoreCase(enforceEnv);
         }
 
-        // Check system property
         String enforceProp = System.getProperty("enforce.https");
         if (enforceProp != null) {
             return "true".equalsIgnoreCase(enforceProp);
         }
 
-        // Default: enable HTTPS enforcement for security
-        // Can be disabled with: ENFORCE_HTTPS=false
-        return true;
+        String env = resolveEnv("ENV");
+        return "prod".equalsIgnoreCase(env);
+    }
+
+    private String resolveEnv(String key) {
+        String override = System.getProperty("env." + key);
+        if (override != null && !override.isBlank()) {
+            return override.trim();
+        }
+        return System.getenv(key);
     }
 }
