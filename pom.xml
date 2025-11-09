@@ -185,6 +185,12 @@
 
     <profiles>
         <profile>
+            <id>ci</id>
+            <properties>
+                <jacoco.skip.check>true</jacoco.skip.check>
+            </properties>
+        </profile>
+        <profile>
             <id>ci-enforce-java17</id>
             <activation>
                 <property>

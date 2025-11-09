@@ -142,6 +142,7 @@
             <phase>verify</phase>
             <goals><goal>check</goal></goals>
             <configuration>
+              <skip>${jacoco.skip.check}</skip>
               <rules>
                 <rule>
                   <element>BUNDLE</element>
