@@ -24,7 +24,7 @@ class RuleTriggerTest {
     void rule_canBeCreatedWithBasicProperties() {
         // Verify basic rule creation
         Action action = new Action("add_tag", Map.of("tag", "urgent"));
-        Condition condition = new Condition("project", "equals", "Development");
+        Condition condition = new Condition("project", Condition.Operator.EQUALS, "Development");
 
         Rule rule = new Rule(
                 "rule-1",
@@ -63,8 +63,8 @@ class RuleTriggerTest {
     @Test
     void rule_supportsOrCombinator() {
         // Verify that OR combinator is supported
-        Condition condition1 = new Condition("project", "equals", "Development");
-        Condition condition2 = new Condition("billable", "equals", "true");
+        Condition condition1 = new Condition("project", Condition.Operator.EQUALS, "Development");
+        Condition condition2 = new Condition("billable", Condition.Operator.EQUALS, "true");
 
         Rule rule = new Rule(
                 "rule-or",
@@ -128,7 +128,7 @@ class RuleTriggerTest {
     void rule_canBeSerialized() throws Exception {
         // Verify that rules can be serialized to JSON and deserialized
         Action action = new Action("add_tag", Map.of("tag", "urgent"));
-        Condition condition = new Condition("billable", "equals", "false");
+        Condition condition = new Condition("billable", Condition.Operator.EQUALS, "false");
 
         Rule rule = new Rule(
                 "rule-serialize",
@@ -153,7 +153,7 @@ class RuleTriggerTest {
     @Test
     void rule_equalityWorks() {
         // Verify that equality and hashCode work correctly
-        Condition condition = new Condition("project", "equals", "Dev");
+        Condition condition = new Condition("project", Condition.Operator.EQUALS, "Dev");
         Action action = new Action("add_tag", Map.of("tag", "dev"));
 
         Rule rule1 = new Rule("id-1", "Rule 1", true, "AND",
@@ -197,7 +197,7 @@ class RuleTriggerTest {
                 "Test Rule",
                 true,
                 "AND",
-                List.of(new Condition("project", "equals", "Dev")),
+                List.of(new Condition("project", Condition.Operator.EQUALS, "Dev")),
                 List.of(new Action("add_tag", Map.of("tag", "test")))
         );
 
@@ -264,9 +264,9 @@ class RuleTriggerTest {
     @Test
     void rule_withComplexConditions() {
         // Verify that rules can have complex conditions
-        Condition condition1 = new Condition("project", "equals", "Development");
-        Condition condition2 = new Condition("billable", "equals", "false");
-        Condition condition3 = new Condition("description", "contains", "meeting");
+        Condition condition1 = new Condition("project", Condition.Operator.EQUALS, "Development");
+        Condition condition2 = new Condition("billable", Condition.Operator.EQUALS, "false");
+        Condition condition3 = new Condition("description", Condition.Operator.CONTAINS, "meeting");
 
         Rule rule = new Rule(
                 "rule-complex",
@@ -279,6 +279,6 @@ class RuleTriggerTest {
 
         assertEquals(3, rule.getConditions().size());
         assertTrue(rule.getConditions().stream()
-                .anyMatch(c -> "contains".equals(c.getOperator())));
+                .anyMatch(c -> Condition.Operator.CONTAINS.equals(c.getOperator())));
     }
 }

@@ -93,7 +93,7 @@ public class WebhookHandlers {
 
                     for (Rule rule : rules) {
                         boolean matches = evaluator.evaluate(rule, context);
-                        if (matches) {
+                        if (matches && rule.getActions() != null) {
                             logger.info("Rule '{}' matched for time entry", rule.getName());
                             actionsToApply.addAll(rule.getActions());
                         }
