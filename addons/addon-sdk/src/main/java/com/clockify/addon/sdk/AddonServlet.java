@@ -234,13 +234,26 @@ public class AddonServlet extends HttpServlet {
             return HttpResponse.error(400, "Missing webhook event type");
         }
 
+        // SECURITY: Validate event type against manifest and sanitize for metrics
+        String validationError = validateWebhookEventType(event);
+        if (validationError != null) {
+            String sanitizedEvent = sanitizeForLogging(event);
+            logger.warn("Invalid webhook event type: {}", sanitizedEvent);
+            Counter.builder("webhook_errors_total")
+                    .tag("reason", "invalid_event_type")
+                    .register(MetricsHandler.registry())
+                    .increment();
+            return HttpResponse.error(400, validationError, "application/json");
+        }
+
         RequestHandler handler = handlers.get(event);
         if (handler != null) {
             // metrics: count + duration per event/path
             String path = req.getPathInfo() != null ? req.getPathInfo() : "/";
+            String sanitizedEvent = sanitizeForLogging(event);
             Timer.Sample sample = Timer.start(MetricsHandler.registry());
             Counter.builder("webhook_requests_total")
-                    .tag("event", event)
+                    .tag("event", sanitizedEvent)
                     .tag("path", path)
                     .register(MetricsHandler.registry())
                     .increment();
@@ -249,7 +262,7 @@ public class AddonServlet extends HttpServlet {
                 response = handler.handle(req);
             } finally {
                 Timer timer = Timer.builder("webhook_request_seconds")
-                        .tag("event", event)
+                        .tag("event", sanitizedEvent)
                         .tag("path", path)
                         .register(MetricsHandler.registry());
                 sample.stop(timer);
@@ -257,12 +270,72 @@ public class AddonServlet extends HttpServlet {
             return response;
         }
 
-        logger.warn("No handler registered for webhook event: {}", event);
+        String sanitizedEvent = sanitizeForLogging(event);
+        logger.warn("No handler registered for webhook event: {}", sanitizedEvent);
         Counter.builder("webhook_not_handled_total")
-                .tag("event", event)
+                .tag("event", sanitizedEvent)
                 .register(MetricsHandler.registry())
                 .increment();
         return HttpResponse.ok("Webhook event received but not handled: " + event);
+    }
+
+    /**
+     * SECURITY: Validates webhook event type against registered handlers in manifest.
+     * Prevents log injection and unexpected behavior from malicious event types.
+     * Only whitelisted events from the manifest are accepted.
+     *
+     * @param event the event type to validate
+     * @return null if valid, or error message JSON string if invalid
+     */
+    private String validateWebhookEventType(String event) {
+        if (event == null || event.isBlank()) {
+            return objectMapper.createObjectNode()
+                    .put("message", "Event type cannot be null or empty")
+                    .toString();
+        }
+
+        // Check length to prevent DoS/memory exhaustion
+        if (event.length() > 255) {
+            return objectMapper.createObjectNode()
+                    .put("message", "Event type exceeds maximum length (255 characters)")
+                    .toString();
+        }
+
+        // Validate event type contains only alphanumeric, underscore, and hyphen
+        if (!event.matches("^[A-Za-z0-9_-]+$")) {
+            return objectMapper.createObjectNode()
+                    .put("message", "Event type contains invalid characters")
+                    .toString();
+        }
+
+        // Whitelist: event must be registered in manifest webhooks
+        boolean isValidEvent = addon.getManifest().getWebhooks().stream()
+                .anyMatch(w -> w.getEvent().equals(event));
+
+        if (!isValidEvent) {
+            return objectMapper.createObjectNode()
+                    .put("message", "Event type not registered in addon manifest")
+                    .toString();
+        }
+
+        return null; // valid
+    }
+
+    /**
+     * SECURITY: Sanitizes event type for safe logging/metrics.
+     * Truncates and escapes to prevent log injection attacks.
+     *
+     * @param event the event type to sanitize
+     * @return sanitized version safe for logging
+     */
+    private String sanitizeForLogging(String event) {
+        if (event == null) {
+            return "(null)";
+        }
+        // Truncate to prevent log flood
+        String truncated = event.length() > 64 ? event.substring(0, 64) + "..." : event;
+        // Replace newlines and control characters that could enable log injection
+        return truncated.replaceAll("[\\r\\n\\t\\x00-\\x1F]", "?");
     }
 
     private JsonNode readAndCacheJsonBody(HttpServletRequest req) throws IOException {

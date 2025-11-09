@@ -1,5 +1,8 @@
 package com.clockify.addon.sdk.security;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -18,6 +21,7 @@ import java.util.Optional;
  * - Does not manage schema migrations; will attempt to create the table if it does not exist.
  */
 public class DatabaseTokenStore implements TokenStoreSPI {
+    private static final Logger logger = LoggerFactory.getLogger(DatabaseTokenStore.class);
 
     private final String jdbcUrl;
     private final String username;
@@ -59,12 +63,16 @@ public class DatabaseTokenStore implements TokenStoreSPI {
                 ps.executeUpdate();
             } catch (SQLException e) {
                 // Fallback to separate insert/update for drivers without ON CONFLICT support
+                logger.debug("ON CONFLICT not supported, falling back to INSERT/UPDATE: {}", e.getMessage());
                 if (!tryUpdate(c, workspaceId, token, now)) {
                     tryInsert(c, workspaceId, token, now);
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to save token", e);
+            String errorMsg = String.format("Failed to save token for workspace %s: %s",
+                    workspaceId, e.getMessage());
+            logger.error(errorMsg, e);
+            throw new RuntimeException(errorMsg, e);
         }
     }
 
@@ -80,7 +88,10 @@ public class DatabaseTokenStore implements TokenStoreSPI {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to fetch token", e);
+            String errorMsg = String.format("Failed to fetch token for workspace %s: %s",
+                    workspaceId, e.getMessage());
+            logger.error(errorMsg, e);
+            throw new RuntimeException(errorMsg, e);
         }
         return Optional.empty();
     }
@@ -93,7 +104,10 @@ public class DatabaseTokenStore implements TokenStoreSPI {
             ps.setString(1, workspaceId);
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to delete token", e);
+            String errorMsg = String.format("Failed to delete token for workspace %s: %s",
+                    workspaceId, e.getMessage());
+            logger.error(errorMsg, e);
+            throw new RuntimeException(errorMsg, e);
         }
     }
 
@@ -104,7 +118,9 @@ public class DatabaseTokenStore implements TokenStoreSPI {
             if (rs.next()) return rs.getLong(1);
             return 0L;
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to count tokens", e);
+            String errorMsg = String.format("Failed to count tokens: %s", e.getMessage());
+            logger.error(errorMsg, e);
+            throw new RuntimeException(errorMsg, e);
         }
     }
 
@@ -117,6 +133,9 @@ public class DatabaseTokenStore implements TokenStoreSPI {
             int n = ps.executeUpdate();
             return n > 0;
         } catch (SQLException ex) {
+            String errorMsg = String.format("Failed to update token for workspace %s: %s",
+                    ws, ex.getMessage());
+            logger.warn(errorMsg, ex);
             return false;
         }
     }
@@ -148,8 +167,11 @@ public class DatabaseTokenStore implements TokenStoreSPI {
                 "last_accessed_at BIGINT NOT NULL)";
         try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(ddlPg)) {
             ps.execute();
-        } catch (SQLException ignored) {
-            // Best effort; allow external schema management
+            logger.debug("Ensured addon_tokens table exists");
+        } catch (SQLException e) {
+            // Log the error but continue - allow external schema management or retry on next operation
+            logger.warn("Could not auto-create addon_tokens table (may already exist or require manual setup): {}",
+                    e.getMessage());
         }
     }
 }

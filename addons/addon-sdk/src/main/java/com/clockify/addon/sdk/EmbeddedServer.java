@@ -1,5 +1,9 @@
 package com.clockify.addon.sdk;
 
+import com.clockify.addon.sdk.middleware.CriticalEndpointRateLimiter;
+import com.clockify.addon.sdk.middleware.CsrfProtectionFilter;
+import com.clockify.addon.sdk.middleware.HttpsEnforcementFilter;
+import com.clockify.addon.sdk.middleware.RequestSizeLimitFilter;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -49,7 +53,42 @@ public class EmbeddedServer {
         context.setContextPath(contextPath);
         server.setHandler(context);
 
-        // Register any configured filters
+        // SECURITY: Apply request size limit (highest priority)
+        // Prevents DoS via oversized payloads
+        context.addFilter(
+                new FilterHolder(RequestSizeLimitFilter.fromEnvironment()),
+                "/*",
+                EnumSet.of(DispatcherType.REQUEST));
+        logger.debug("Request size limit filter installed");
+
+        // SECURITY: Apply HTTPS enforcement
+        // Blocks non-HTTPS requests in production
+        boolean enforceHttps = shouldEnforceHttps();
+        if (enforceHttps) {
+            context.addFilter(
+                    new FilterHolder(new HttpsEnforcementFilter(true)),
+                    "/*",
+                    EnumSet.of(DispatcherType.REQUEST));
+            logger.debug("HTTPS enforcement filter installed");
+        }
+
+        // SECURITY: Apply critical endpoint rate limiter
+        // This protects sensitive operations like /lifecycle and /webhook
+        context.addFilter(
+                new FilterHolder(new CriticalEndpointRateLimiter(true)),  // fail-closed for security
+                "/*",
+                EnumSet.of(DispatcherType.REQUEST));
+        logger.debug("Critical endpoint rate limiter installed");
+
+        // SECURITY: Apply CSRF protection filter
+        // Webhooks use signature validation (exempt), custom endpoints get token-based CSRF protection
+        context.addFilter(
+                new FilterHolder(new CsrfProtectionFilter()),
+                "/*",
+                EnumSet.of(DispatcherType.REQUEST));
+        logger.debug("CSRF protection filter installed");
+
+        // Register any additional configured filters
         if (!filters.isEmpty()) {
             for (Filter f : filters) {
                 context.addFilter(new FilterHolder(f), "/*", EnumSet.of(DispatcherType.REQUEST));
@@ -77,5 +116,29 @@ public class EmbeddedServer {
     public EmbeddedServer addFilter(Filter filter) {
         this.filters.add(filter);
         return this;
+    }
+
+    /**
+     * SECURITY: Determines whether HTTPS enforcement should be enabled.
+     * Enabled by default unless explicitly disabled for local development.
+     *
+     * @return true if HTTPS should be enforced
+     */
+    private boolean shouldEnforceHttps() {
+        // Check environment variable
+        String enforceEnv = System.getenv("ENFORCE_HTTPS");
+        if (enforceEnv != null) {
+            return "true".equalsIgnoreCase(enforceEnv);
+        }
+
+        // Check system property
+        String enforceProp = System.getProperty("enforce.https");
+        if (enforceProp != null) {
+            return "true".equalsIgnoreCase(enforceProp);
+        }
+
+        // Default: enable HTTPS enforcement for security
+        // Can be disabled with: ENFORCE_HTTPS=false
+        return true;
     }
 }

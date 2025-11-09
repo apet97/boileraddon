@@ -160,9 +160,15 @@ public final class WebhookSignatureValidator {
         return sig != null && sig.contains(".") && sig.split("\\.").length >= 2;
     }
 
+    /**
+     * Controls whether to accept developer JWT signatures (dev workspaces only).
+     * SECURITY: Defaults to FALSE for safety. Requires explicit opt-in for development.
+     * Environment variable: ADDON_ACCEPT_JWT_SIGNATURE (set to "true" to enable)
+     */
     private static boolean acceptJwtDevSignature() {
         String v = System.getenv("ADDON_ACCEPT_JWT_SIGNATURE");
-        return v == null || v.isBlank() || "true".equalsIgnoreCase(v);
+        // Default to FALSE for production safety - requires explicit "true" opt-in
+        return "true".equalsIgnoreCase(v);
     }
 
     private static String decodeJwtPayload(String jwt) {
