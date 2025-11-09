@@ -2,6 +2,7 @@ package com.clockify.addon.sdk;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Locale;
 
 /**
  * Utility class for validating configuration values from environment variables.
@@ -69,17 +70,27 @@ public class ConfigValidator {
      * @throws IllegalArgumentException if URL is malformed
      */
     public static String validateUrl(String urlStr, String defaultUrl, String varName) {
-        String url = (urlStr == null || urlStr.trim().isEmpty()) ? defaultUrl : urlStr.trim();
+        String candidate = (urlStr == null || urlStr.trim().isEmpty()) ? defaultUrl : urlStr.trim();
+        String url = candidate.endsWith("/") ? candidate.substring(0, candidate.length() - 1) : candidate;
 
         try {
             new URL(url); // Validate URL format
-            return url;
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(
                 String.format("Invalid %s: '%s'. Must be a valid URL (e.g., http://localhost:8080/addon)", varName, url),
                 e
             );
         }
+
+        if (requiresHttpsInProduction()) {
+            if (!url.toLowerCase(Locale.ROOT).startsWith("https://")) {
+                throw new IllegalArgumentException(
+                    String.format("%s must use HTTPS when ENV=prod for secure deployments", varName)
+                );
+            }
+        }
+
+        return url;
     }
 
     /**
@@ -92,5 +103,18 @@ public class ConfigValidator {
     public static String getEnv(String varName, String defaultValue) {
         String value = System.getenv(varName);
         return (value == null || value.trim().isEmpty()) ? defaultValue : value.trim();
+    }
+
+    private static boolean requiresHttpsInProduction() {
+        String envValue = resolveProperty("ENV");
+        return envValue != null && envValue.equalsIgnoreCase("prod");
+    }
+
+    private static String resolveProperty(String key) {
+        String override = System.getProperty("env." + key);
+        if (override != null && !override.isBlank()) {
+            return override.trim();
+        }
+        return System.getenv(key);
     }
 }
