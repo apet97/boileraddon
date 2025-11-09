@@ -24,20 +24,33 @@ public class OpenAPISpecLoader {
 
     /**
      * Load the OpenAPI spec from the filesystem or classpath.
-     * Tries downloads/openapi (1).json first, then classpath (clockify-openapi.json),
-     * then falls back to dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json.
+     * Tries openapi (1).json at repo root first, then downloads/openapi (1).json,
+     * then classpath (clockify-openapi.json), then falls back to
+     * dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json.
      */
     public static synchronized JsonNode loadSpec() {
         if (cachedSpec != null) {
             return cachedSpec;
         }
 
-        // Try preferred local downloads path first
+        // Try root directory first (preferred location)
         try {
-            java.nio.file.Path preferred = java.nio.file.Paths.get("downloads", "openapi (1).json");
-            if (java.nio.file.Files.exists(preferred)) {
-                cachedSpec = mapper.readTree(preferred.toFile());
-                logger.info("Loaded OpenAPI spec from downloads: {}", preferred);
+            java.nio.file.Path rootPath = java.nio.file.Paths.get("openapi (1).json");
+            if (java.nio.file.Files.exists(rootPath)) {
+                cachedSpec = mapper.readTree(rootPath.toFile());
+                logger.info("Loaded OpenAPI spec from root: {}", rootPath);
+                return cachedSpec;
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to load OpenAPI spec from root", e);
+        }
+
+        // Try downloads directory
+        try {
+            java.nio.file.Path downloadsPath = java.nio.file.Paths.get("downloads", "openapi (1).json");
+            if (java.nio.file.Files.exists(downloadsPath)) {
+                cachedSpec = mapper.readTree(downloadsPath.toFile());
+                logger.info("Loaded OpenAPI spec from downloads: {}", downloadsPath);
                 return cachedSpec;
             }
         } catch (Exception e) {
@@ -56,17 +69,17 @@ public class OpenAPISpecLoader {
             logger.warn("Failed to load OpenAPI spec from classpath", e);
         }
 
-        // Fallback: try reading from filesystem
+        // Fallback: try reading from dev-docs snapshot
         try {
             java.nio.file.Path fallbackPath = java.nio.file.Paths.get(
                     "dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json");
             if (java.nio.file.Files.exists(fallbackPath)) {
                 cachedSpec = mapper.readTree(fallbackPath.toFile());
-                logger.info("Loaded OpenAPI spec from filesystem: {}", fallbackPath);
+                logger.info("Loaded OpenAPI spec from dev-docs snapshot: {}", fallbackPath);
                 return cachedSpec;
             }
         } catch (Exception e) {
-            logger.error("Failed to load OpenAPI spec from filesystem", e);
+            logger.error("Failed to load OpenAPI spec from dev-docs snapshot", e);
         }
 
         logger.error("OpenAPI spec not found in any expected location");
