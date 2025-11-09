@@ -38,6 +38,10 @@ Option B — pass the URL explicitly (quote it):
 ```
 bash scripts/run-rules.sh --base-url "https://<sub>.ngrok-free.app/rules"
 ```
+Option C — convenience wrapper (builds then delegates):
+```
+bash fix-and-run.sh --use-ngrok
+```
 Notes:
 - Start the server first, then install the manifest (avoids caching a stale URL in Developer).
 - You may enable mutations by adding `--apply` (or `RULES_APPLY_CHANGES=true`):

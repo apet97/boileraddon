@@ -226,26 +226,10 @@ public class DynamicWebhookHandlers {
             }
         }
 
-        // Make the API call
+        // Make the API call via ClockifyClient (uses stored workspace token + normalized API base)
         try {
-            // For now, use a simple HTTP client approach
-            // In a full implementation, you'd use ClockifyClient methods
             logger.info("API call: {} {} with body: {}", method, resolvedPath, resolvedBody);
-
-            // Placeholder for actual API call - would need to extend ClockifyClient
-            // or use the SDK's ClockifyHttpClient directly
-            var httpClient = new com.clockify.addon.sdk.http.ClockifyHttpClient(api.getBaseUrl());
-
-            if ("POST".equalsIgnoreCase(method)) {
-                // httpClient.postJson(resolvedPath, api.getToken(), resolvedBody, Map.of());
-            } else if ("PUT".equalsIgnoreCase(method)) {
-                // httpClient.putJson(resolvedPath, api.getToken(), resolvedBody, Map.of());
-            } else if ("PATCH".equalsIgnoreCase(method)) {
-                // httpClient.patchJson(resolvedPath, api.getToken(), resolvedBody, Map.of());
-            } else if ("DELETE".equalsIgnoreCase(method)) {
-                // httpClient.delete(resolvedPath, api.getToken(), Map.of());
-            }
-
+            api.openapiCall(method, resolvedPath, resolvedBody);
             logger.info("Successfully executed openapi_call");
         } catch (Exception e) {
             logger.error("Failed to execute API call", e);

@@ -63,9 +63,9 @@ done
 
 cd "$ROOT"
 echo "Building addon-sdk (install to ~/.m2)…"
-mvn -q -e -DskipTests -pl addons/addon-sdk -am install
+mvn -q -e -Dmaven.test.skip=true -pl addons/addon-sdk -am install
 echo "Building rules addon…"
-mvn -q -e -DskipTests -pl addons/rules -am package
+mvn -q -e -Dmaven.test.skip=true -pl addons/rules -am package
 
 JAR=$(ls -1 addons/rules/target/rules-*-jar-with-dependencies.jar | head -n 1 || true)
 if [[ -z "${JAR:-}" ]]; then

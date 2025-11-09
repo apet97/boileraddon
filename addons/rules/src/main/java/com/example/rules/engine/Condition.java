@@ -44,6 +44,15 @@ public class Condition {
         this.path = path;
     }
 
+    // Backwards-compatible constructors for tests and legacy code
+    public Condition(String type, Operator operator, String value, List<String> values) {
+        this(type, operator, value, values, null);
+    }
+
+    public Condition(String type, Operator operator, String value) {
+        this(type, operator, value, null, null);
+    }
+
     public String getType() {
         return type;
     }

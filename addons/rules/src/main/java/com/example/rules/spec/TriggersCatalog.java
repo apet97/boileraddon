@@ -38,9 +38,15 @@ public class TriggersCatalog {
         try {
             Path webhookPath = Paths.get("Clockify_Webhook_JSON_Samples.md");
             if (!Files.exists(webhookPath)) {
-                logger.warn("Webhook samples file not found at {}", webhookPath);
-                cachedTriggers = triggers;
-                return triggers;
+                // Fallback to downloads/Clockify_Webhook_JSON_Samples.md
+                Path dl = Paths.get("downloads", "Clockify_Webhook_JSON_Samples.md");
+                if (Files.exists(dl)) {
+                    webhookPath = dl;
+                } else {
+                    logger.warn("Webhook samples file not found at {} or {}", Paths.get("Clockify_Webhook_JSON_Samples.md"), dl);
+                    cachedTriggers = triggers;
+                    return triggers;
+                }
             }
 
             String content = Files.readString(webhookPath);

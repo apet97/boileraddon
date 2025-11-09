@@ -24,6 +24,23 @@ public class ClockifyClient {
         this.token = addonToken;
     }
 
+    /**
+     * Generic OpenAPI call helper used by the IFTTT engine.
+     * Method is one of GET, POST, PUT, PATCH, DELETE. Path must start with "/" (e.g., "/v1/workspaces/{id}/…").
+     * Body is JSON string for methods that send a payload; ignored for GET/DELETE.
+     */
+    public void openapiCall(String method, String path, String jsonBody) throws Exception {
+        String m = method != null ? method.trim().toUpperCase(Locale.ROOT) : "";
+        switch (m) {
+            case "GET" -> http.get(path, token, Map.of());
+            case "POST" -> http.postJson(path, token, jsonBody != null ? jsonBody : "{}", Map.of());
+            case "PUT" -> http.putJson(path, token, jsonBody != null ? jsonBody : "{}", Map.of());
+            case "PATCH" -> http.putJson(path, token, jsonBody != null ? jsonBody : "{}", Map.of()); // fallback if PATCH not present
+            case "DELETE" -> http.delete(path, token, Map.of());
+            default -> throw new IllegalArgumentException("Unsupported method: " + method);
+        }
+    }
+
     public JsonNode getTags(String workspaceId) throws Exception {
         HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/tags", token, Map.of());
         ensure2xx(resp, 200);

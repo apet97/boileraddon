@@ -182,6 +182,10 @@ The Rules add-on now includes an IFTTT-style automation builder at `/rules/ifttt
 - `GET /rules/api/catalog/actions` — list all Clockify API endpoints (from OpenAPI spec)
 - `GET /rules/ifttt` — IFTTT builder UI
 
+Note: Legacy time‑entry behavior is preserved. The dynamic handler intentionally does not register
+`NEW_TIME_ENTRY`/`TIME_ENTRY_UPDATED` to avoid overriding the existing time‑entry webhook handler
+that powers classic actions (add_tag, set_billable, etc.).
+
 ### Example IFTTT Rule
 
 ```json

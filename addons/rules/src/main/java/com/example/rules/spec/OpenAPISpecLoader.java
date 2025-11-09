@@ -16,7 +16,7 @@ import java.util.*;
  */
 public class OpenAPISpecLoader {
 
-    private static final Logger logger = LoggerFactory.getLogger(OpenAPISpecLoader.java);
+    private static final Logger logger = LoggerFactory.getLogger(OpenAPISpecLoader.class);
     private static final ObjectMapper mapper = new ObjectMapper();
 
     private static JsonNode cachedSpec = null;
@@ -259,6 +259,7 @@ public class OpenAPISpecLoader {
         JsonNode properties = schema.path("properties");
         if (properties.isObject()) {
             ArrayNode fieldsArray = mapper.createArrayNode();
+            final JsonNode schemaFinal = schema; // for lambda capture
             properties.fields().forEachRemaining(field -> {
                 ObjectNode fieldNode = mapper.createObjectNode();
                 fieldNode.put("name", field.getKey());
@@ -272,7 +273,7 @@ public class OpenAPISpecLoader {
                 fieldNode.put("description", fieldSchema.path("description").asText(""));
 
                 // Check if required
-                JsonNode required = schema.path("required");
+                JsonNode required = schemaFinal.path("required");
                 boolean isRequired = false;
                 if (required.isArray()) {
                     for (JsonNode r : required) {
