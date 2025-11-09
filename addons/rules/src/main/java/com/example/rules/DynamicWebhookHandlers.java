@@ -35,7 +35,9 @@ public class DynamicWebhookHandlers {
         // Register a generic webhook handler that can process any event
         // We'll register common events upfront, and allow dynamic registration as rules are created
         String[] commonEvents = {
-            "NEW_TIME_ENTRY", "TIME_ENTRY_UPDATED", "TIME_ENTRY_DELETED",
+            // Exclude time-entry events here to avoid overriding legacy handler
+            // "NEW_TIME_ENTRY", "TIME_ENTRY_UPDATED",
+            "TIME_ENTRY_DELETED",
             "NEW_PROJECT", "PROJECT_UPDATED", "PROJECT_DELETED",
             "NEW_CLIENT", "CLIENT_UPDATED", "CLIENT_DELETED",
             "NEW_TAG", "TAG_UPDATED", "TAG_DELETED",
@@ -51,6 +53,11 @@ public class DynamicWebhookHandlers {
     }
 
     public static void registerEvent(ClockifyAddon addon, String eventName) {
+        // Never override legacy time-entry events — leave them to WebhookHandlers
+        if ("NEW_TIME_ENTRY".equals(eventName) || "TIME_ENTRY_UPDATED".equals(eventName)) {
+            logger.info("Skipping dynamic registration for time-entry event {} (handled by legacy handler)", eventName);
+            return;
+        }
         if (registeredEvents.contains(eventName)) {
             return; // Already registered
         }
@@ -151,13 +158,11 @@ public class DynamicWebhookHandlers {
      * For legacy rules, we assume they apply to time entry events.
      */
     private static boolean ruleMatchesEvent(Rule rule, String eventType) {
-        // For IFTTT rules stored with trigger metadata
-        // (This would require extending the Rule model, but for now we can use a convention)
-        // Check if rule has metadata or tags that indicate which event it's for
-
-        // For now, assume all rules apply to time entry events unless specified otherwise
-        // In a full implementation, you'd extend Rule to include a "trigger" field
-        return eventType.contains("TIME_ENTRY") || eventType.contains("TIMER");
+        // We don’t yet persist explicit trigger metadata on Rule.
+        // Until Rule carries a "trigger.event", treat dynamic rules as wildcard (match any event),
+        // and rely on user-provided conditions to scope when they run.
+        // Time-entry events are handled by the legacy handler and are not registered here.
+        return true;
     }
 
     /**
