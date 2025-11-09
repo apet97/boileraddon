@@ -27,7 +27,7 @@ class WebhookSignatureValidatorJwtTest {
         // Clear any existing tokens
         TokenStore.clear();
         // Store a test token for the workspace
-        TokenStore.store(WORKSPACE_ID, new TokenStore.InstallationToken(WORKSPACE_ID, TOKEN, "admin@test.com"));
+        TokenStore.save(WORKSPACE_ID, TOKEN, "https://api.clockify.me");
     }
 
     @AfterEach
@@ -53,7 +53,7 @@ class WebhookSignatureValidatorJwtTest {
         var result = WebhookSignatureValidator.verify(req, WORKSPACE_ID);
 
         assertFalse(result.isValid(), "JWT with mismatched workspaceId should be invalid");
-        assertEquals(403, result.response().statusCode());
+        assertEquals(403, result.response().getStatusCode());
     }
 
     @Test
@@ -74,7 +74,7 @@ class WebhookSignatureValidatorJwtTest {
         var result = WebhookSignatureValidator.verify(req, WORKSPACE_ID);
 
         assertFalse(result.isValid(), "Malformed JWT should be invalid");
-        assertEquals(403, result.response().statusCode());
+        assertEquals(403, result.response().getStatusCode());
     }
 
     @Test
@@ -112,7 +112,7 @@ class WebhookSignatureValidatorJwtTest {
         var result = WebhookSignatureValidator.verify(req, WORKSPACE_ID);
 
         assertFalse(result.isValid(), "HMAC with wrong secret should fail");
-        assertEquals(403, result.response().statusCode());
+        assertEquals(403, result.response().getStatusCode());
     }
 
     @Test
@@ -124,7 +124,7 @@ class WebhookSignatureValidatorJwtTest {
         var result = WebhookSignatureValidator.verify(req, WORKSPACE_ID);
 
         assertFalse(result.isValid(), "Missing signature should return 401");
-        assertEquals(401, result.response().statusCode());
+        assertEquals(401, result.response().getStatusCode());
     }
 
     @Test
@@ -135,7 +135,7 @@ class WebhookSignatureValidatorJwtTest {
         var result = WebhookSignatureValidator.verify(req, "unknown-workspace");
 
         assertFalse(result.isValid(), "Missing workspace token should return 401");
-        assertEquals(401, result.response().statusCode());
+        assertEquals(401, result.response().getStatusCode());
     }
 
     // Helper methods
