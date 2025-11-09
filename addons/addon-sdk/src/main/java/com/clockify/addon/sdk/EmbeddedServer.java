@@ -53,8 +53,14 @@ public class EmbeddedServer {
         context.setContextPath(contextPath);
         server.setHandler(context);
 
-        // SECURITY: Apply request size limit (highest priority)
-        // Prevents DoS via oversized payloads
+        // SECURITY: Apply critical endpoint rate limiter first to fail fast on abusive calls
+        context.addFilter(
+                new FilterHolder(new CriticalEndpointRateLimiter(true)),
+                "/*",
+                EnumSet.of(DispatcherType.REQUEST));
+        logger.debug("Critical endpoint rate limiter installed");
+
+        // SECURITY: Apply request size limit to guard memory/CPU before body parsing
         context.addFilter(
                 new FilterHolder(RequestSizeLimitFilter.fromEnvironment()),
                 "/*",
@@ -71,14 +77,6 @@ public class EmbeddedServer {
                     EnumSet.of(DispatcherType.REQUEST));
             logger.debug("HTTPS enforcement filter installed");
         }
-
-        // SECURITY: Apply critical endpoint rate limiter
-        // This protects sensitive operations like /lifecycle and /webhook
-        context.addFilter(
-                new FilterHolder(new CriticalEndpointRateLimiter(true)),  // fail-closed for security
-                "/*",
-                EnumSet.of(DispatcherType.REQUEST));
-        logger.debug("Critical endpoint rate limiter installed");
 
         // SECURITY: Apply CSRF protection filter
         // Webhooks use signature validation (exempt), custom endpoints get token-based CSRF protection

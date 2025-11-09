@@ -327,6 +327,151 @@ class AddonServletTest {
         }
     }
 
+    @Test
+    void webhookRejectsInvalidCharactersInEventType() throws Exception {
+        int port = findFreePort();
+        String contextPath = "/auto-tag-assistant";
+        String baseUrl = "http://localhost:" + port + contextPath;
+
+        ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Test manifest")
+                .baseUrl(baseUrl)
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ"})
+                .build();
+
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        addon.registerWebhookHandler("TIME_ENTRY_CREATED", request -> HttpResponse.ok("ok"));
+
+        AddonServlet servlet = new AddonServlet(addon);
+        EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<?> serverFuture = executor.submit(() -> {
+            try {
+                server.start(port);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        waitForServer(port);
+
+        try {
+            HttpURLConnection connection = openWebhookConnection(baseUrl + "/webhook");
+            connection.setRequestProperty("clockify-webhook-event-type", "DROP TABLE");
+            writeRequestBody(connection, "{}");
+
+            int status = connection.getResponseCode();
+            String responseBody = readBody(connection, status);
+
+            assertEquals(400, status);
+            JsonNode json = OBJECT_MAPPER.readTree(responseBody);
+            assertEquals("Event type contains invalid characters", json.get("message").asText());
+        } finally {
+            stopServer(server, serverFuture, executor);
+        }
+    }
+
+    @Test
+    void webhookRejectsUnregisteredEventType() throws Exception {
+        int port = findFreePort();
+        String contextPath = "/auto-tag-assistant";
+        String baseUrl = "http://localhost:" + port + contextPath;
+
+        ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Test manifest")
+                .baseUrl(baseUrl)
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ"})
+                .build();
+
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        addon.registerWebhookHandler("TIME_ENTRY_CREATED", request -> HttpResponse.ok("ok"));
+
+        AddonServlet servlet = new AddonServlet(addon);
+        EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<?> serverFuture = executor.submit(() -> {
+            try {
+                server.start(port);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        waitForServer(port);
+
+        try {
+            HttpURLConnection connection = openWebhookConnection(baseUrl + "/webhook");
+            connection.setRequestProperty("clockify-webhook-event-type", "NOT_REGISTERED");
+            writeRequestBody(connection, "{}");
+
+            int status = connection.getResponseCode();
+            String responseBody = readBody(connection, status);
+
+            assertEquals(400, status);
+            JsonNode json = OBJECT_MAPPER.readTree(responseBody);
+            assertEquals("Event type not registered in addon manifest", json.get("message").asText());
+        } finally {
+            stopServer(server, serverFuture, executor);
+        }
+    }
+
+    @Test
+    void webhookRejectsOverlyLongEventType() throws Exception {
+        int port = findFreePort();
+        String contextPath = "/auto-tag-assistant";
+        String baseUrl = "http://localhost:" + port + contextPath;
+
+        ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Test manifest")
+                .baseUrl(baseUrl)
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ"})
+                .build();
+
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        addon.registerWebhookHandler("TIME_ENTRY_CREATED", request -> HttpResponse.ok("ok"));
+
+        AddonServlet servlet = new AddonServlet(addon);
+        EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<?> serverFuture = executor.submit(() -> {
+            try {
+                server.start(port);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        waitForServer(port);
+
+        try {
+            String longEvent = "EVENT_" + "X".repeat(300);
+            HttpURLConnection connection = openWebhookConnection(baseUrl + "/webhook");
+            connection.setRequestProperty("clockify-webhook-event-type", longEvent);
+            writeRequestBody(connection, "{}");
+
+            int status = connection.getResponseCode();
+            String responseBody = readBody(connection, status);
+
+            assertEquals(400, status);
+            JsonNode json = OBJECT_MAPPER.readTree(responseBody);
+            assertEquals("Event type exceeds maximum length (255 characters)", json.get("message").asText());
+        } finally {
+            stopServer(server, serverFuture, executor);
+        }
+    }
+
     private static HttpURLConnection openWebhookConnection(String url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("POST");

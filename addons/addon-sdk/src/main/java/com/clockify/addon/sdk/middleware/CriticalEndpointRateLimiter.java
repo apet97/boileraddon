@@ -40,7 +40,7 @@ public class CriticalEndpointRateLimiter implements Filter {
     // Default catch-all for other sensitive paths
     private static final double DEFAULT_PERMITS_PER_SECOND = 0.5;    // 1 per 2 seconds
 
-    private final LoadingCache<String, com.google.common.util.concurrent.RateLimiter> limiters;
+    private final LoadingCache<LimiterKey, com.google.common.util.concurrent.RateLimiter> limiters;
     private final boolean failClosed;
 
     /**
@@ -54,11 +54,12 @@ public class CriticalEndpointRateLimiter implements Filter {
         this.limiters = CacheBuilder.newBuilder()
                 .expireAfterAccess(10, TimeUnit.MINUTES)
                 .maximumSize(5000)  // Smaller cache for critical paths
-                .build(new CacheLoader<String, com.google.common.util.concurrent.RateLimiter>() {
+                .build(new CacheLoader<LimiterKey, com.google.common.util.concurrent.RateLimiter>() {
                     @Override
-                    public com.google.common.util.concurrent.RateLimiter load(String key) {
-                        double rate = getPermitRate(key);
-                        logger.debug("Creating critical endpoint rate limiter for: {} ({} permits/sec)", key, rate);
+                    public com.google.common.util.concurrent.RateLimiter load(LimiterKey key) {
+                        double rate = getPermitRate(key.scope());
+                        logger.debug("Creating critical endpoint rate limiter for: {} ({}) -> {} permits/sec",
+                                key.identifier(), key.scope(), rate);
                         return com.google.common.util.concurrent.RateLimiter.create(rate);
                     }
                 });
@@ -84,9 +85,10 @@ public class CriticalEndpointRateLimiter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         String path = httpRequest.getRequestURI();
+        Scope scope = resolveScope(path);
 
         // SECURITY: Only apply to critical paths
-        if (!isCriticalPath(path)) {
+        if (scope == null) {
             chain.doFilter(request, response);
             return;
         }
@@ -94,7 +96,9 @@ public class CriticalEndpointRateLimiter implements Filter {
         String identifier = getIdentifier(httpRequest);
 
         try {
-            com.google.common.util.concurrent.RateLimiter limiter = limiters.get(identifier);
+            LimiterKey limiterKey = new LimiterKey(scope, identifier);
+            com.google.common.util.concurrent.RateLimiter limiter = limiters.get(limiterKey);
+            double permitsPerSecond = getPermitRate(scope);
 
             if (limiter.tryAcquire()) {
                 // Request allowed
@@ -105,9 +109,10 @@ public class CriticalEndpointRateLimiter implements Filter {
                 AuditLogger.log(AuditLogger.AuditEvent.RATE_LIMIT_EXCEEDED)
                         .clientIp(identifier)
                         .detail("path", path)
-                        .detail("limit_permits_sec", getPermitRate(identifier))
+                        .detail("scope", scope.name())
+                        .detail("limit_permits_sec", permitsPerSecond)
                         .error();
-                sendRateLimitError(httpResponse, getPermitRate(identifier));
+                sendRateLimitError(httpResponse, permitsPerSecond);
             }
 
         } catch (ExecutionException e) {
@@ -129,32 +134,27 @@ public class CriticalEndpointRateLimiter implements Filter {
         }
     }
 
-    /**
-     * Determines if a path requires critical rate limiting.
-     */
-    private boolean isCriticalPath(String path) {
-        if (path == null) return false;
-
-        // Lifecycle operations: installation/deletion
-        if (path.startsWith("/lifecycle")) return true;
-
-        // Webhook operations: event processing
-        if (path.startsWith("/webhook")) return true;
-        if (path.endsWith("/webhook")) return true;
-
-        return false;
+    private Scope resolveScope(String path) {
+        if (path == null) {
+            return null;
+        }
+        if (path.startsWith("/lifecycle")) {
+            return Scope.LIFECYCLE;
+        }
+        if (path.startsWith("/webhook") || path.endsWith("/webhook")) {
+            return Scope.WEBHOOK;
+        }
+        return null;
     }
 
     /**
      * Gets appropriate permit rate for a given identifier/path.
      */
-    private double getPermitRate(String identifier) {
-        // Check if identifier contains lifecycle hint
-        if (identifier != null && identifier.contains("lifecycle")) {
+    private double getPermitRate(Scope scope) {
+        if (scope == Scope.LIFECYCLE) {
             return LIFECYCLE_PERMITS_PER_SECOND;
         }
-        // Check if identifier contains webhook hint
-        if (identifier != null && identifier.contains("webhook")) {
+        if (scope == Scope.WEBHOOK) {
             return WEBHOOK_PERMITS_PER_SECOND;
         }
         return DEFAULT_PERMITS_PER_SECOND;
@@ -233,6 +233,13 @@ public class CriticalEndpointRateLimiter implements Filter {
     public void destroy() {
         limiters.invalidateAll();
         logger.info("Critical endpoint rate limiter destroyed");
+    }
+
+    private record LimiterKey(Scope scope, String identifier) { }
+
+    private enum Scope {
+        LIFECYCLE,
+        WEBHOOK
     }
 
     /**
