@@ -257,6 +257,105 @@ Recommendations:
 - Store `installationToken` securely on INSTALLED (see `DatabaseTokenStore`).
 - Remove workspace data on DELETED.
 - Validate signatures for lifecycle callbacks if present (same header as webhooks in examples).
+- Preload workspace cache on INSTALLED for ID-to-name lookups (Rules add-on example below).
+
+## Workspace Cache Preload (Rules Add-on Pattern)
+
+The Rules add-on demonstrates a best practice: preloading workspace entities on installation for fast lookups and autocomplete support.
+
+### Implementation Pattern
+
+```java
+// In LifecycleHandlers.register()
+addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> {
+    // ... store installation token ...
+
+    // Preload workspace cache asynchronously
+    var wk = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).orElse(null);
+    if (wk != null) {
+        com.example.rules.cache.WorkspaceCache.refreshAsync(workspaceId, wk.apiBaseUrl(), wk.token());
+    }
+
+    return HttpResponse.ok(responseBody, "application/json");
+});
+```
+
+### Cache Benefits
+
+1. **Fast ID-to-Name Lookups**: Resolve entity names without API calls
+2. **Autocomplete Support**: Provide name-based selections in UI with ID resolution
+3. **Offline-First**: Cache enables features even when API is temporarily unavailable
+4. **Reduced API Load**: Minimize redundant GET requests for static entities
+
+### Cached Entities (Rules Example)
+
+- **Tags**: id → name, name (normalized) → id
+- **Projects**: id → name, name (normalized) → id
+- **Clients**: id → name, name (normalized) → id
+- **Users**: id → name, name/email (normalized) → id
+- **Tasks**: id → name, grouped by project with name (normalized) → id
+
+### Cache Endpoints
+
+Expose cache endpoints for diagnostics and manual refresh:
+
+```java
+// Summary
+addon.registerCustomEndpoint("/api/cache", request -> {
+    String ws = request.getParameter("workspaceId");
+    var snap = WorkspaceCache.get(ws);
+    return HttpResponse.ok(summaryJson(snap), "application/json");
+});
+
+// Full data (for autocompletes)
+addon.registerCustomEndpoint("/api/cache/data", request -> {
+    String ws = request.getParameter("workspaceId");
+    var snap = WorkspaceCache.get(ws);
+    return HttpResponse.ok(dataJson(snap), "application/json");
+});
+
+// Force refresh
+addon.registerCustomEndpoint("/api/cache/refresh", request -> {
+    String ws = request.getParameter("workspaceId");
+    var wk = TokenStore.get(ws).orElseThrow();
+    WorkspaceCache.refresh(ws, wk.apiBaseUrl(), wk.token());
+    return HttpResponse.ok("{\"status\":\"refreshed\"}", "application/json");
+});
+```
+
+### Thread Safety
+
+The `WorkspaceCache` uses:
+- `ConcurrentHashMap` for workspace-level storage
+- `volatile` snapshot references for atomic updates
+- `synchronized` methods for cache loading
+- Daemon threads for async refresh to avoid blocking lifecycle response
+
+### Normalization
+
+Entity names are normalized for case-insensitive lookups:
+
+```java
+private static String norm(String s) {
+    if (s == null) return "";
+    return s.trim().toLowerCase(Locale.ROOT);
+}
+```
+
+This allows users to reference "Billable" or "billable" and resolve to the same tag ID.
+
+### Example Usage in Rules
+
+```java
+// User selects "Meeting" tag by name in UI
+String tagName = "Meeting";
+var snap = WorkspaceCache.get(workspaceId);
+String tagId = snap.tagsByNameNorm.get(norm(tagName));
+
+// Use ID in API call
+ObjectNode body = mapper.createObjectNode();
+body.set("tagIds", mapper.createArrayNode().add(tagId));
+```
 
 ## Common Pitfalls
 

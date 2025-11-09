@@ -76,10 +76,23 @@ fi
 if $USE_NGROK; then
   NGROK_BASE=$(discover_ngrok || true)
   if [[ -z "${NGROK_BASE:-}" ]]; then
-    echo "Could not detect an https ngrok tunnel. Start it with: ngrok http ${PORT}" >&2
-    exit 3
+    # Ngrok API unavailable; check for NGROK_URL or BASE_URL fallback
+    if [[ -n "${NGROK_URL:-}" ]]; then
+      echo "Warning: ngrok API (port 4040) unavailable; using NGROK_URL=${NGROK_URL}" >&2
+      BASE_URL=$(sanitize_base "$NGROK_URL")
+    elif [[ -n "${BASE_URL:-}" ]]; then
+      echo "Warning: ngrok API (port 4040) unavailable; using provided BASE_URL=${BASE_URL}" >&2
+      BASE_URL=$(sanitize_base "$BASE_URL")
+    else
+      echo "ERROR: Could not detect an https ngrok tunnel from API at http://127.0.0.1:4040/api/tunnels" >&2
+      echo "       Either start ngrok with: ngrok http ${PORT}" >&2
+      echo "       Or provide NGROK_URL or BASE_URL environment variable" >&2
+      echo "Example: NGROK_URL=https://abc123.ngrok-free.app bash scripts/run-rules.sh --use-ngrok" >&2
+      exit 3
+    fi
+  else
+    BASE_URL=$(sanitize_base "$NGROK_BASE")
   fi
-  BASE_URL=$(sanitize_base "$NGROK_BASE")
 else
   BASE_URL=${BASE_URL:-"http://localhost:${PORT}/rules"}
   BASE_URL=$(sanitize_base "$BASE_URL")
