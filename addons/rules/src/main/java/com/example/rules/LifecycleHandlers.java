@@ -48,7 +48,8 @@ public class LifecycleHandlers {
                 System.out.println("=".repeat(80));
 
                 if (authToken == null || authToken.isEmpty()) {
-                    System.out.println("⚠️  TODO: Missing auth token in payload; verify installation payload structure.");
+                    System.out.println("⚠️  Warning: Missing auth token in INSTALLED payload. This may indicate an incomplete installation or payload structure issue.");
+                    System.out.println("   Expected payload fields: workspaceId, authToken, apiUrl");
                 } else if (workspaceId == null || workspaceId.isEmpty()) {
                     System.out.println("⚠️  Unable to store auth token because workspaceId is missing.");
                 } else {

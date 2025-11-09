@@ -108,7 +108,7 @@ public class DynamicWebhookHandlers {
                         conditionsMet = evaluator.evaluate(rule, context);
                     }
 
-                    if (conditionsMet) {
+                    if (conditionsMet && rule.getActions() != null) {
                         logger.info("Rule '{}' matched for event {}", rule.getName(), eventType);
                         allActions.addAll(rule.getActions());
                     }
