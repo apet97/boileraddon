@@ -88,7 +88,7 @@ public final class WebhookSignatureValidator {
         }
 
         // Unknown format — treat as invalid
-        return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid signature format\"}", "application/json"));
+        return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid signature\"}", "application/json"));
     }
 
     /** Low-level validator using HMAC-SHA256 hex. */
