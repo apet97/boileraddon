@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.*;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -38,6 +39,7 @@ public class CsrfProtectionFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(CsrfProtectionFilter.class);
 
     private static final String CSRF_TOKEN_ATTR = "_csrf_token";
+    private static final String CSRF_COOKIE_NAME = "clockify-addon-csrf";
     private static final String CSRF_HEADER = "X-CSRF-Token";
     private static final String CSRF_PARAM = "__csrf";
     private static final int TOKEN_LENGTH = 32;  // 256 bits
@@ -67,21 +69,22 @@ public class CsrfProtectionFilter implements Filter {
 
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
-
-        // Get or create CSRF token for this session
-        String csrfToken = getOrCreateCsrfToken(httpRequest);
-
-        // For safe methods (GET, HEAD, OPTIONS, TRACE), just continue
         String method = httpRequest.getMethod();
-        if (isSafeMethod(method)) {
+        String path = httpRequest.getRequestURI();
+
+        if (shouldExemptFromCsrf(path)) {
+            logger.debug("CSRF check exempted for path: {}", path);
             chain.doFilter(request, response);
             return;
         }
 
-        // For state-changing methods (POST, PUT, DELETE, PATCH), validate CSRF token
-        String path = httpRequest.getRequestURI();
-        if (shouldExemptFromCsrf(path)) {
-            logger.debug("CSRF check exempted for path: {}", path);
+        TokenState tokenState = getOrCreateCsrfToken(httpRequest);
+        String csrfToken = tokenState.token();
+        if (tokenState.generated() || isSafeMethod(method)) {
+            sendTokenCookie(httpResponse, httpRequest, csrfToken);
+        }
+
+        if (isSafeMethod(method)) {
             chain.doFilter(request, response);
             return;
         }
@@ -90,11 +93,11 @@ public class CsrfProtectionFilter implements Filter {
         String providedToken = extractCsrfToken(httpRequest);
         if (!validateCsrfToken(csrfToken, providedToken)) {
             logger.warn("SECURITY: CSRF token validation failed for {} {} from {}",
-                    method, path, httpRequest.getRemoteAddr());
+                    method, path, getClientIp(httpRequest));
 
             // Audit log CSRF failure
             AuditLogger.log(AuditLogger.AuditEvent.CSRF_TOKEN_INVALID)
-                    .clientIp(httpRequest.getRemoteAddr())
+                    .clientIp(getClientIp(httpRequest))
                     .detail("path", path)
                     .detail("method", method)
                     .error();
@@ -103,27 +106,34 @@ public class CsrfProtectionFilter implements Filter {
             return;
         }
 
-        logger.debug("CSRF validation passed for {} {}", method, path);
+        AuditLogger.log(AuditLogger.AuditEvent.CSRF_TOKEN_VALIDATED)
+                .clientIp(getClientIp(httpRequest))
+                .detail("path", path)
+                .detail("method", method)
+                .info();
         chain.doFilter(request, response);
     }
 
     /**
      * Gets existing CSRF token from session, or creates a new one.
      */
-    private String getOrCreateCsrfToken(HttpServletRequest request) {
+    private TokenState getOrCreateCsrfToken(HttpServletRequest request) {
         HttpSession session = request.getSession(true);
-        String token = (String) session.getAttribute(CSRF_TOKEN_ATTR);
-
-        if (token == null) {
-            // Generate new token: secure random bytes encoded as Base64
-            byte[] randomBytes = new byte[TOKEN_LENGTH];
-            random.nextBytes(randomBytes);
-            token = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
-            session.setAttribute(CSRF_TOKEN_ATTR, token);
-            logger.debug("Generated new CSRF token for session");
+        Object existing = session.getAttribute(CSRF_TOKEN_ATTR);
+        if (existing instanceof String token && !token.isBlank()) {
+            return new TokenState(token, false);
         }
 
-        return token;
+        byte[] randomBytes = new byte[TOKEN_LENGTH];
+        random.nextBytes(randomBytes);
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        session.setAttribute(CSRF_TOKEN_ATTR, token);
+        AuditLogger.log(AuditLogger.AuditEvent.CSRF_TOKEN_GENERATED)
+                .clientIp(getClientIp(request))
+                .detail("path", request.getRequestURI())
+                .info();
+        logger.debug("Generated new CSRF token for session");
+        return new TokenState(token, true);
     }
 
     /**
@@ -218,6 +228,34 @@ public class CsrfProtectionFilter implements Filter {
         response.getWriter().write(json);
         response.getWriter().flush();
     }
+
+    private void sendTokenCookie(HttpServletResponse response, HttpServletRequest request, String token) {
+        Cookie cookie = new Cookie(CSRF_COOKIE_NAME, token);
+        cookie.setPath("/");
+        cookie.setHttpOnly(false); // exposed to JS for double-submit header
+        cookie.setSecure(request.isSecure());
+        cookie.setMaxAge(-1);
+        cookie.setAttribute("SameSite", "Strict");
+        response.addCookie(cookie);
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty()) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty()) {
+            ip = request.getRemoteAddr();
+        }
+
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+
+        return ip != null ? ip : "unknown";
+    }
+
+    private record TokenState(String token, boolean generated) {}
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
