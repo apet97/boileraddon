@@ -18,7 +18,11 @@ class SettingsControllerTest {
         assertEquals(200, resp.getStatusCode());
         assertTrue(resp.getContentType().startsWith("text/html"));
         assertTrue(resp.getBody().contains("<title>Rules Add-on</title>"));
-        assertTrue(resp.getBody().contains("GET /api/rules"));
+        assertTrue(resp.getBody().contains("/api/rules"));
+        assertTrue(resp.getBody().contains("Rules Automation"));
+        assertTrue(resp.getBody().contains("IFTTT Builder"));
+        assertTrue(resp.getBody().contains("baseUrl"));
+        assertTrue(resp.getBody().contains("loadCache"));
     }
 }
 
