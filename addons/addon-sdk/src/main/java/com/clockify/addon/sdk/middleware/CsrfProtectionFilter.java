@@ -1,5 +1,6 @@
 package com.clockify.addon.sdk.middleware;
 
+import com.clockify.addon.sdk.security.AuditLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +91,13 @@ public class CsrfProtectionFilter implements Filter {
         if (!validateCsrfToken(csrfToken, providedToken)) {
             logger.warn("SECURITY: CSRF token validation failed for {} {} from {}",
                     method, path, httpRequest.getRemoteAddr());
+
+            // Audit log CSRF failure
+            AuditLogger.log(AuditLogger.AuditEvent.CSRF_TOKEN_INVALID)
+                    .clientIp(httpRequest.getRemoteAddr())
+                    .detail("path", path)
+                    .detail("method", method)
+                    .error();
 
             sendCsrfError(httpResponse);
             return;

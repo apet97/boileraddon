@@ -80,6 +80,13 @@
       <version>1.13.0</version>
     </dependency>
 
+    <!-- Connection Pooling: HikariCP (fastest JDBC connection pool) -->
+    <dependency>
+      <groupId>com.zaxxer</groupId>
+      <artifactId>HikariCP</artifactId>
+      <optional>true</optional>
+    </dependency>
+
     <!-- Testing -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>

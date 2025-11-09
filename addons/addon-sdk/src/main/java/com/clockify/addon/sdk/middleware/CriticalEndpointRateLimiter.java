@@ -1,5 +1,6 @@
 package com.clockify.addon.sdk.middleware;
 
+import com.clockify.addon.sdk.security.AuditLogger;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -99,8 +100,13 @@ public class CriticalEndpointRateLimiter implements Filter {
                 // Request allowed
                 chain.doFilter(request, response);
             } else {
-                // Rate limit exceeded
+                // Rate limit exceeded - log audit event
                 logger.warn("CRITICAL: Rate limit exceeded for path: {} identifier: {}", path, identifier);
+                AuditLogger.log(AuditLogger.AuditEvent.RATE_LIMIT_EXCEEDED)
+                        .clientIp(identifier)
+                        .detail("path", path)
+                        .detail("limit_permits_sec", getPermitRate(identifier))
+                        .error();
                 sendRateLimitError(httpResponse, getPermitRate(identifier));
             }
 
