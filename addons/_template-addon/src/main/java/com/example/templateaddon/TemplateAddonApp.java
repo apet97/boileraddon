@@ -2,9 +2,11 @@ package com.example.templateaddon;
 
 import com.clockify.addon.sdk.*;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
+import com.clockify.addon.sdk.config.SecretsPolicy;
 
 public class TemplateAddonApp {
     public static void main(String[] args) throws Exception {
+        SecretsPolicy.enforce();
         String baseUrl = ConfigValidator.validateUrl(System.getenv("ADDON_BASE_URL"),
                 "http://localhost:8080/_template-addon", "ADDON_BASE_URL");
         int port = ConfigValidator.validatePort(System.getenv("ADDON_PORT"), 8080, "ADDON_PORT");
@@ -46,4 +48,3 @@ public class TemplateAddonApp {
         try { var u = new java.net.URI(base); var p = u.getPath(); if (p==null||p.isBlank()) return "/"; p=p.replaceAll("/+$","" ); return p.isEmpty()?"/":p; } catch (Exception e){ return "/"; }
     }
 }
-

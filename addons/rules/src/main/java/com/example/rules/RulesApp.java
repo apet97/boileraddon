@@ -11,6 +11,7 @@ import com.clockify.addon.sdk.middleware.CorsFilter;
 import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
+import com.clockify.addon.sdk.config.SecretsPolicy;
 import com.example.rules.store.RulesStore;
 import com.example.rules.store.RulesStoreSPI;
 import com.example.rules.store.DatabaseRulesStore;
@@ -41,6 +42,7 @@ import com.clockify.addon.sdk.metrics.MetricsHandler;
 public class RulesApp {
 
     public static void main(String[] args) throws Exception {
+        SecretsPolicy.enforce();
         // Read and validate configuration from environment
         String baseUrl = ConfigValidator.validateUrl(
                 System.getenv("ADDON_BASE_URL"),

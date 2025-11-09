@@ -9,6 +9,7 @@ import com.clockify.addon.sdk.health.HealthCheck;
 import com.clockify.addon.sdk.security.DatabaseTokenStore;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.ConfigValidator;
+import com.clockify.addon.sdk.config.SecretsPolicy;
 
 /**
  * Auto-Tag Assistant Add-on
@@ -30,6 +31,7 @@ import com.clockify.addon.sdk.ConfigValidator;
  */
 public class AutoTagAssistantApp {
     public static void main(String[] args) throws Exception {
+        SecretsPolicy.enforce();
         // Read and validate configuration from environment
         String baseUrl = ConfigValidator.validateUrl(
             System.getenv("ADDON_BASE_URL"),

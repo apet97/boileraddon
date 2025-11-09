@@ -7,9 +7,11 @@ import com.clockify.addon.sdk.middleware.CorsFilter;
 import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
+import com.clockify.addon.sdk.config.SecretsPolicy;
 
 public class OvertimeApp {
     public static void main(String[] args) throws Exception {
+        SecretsPolicy.enforce();
         String baseUrl = ConfigValidator.validateUrl(System.getenv("ADDON_BASE_URL"),
                 "http://localhost:8080/overtime", "ADDON_BASE_URL");
         int port = ConfigValidator.validatePort(System.getenv("ADDON_PORT"), 8080, "ADDON_PORT");
