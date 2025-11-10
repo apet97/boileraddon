@@ -136,6 +136,13 @@ public class AddonServlet extends HttpServlet {
                 String key = type.toUpperCase();
                 RequestHandler byType = addon.getLifecycleHandlers().get(key);
                 if (byType != null) {
+                    // Ensure JSON body is cached before calling the handler
+                    try {
+                        readAndCacheJsonBody(req);
+                    } catch (IOException e) {
+                        logger.warn("Failed to read JSON body for lifecycle event", e);
+                        return HttpResponse.error(400, "Invalid JSON payload");
+                    }
                     return byType.handle(req);
                 }
             }
