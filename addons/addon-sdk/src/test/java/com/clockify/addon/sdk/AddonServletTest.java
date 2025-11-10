@@ -476,6 +476,8 @@ class AddonServletTest {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/json");
+        // Add webhook signature header to bypass CSRF check (webhooks are signed)
+        connection.setRequestProperty("clockify-webhook-signature", "dummy-signature-for-testing");
         connection.setDoOutput(true);
         return connection;
     }

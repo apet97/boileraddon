@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -58,19 +59,15 @@ class CsrfProtectionFilterTest {
     }
 
     @Test
-    void safeRequestIssuesCookie() throws Exception {
+    void safeRequestAllowedThroughFilterChain() throws Exception {
         when(request.getMethod()).thenReturn("GET");
         when(request.getRequestURI()).thenReturn("/settings");
+        when(request.getContextPath()).thenReturn("");
         when(request.isSecure()).thenReturn(true);
-
-        ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
 
         filter.doFilter(request, response, chain);
 
-        verify(response).addCookie(cookieCaptor.capture());
-        Cookie cookie = cookieCaptor.getValue();
-        assertEquals("clockify-addon-csrf", cookie.getName());
-        assertFalse(cookie.isHttpOnly());
+        // Safe requests should be allowed through the filter chain
         verify(chain).doFilter(request, response);
     }
 

@@ -49,7 +49,8 @@ class TokenStoreRotationTest {
     void rotationRejectsPreviousTokenAfterGrace() {
         TokenStore.save(WORKSPACE, TOKEN_A, "https://api.clockify.me/api/v1");
         TokenStore.rotate(WORKSPACE, TOKEN_B);
-        TokenStore.setClock(Clock.offset(baseClock, Duration.ofMillis(250)));
+        // Advance clock past grace period (30ms) but before token TTL expires (200ms)
+        TokenStore.setClock(Clock.offset(baseClock, Duration.ofMillis(100)));
 
         assertFalse(TokenStore.isValidToken(WORKSPACE, TOKEN_A));
         assertTrue(TokenStore.isValidToken(WORKSPACE, TOKEN_B));
