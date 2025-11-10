@@ -75,7 +75,9 @@ class DynamicHandlerOpenApiCallTest {
                 true,
                 "AND",
                 List.of(),
-                List.of(createTag, updateProject)
+                List.of(createTag, updateProject),
+                null,
+                0
         );
 
         assertEquals(2, rule.getActions().size());
@@ -164,7 +166,9 @@ class DynamicHandlerOpenApiCallTest {
                 true,
                 "AND",
                 List.of(),
-                List.of(action)
+                List.of(action),
+                null,
+                0
         );
 
         String json = objectMapper.writeValueAsString(rule);

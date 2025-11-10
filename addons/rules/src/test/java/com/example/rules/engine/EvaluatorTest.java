@@ -26,7 +26,7 @@ class EvaluatorTest {
     void testDescriptionContains_matches() {
         Condition condition = new Condition("descriptionContains", Condition.Operator.CONTAINS, "meeting", null);
         Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Client meeting tomorrow");
@@ -39,7 +39,7 @@ class EvaluatorTest {
     void testDescriptionContains_noMatch() {
         Condition condition = new Condition("descriptionContains", Condition.Operator.CONTAINS, "meeting", null);
         Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Development work");
@@ -54,7 +54,7 @@ class EvaluatorTest {
         Condition cond2 = new Condition("hasTag", Condition.Operator.EQUALS, "client", null);
 
         Rule rule = new Rule(null, "Test", true, "AND", Arrays.asList(cond1, cond2),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Client meeting");
@@ -73,7 +73,7 @@ class EvaluatorTest {
         Condition cond2 = new Condition("hasTag", Condition.Operator.EQUALS, "client", null);
 
         Rule rule = new Rule(null, "Test", true, "AND", Arrays.asList(cond1, cond2),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Client meeting");
@@ -90,7 +90,7 @@ class EvaluatorTest {
         Condition cond2 = new Condition("hasTag", Condition.Operator.EQUALS, "urgent", null);
 
         Rule rule = new Rule(null, "Test", true, "OR", Arrays.asList(cond1, cond2),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "important"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "important"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Review code");
@@ -109,7 +109,7 @@ class EvaluatorTest {
         Condition cond2 = new Condition("hasTag", Condition.Operator.EQUALS, "urgent", null);
 
         Rule rule = new Rule(null, "Test", true, "OR", Arrays.asList(cond1, cond2),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "important"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "important"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Review code");
@@ -124,7 +124,7 @@ class EvaluatorTest {
     void testProjectIdEquals_matches() {
         Condition condition = new Condition("projectIdEquals", Condition.Operator.EQUALS, "project-123", null);
         Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "project-work"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "project-work"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("projectId", "project-123");
@@ -137,7 +137,7 @@ class EvaluatorTest {
     void testIsBillable_matches() {
         Condition condition = new Condition("isBillable", Condition.Operator.EQUALS, "true", null);
         Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "revenue"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "revenue"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("billable", true);
@@ -150,7 +150,7 @@ class EvaluatorTest {
     void testDisabledRule_doesNotEvaluate() {
         Condition condition = new Condition("descriptionContains", Condition.Operator.CONTAINS, "meeting", null);
         Rule rule = new Rule(null, "Test", false, "AND", Collections.singletonList(condition),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Client meeting");
@@ -163,7 +163,7 @@ class EvaluatorTest {
     void testNotContainsOperator() {
         Condition condition = new Condition("descriptionContains", Condition.Operator.NOT_CONTAINS, "personal", null);
         Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "work"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "work"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Business meeting");
@@ -176,7 +176,7 @@ class EvaluatorTest {
     void testDescriptionContains_IN_values() {
         Condition condition = new Condition("descriptionContains", Condition.Operator.IN, null, Arrays.asList("meeting", "review"));
         Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "any"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "any"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Code review");
@@ -189,7 +189,7 @@ class EvaluatorTest {
     void testHasTag_IN_values() {
         Condition condition = new Condition("hasTag", Condition.Operator.IN, null, Arrays.asList("urgent", "client"));
         Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "hit"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "hit"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         ArrayNode tagIds = mapper.createArrayNode();
@@ -204,7 +204,7 @@ class EvaluatorTest {
     void testProjectIdEquals_IN_values() {
         Condition condition = new Condition("projectIdEquals", Condition.Operator.IN, null, Arrays.asList("p1", "p2"));
         Rule rule = new Rule(null, "Test", true, "AND", Collections.singletonList(condition),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "proj"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "proj"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("projectId", "p2");
@@ -215,7 +215,7 @@ class EvaluatorTest {
     @Test
     void testEmptyConditions_returnsFalse() {
         Rule rule = new Rule(null, "Test", true, "AND", Collections.emptyList(),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))), null, 0);
 
         ObjectNode timeEntry = mapper.createObjectNode();
         timeEntry.put("description", "Some work");

@@ -104,7 +104,7 @@ class WebhookHandlersTest {
         Action action = new Action("add_tag", Collections.singletonMap("tag", "billable"));
         Rule rule = new Rule("rule-1", "Tag meetings", true, "AND",
                 Collections.singletonList(condition),
-                Collections.singletonList(action));
+                Collections.singletonList(action), null, 0);
         store.save(workspaceId, rule);
 
         String payload = """
@@ -196,7 +196,7 @@ class WebhookHandlersTest {
         Action action = new Action("add_tag", Collections.singletonMap("tag", "billable"));
         Rule rule = new Rule("rule-1", "Tag meetings", true, "AND",
                 Collections.singletonList(condition),
-                Collections.singletonList(action));
+                Collections.singletonList(action), null, 0);
         store.save(workspaceId, rule);
 
         String payload = """

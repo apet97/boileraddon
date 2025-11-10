@@ -5,6 +5,7 @@ import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.security.WebhookSignatureValidator;
 import com.example.rules.engine.*;
 import com.example.rules.store.RulesStoreSPI;
+import com.example.rules.cache.RuleCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -81,8 +82,8 @@ public class DynamicWebhookHandlers {
 
                 logger.info("Dynamic webhook event received: {} for workspace {}", eventType, workspaceId);
 
-                // Load rules that match this event
-                List<Rule> allRules = rulesStore.getEnabled(workspaceId);
+                // Load rules that match this event using cache
+                List<Rule> allRules = RuleCache.getEnabledRules(workspaceId);
                 List<Rule> matchingRules = new ArrayList<>();
 
                 for (Rule rule : allRules) {
@@ -92,10 +93,17 @@ public class DynamicWebhookHandlers {
                     }
                 }
 
+                // Sort rules by priority (higher priority = executed first)
+                matchingRules.sort((r1, r2) -> Integer.compare(r2.getPriority(), r1.getPriority()));
+
                 if (matchingRules.isEmpty()) {
-                    logger.debug("No rules found for event {} in workspace {}", eventType, workspaceId);
+                    logger.debug("No rules found for event {} in workspace {} (total enabled rules: {})",
+                        eventType, workspaceId, allRules.size());
                     return createResponse(eventType, "no_matching_rules", new ArrayList<>());
                 }
+
+                logger.info("Found {} matching rules for event {} in workspace {}",
+                    matchingRules.size(), eventType, workspaceId);
 
                 // Process each matching rule
                 List<Action> allActions = new ArrayList<>();
@@ -158,10 +166,18 @@ public class DynamicWebhookHandlers {
      * For legacy rules, we assume they apply to time entry events.
      */
     private static boolean ruleMatchesEvent(Rule rule, String eventType) {
-        // We don’t yet persist explicit trigger metadata on Rule.
-        // Until Rule carries a "trigger.event", treat dynamic rules as wildcard (match any event),
-        // and rely on user-provided conditions to scope when they run.
-        // Time-entry events are handled by the legacy handler and are not registered here.
+        // If rule has explicit trigger metadata, use it for matching
+        if (rule.getTrigger() != null && !rule.getTrigger().isEmpty()) {
+            Object triggerEvent = rule.getTrigger().get("event");
+            if (triggerEvent instanceof String) {
+                return eventType.equals(triggerEvent);
+            }
+            // If trigger has no specific event, it's a wildcard rule
+            return true;
+        }
+
+        // Legacy rules without trigger metadata are considered wildcard
+        // This maintains backward compatibility with existing rules
         return true;
     }
 
@@ -175,8 +191,9 @@ public class DynamicWebhookHandlers {
             try {
                 String type = action.getType();
                 if ("openapi_call".equals(type)) {
-                    executeOpenApiCall(action, payload, workspaceId, api);
-                    executedCount++;
+                    if (executeOpenApiCallWithRetry(action, payload, workspaceId, api)) {
+                        executedCount++;
+                    }
                 } else {
                     // Legacy actions (add_tag, set_billable, etc.) are handled by WebhookHandlers
                     // For dynamic events, we only execute openapi_call actions here
@@ -188,6 +205,40 @@ public class DynamicWebhookHandlers {
         }
 
         return executedCount;
+    }
+
+    /**
+     * Execute an openapi_call action with retry mechanism.
+     */
+    private static boolean executeOpenApiCallWithRetry(Action action, JsonNode payload, String workspaceId, ClockifyClient api) {
+        int maxRetries = 3;
+        int retryDelayMs = 1000; // 1 second initial delay
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                executeOpenApiCall(action, payload, workspaceId, api);
+                logger.info("Successfully executed openapi_call on attempt {}/{}", attempt, maxRetries);
+                return true;
+            } catch (Exception e) {
+                logger.warn("Failed to execute openapi_call on attempt {}/{}: {}", attempt, maxRetries, e.getMessage());
+
+                if (attempt == maxRetries) {
+                    logger.error("Failed to execute openapi_call after {} attempts: {}", maxRetries, action, e);
+                    return false;
+                }
+
+                // Exponential backoff
+                try {
+                    Thread.sleep(retryDelayMs * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    logger.error("Retry interrupted for action: {}", action, ie);
+                    return false;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

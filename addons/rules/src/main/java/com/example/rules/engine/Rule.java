@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -21,6 +22,8 @@ public class Rule {
     private final String combinator; // "AND" or "OR"
     private final List<Condition> conditions;
     private final List<Action> actions;
+    private final Map<String, Object> trigger; // Trigger metadata for IFTTT rules
+    private final int priority; // Execution priority (higher = executed first)
 
     @JsonCreator
     public Rule(
@@ -29,13 +32,17 @@ public class Rule {
             @JsonProperty("enabled") Boolean enabled,
             @JsonProperty("combinator") String combinator,
             @JsonProperty("conditions") List<Condition> conditions,
-            @JsonProperty("actions") List<Action> actions) {
+            @JsonProperty("actions") List<Action> actions,
+            @JsonProperty("trigger") Map<String, Object> trigger,
+            @JsonProperty("priority") Integer priority) {
         this.id = id != null ? id : UUID.randomUUID().toString();
         this.name = name;
         this.enabled = enabled != null ? enabled : true;
         this.combinator = combinator != null ? combinator : "AND";
         this.conditions = conditions;
         this.actions = actions;
+        this.trigger = trigger;
+        this.priority = priority != null ? priority : 0;
     }
 
     public String getId() {
@@ -62,22 +69,32 @@ public class Rule {
         return actions;
     }
 
+    public Map<String, Object> getTrigger() {
+        return trigger;
+    }
+
+    public int getPriority() {
+        return priority;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Rule rule = (Rule) o;
         return enabled == rule.enabled &&
+                priority == rule.priority &&
                 Objects.equals(id, rule.id) &&
                 Objects.equals(name, rule.name) &&
                 Objects.equals(combinator, rule.combinator) &&
                 Objects.equals(conditions, rule.conditions) &&
-                Objects.equals(actions, rule.actions);
+                Objects.equals(actions, rule.actions) &&
+                Objects.equals(trigger, rule.trigger);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, enabled, combinator, conditions, actions);
+        return Objects.hash(id, name, enabled, priority, combinator, conditions, actions, trigger);
     }
 
     @Override
@@ -86,9 +103,11 @@ public class Rule {
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
                 ", enabled=" + enabled +
+                ", priority=" + priority +
                 ", combinator='" + combinator + '\'' +
                 ", conditions=" + conditions +
                 ", actions=" + actions +
+                ", trigger=" + trigger +
                 '}';
     }
 }

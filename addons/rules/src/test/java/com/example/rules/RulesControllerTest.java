@@ -188,6 +188,8 @@ class RulesControllerTest {
     private Rule createTestRule(String id, String name) {
         return new Rule(id, name, true, "AND",
                 Collections.singletonList(new Condition("descriptionContains", Condition.Operator.CONTAINS, "test", null)),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))),
+                null,
+                0);
     }
 }

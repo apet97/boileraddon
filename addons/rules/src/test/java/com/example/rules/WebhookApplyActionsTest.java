@@ -67,7 +67,9 @@ class WebhookApplyActionsTest {
                 true,
                 "AND",
                 Collections.singletonList(new Condition("descriptionContains", Condition.Operator.CONTAINS, "meeting", null)),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable")))
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "billable"))),
+                null,
+                0
         );
         store.save(workspaceId, rule);
 

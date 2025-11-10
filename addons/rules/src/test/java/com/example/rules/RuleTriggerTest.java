@@ -32,7 +32,9 @@ class RuleTriggerTest {
                 true,
                 "AND",
                 List.of(condition),
-                List.of(action)
+                List.of(action),
+                null,
+                0
         );
 
         assertEquals("rule-1", rule.getId());
@@ -52,7 +54,9 @@ class RuleTriggerTest {
                 null,  // should default to enabled=true
                 null,  // should default to combinator="AND"
                 List.of(),
-                List.of()
+                List.of(),
+                null,
+                null
         );
 
         assertNotNull(rule.getId(), "ID should be auto-generated");
@@ -72,7 +76,9 @@ class RuleTriggerTest {
                 true,
                 "OR",
                 List.of(condition1, condition2),
-                List.of()
+                List.of(),
+                null,
+                0
         );
 
         assertEquals("OR", rule.getCombinator());
@@ -94,7 +100,9 @@ class RuleTriggerTest {
                 true,
                 "AND",
                 List.of(),  // no conditions
-                List.of(action)
+                List.of(action),
+                null,
+                0
         );
 
         assertTrue(rule.getConditions().isEmpty(), "Rule should have no conditions");
@@ -118,7 +126,9 @@ class RuleTriggerTest {
                 true,
                 "AND",
                 List.of(),
-                List.of(action1, action2, action3)
+                List.of(action1, action2, action3),
+                null,
+                0
         );
 
         assertEquals(3, rule.getActions().size());
@@ -136,7 +146,9 @@ class RuleTriggerTest {
                 true,
                 "AND",
                 List.of(condition),
-                List.of(action)
+                List.of(action),
+                null,
+                0
         );
 
         String json = objectMapper.writeValueAsString(rule);
@@ -157,9 +169,9 @@ class RuleTriggerTest {
         Action action = new Action("add_tag", Map.of("tag", "dev"));
 
         Rule rule1 = new Rule("id-1", "Rule 1", true, "AND",
-                List.of(condition), List.of(action));
+                List.of(condition), List.of(action), null, 0);
         Rule rule2 = new Rule("id-1", "Rule 1", true, "AND",
-                List.of(condition), List.of(action));
+                List.of(condition), List.of(action), null, 0);
 
         assertEquals(rule1, rule2);
         assertEquals(rule1.hashCode(), rule2.hashCode());
@@ -168,8 +180,8 @@ class RuleTriggerTest {
     @Test
     void rule_differentIdsAreNotEqual() {
         // Verify that rules with different IDs are not equal
-        Rule rule1 = new Rule("id-1", "Rule", true, "AND", List.of(), List.of());
-        Rule rule2 = new Rule("id-2", "Rule", true, "AND", List.of(), List.of());
+        Rule rule1 = new Rule("id-1", "Rule", true, "AND", List.of(), List.of(), null, 0);
+        Rule rule2 = new Rule("id-2", "Rule", true, "AND", List.of(), List.of(), null, 0);
 
         assertNotEquals(rule1, rule2);
     }
@@ -183,7 +195,9 @@ class RuleTriggerTest {
                 false,  // disabled
                 "AND",
                 List.of(),
-                List.of()
+                List.of(),
+                null,
+                0
         );
 
         assertFalse(rule.isEnabled(), "Rule should be disabled");
@@ -198,7 +212,9 @@ class RuleTriggerTest {
                 true,
                 "AND",
                 List.of(new Condition("project", Condition.Operator.EQUALS, "Dev")),
-                List.of(new Action("add_tag", Map.of("tag", "test")))
+                List.of(new Action("add_tag", Map.of("tag", "test"))),
+                null,
+                0
         );
 
         String str = rule.toString();
@@ -252,7 +268,9 @@ class RuleTriggerTest {
                 true,
                 "AND",
                 List.of(),
-                List.of(action1, action2, action3)
+                List.of(action1, action2, action3),
+                null,
+                0
         );
 
         List<Action> actions = rule.getActions();
@@ -274,7 +292,9 @@ class RuleTriggerTest {
                 true,
                 "AND",
                 List.of(condition1, condition2, condition3),
-                List.of()
+                List.of(),
+                null,
+                0
         );
 
         assertEquals(3, rule.getConditions().size());

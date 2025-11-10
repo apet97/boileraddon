@@ -3,7 +3,9 @@ package com.example.rules;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
 import com.example.rules.engine.Rule;
+import com.example.rules.engine.RuleValidator;
 import com.example.rules.store.RulesStoreSPI;
+import com.example.rules.cache.RuleCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -26,6 +28,8 @@ public class RulesController {
 
     public RulesController(RulesStoreSPI rulesStore) {
         this.rulesStore = rulesStore;
+        // Initialize rule cache
+        RuleCache.initialize(rulesStore);
     }
 
     /**
@@ -64,7 +68,17 @@ public class RulesController {
                 JsonNode body = parseRequestBody(request);
                 Rule rule = objectMapper.treeToValue(body, Rule.class);
 
+                // Validate the rule before saving
+                try {
+                    RuleValidator.validate(rule);
+                } catch (RuleValidator.RuleValidationException e) {
+                    logger.warn("Rule validation failed: {}", e.getMessage());
+                    return HttpResponse.error(400, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                }
+
                 Rule saved = rulesStore.save(workspaceId, rule);
+                // Invalidate cache for this workspace
+                RuleCache.invalidate(workspaceId);
                 String json = objectMapper.writeValueAsString(saved);
                 return HttpResponse.ok(json, "application/json");
 
@@ -96,6 +110,8 @@ public class RulesController {
                 }
 
                 boolean deleted = rulesStore.delete(workspaceId, ruleId);
+                // Invalidate cache for this workspace
+                RuleCache.invalidate(workspaceId);
                 String json = objectMapper.createObjectNode()
                         .put("deleted", deleted)
                         .put("ruleId", ruleId)
@@ -173,7 +189,8 @@ public class RulesController {
                 var evaluator = new com.example.rules.engine.Evaluator();
                 var context = new com.example.rules.engine.TimeEntryContext(timeEntry);
                 var matched = new java.util.ArrayList<com.example.rules.engine.Action>();
-                for (var r : rulesStore.getEnabled(workspaceId)) {
+                // Use cached enabled rules for better performance
+                for (var r : RuleCache.getEnabledRules(workspaceId)) {
                     if (evaluator.evaluate(r, context) && r.getActions() != null) {
                         matched.addAll(r.getActions());
                     }

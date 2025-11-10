@@ -51,11 +51,11 @@ class RulesStoreTest {
     void testGetEnabled() {
         Rule enabled = new Rule("rule-1", "Enabled", true, "AND",
                 Collections.singletonList(new Condition("descriptionContains", Condition.Operator.CONTAINS, "test", null)),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))), null, 0);
 
         Rule disabled = new Rule("rule-2", "Disabled", false, "AND",
                 Collections.singletonList(new Condition("descriptionContains", Condition.Operator.CONTAINS, "test", null)),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))), null, 0);
 
         store.save("workspace-1", enabled);
         store.save("workspace-1", disabled);
@@ -138,7 +138,7 @@ class RulesStoreTest {
     void testValidation_missingName() {
         Rule rule = new Rule("test-rule", null, true, "AND",
                 Collections.singletonList(new Condition("descriptionContains", Condition.Operator.CONTAINS, "test", null)),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))), null, 0);
 
         assertThrows(IllegalArgumentException.class, () -> store.save("workspace-1", rule));
     }
@@ -147,7 +147,7 @@ class RulesStoreTest {
     void testValidation_emptyConditions() {
         Rule rule = new Rule("test-rule", "Test", true, "AND",
                 Collections.emptyList(),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))), null, 0);
 
         assertThrows(IllegalArgumentException.class, () -> store.save("workspace-1", rule));
     }
@@ -156,7 +156,7 @@ class RulesStoreTest {
     void testValidation_emptyActions() {
         Rule rule = new Rule("test-rule", "Test", true, "AND",
                 Collections.singletonList(new Condition("descriptionContains", Condition.Operator.CONTAINS, "test", null)),
-                Collections.emptyList());
+                Collections.emptyList(), null, 0);
 
         assertThrows(IllegalArgumentException.class, () -> store.save("workspace-1", rule));
     }
@@ -175,6 +175,6 @@ class RulesStoreTest {
     private Rule createTestRule(String id, String name) {
         return new Rule(id, name, true, "AND",
                 Collections.singletonList(new Condition("descriptionContains", Condition.Operator.CONTAINS, "test", null)),
-                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))));
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))), null, 0);
     }
 }

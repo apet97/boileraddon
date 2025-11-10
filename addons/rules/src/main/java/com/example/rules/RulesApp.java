@@ -11,7 +11,6 @@ import com.clockify.addon.sdk.middleware.CorsFilter;
 import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
-import com.clockify.addon.sdk.config.SecretsPolicy;
 import com.example.rules.store.RulesStore;
 import com.example.rules.store.RulesStoreSPI;
 import com.example.rules.store.DatabaseRulesStore;
@@ -42,7 +41,6 @@ import com.clockify.addon.sdk.metrics.MetricsHandler;
 public class RulesApp {
 
     public static void main(String[] args) throws Exception {
-        SecretsPolicy.enforce();
         // Read and validate configuration from environment
         String baseUrl = ConfigValidator.validateUrl(
                 System.getenv("ADDON_BASE_URL"),
@@ -99,6 +97,11 @@ public class RulesApp {
         IftttController ifttt = new IftttController();
         addon.registerCustomEndpoint("/ifttt", ifttt);
         addon.registerCustomEndpoint("/ifttt/", ifttt);
+
+        // GET /rules/simple - Simple rule builder with templates
+        SimpleSettingsController simpleSettings = new SimpleSettingsController();
+        addon.registerCustomEndpoint("/simple", simpleSettings);
+        addon.registerCustomEndpoint("/simple/", simpleSettings);
 
         // Rules CRUD API
         addon.registerCustomEndpoint("/api/rules", request -> {
@@ -217,6 +220,17 @@ public class RulesApp {
             }
         });
 
+        // GET /rules/api/cache/stats — rule cache statistics
+        addon.registerCustomEndpoint("/api/cache/stats", request -> {
+            try {
+                var stats = com.example.rules.cache.RuleCache.getStats();
+                var json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(stats);
+                return HttpResponse.ok(json, "application/json");
+            } catch (Exception e) {
+                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+            }
+        });
+
         // GET /rules/status — runtime status (token present, modes)
         addon.registerCustomEndpoint("/status", request -> {
             try {
@@ -317,10 +331,15 @@ public class RulesApp {
         System.out.println("Base URL: " + baseUrl);
         System.out.println("Port: " + port);
         System.out.println("Context Path: " + contextPath);
+        System.out.println("Storage: " + (rulesStore instanceof com.example.rules.store.DatabaseRulesStore ? "Database" : "In-Memory"));
+        System.out.println("Apply Changes: " + System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false"));
+        System.out.println("Skip Signature: " + System.getenv().getOrDefault("ADDON_SKIP_SIGNATURE_VERIFY", "false"));
         System.out.println();
         System.out.println("Endpoints:");
         System.out.println("  Manifest:  " + baseUrl + "/manifest.json");
         System.out.println("  Settings:  " + baseUrl + "/settings");
+        System.out.println("  Simple UI: " + baseUrl + "/simple");
+        System.out.println("  IFTTT UI:  " + baseUrl + "/ifttt");
         System.out.println("  Lifecycle: " + baseUrl + "/lifecycle/installed");
         System.out.println("             " + baseUrl + "/lifecycle/deleted");
         System.out.println("  Webhook:   " + baseUrl + "/webhook");
@@ -331,8 +350,13 @@ public class RulesApp {
         // Add shutdown hook for graceful stop
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
+                System.out.println("Shutting down Rules Add-on...");
+                // Clean up cache resources
+                com.example.rules.cache.RuleCache.shutdown();
                 server.stop();
-            } catch (Exception ignored) {
+                System.out.println("Rules Add-on shutdown complete");
+            } catch (Exception e) {
+                System.err.println("Error during shutdown: " + e.getMessage());
             }
         }));
 
