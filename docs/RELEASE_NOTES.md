@@ -3,7 +3,7 @@
 ## v0.1.1 — Consolidation and Developer UX (2025‑11‑08)
 
 Highlights
-- Developer signatures: accept both HMAC `clockify-webhook-signature` and Developer JWT header `Clockify-Signature` by default; toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
+- Developer signatures: accept both HMAC `clockify-webhook-signature` and Developer JWT header `Clockify-Signature` (enable JWT path with `ADDON_ACCEPT_JWT_SIGNATURE=true`; default `false`).
 - Status endpoint docs: `/rules/status` reports `tokenPresent`, `applyChanges`, `skipSignatureVerify`, and `baseUrl`.
 - Run experience: `scripts/run-rules.sh` guards against spaces in `--base-url` and prints clear hints; docs add ngrok single‑agent tips (`ERR_NGROK_108`).
 - Settings UI: added “Copy manifest URL” and “Open install page” buttons to speed install.
@@ -40,4 +40,3 @@ bash scripts/run-rules.sh --use-ngrok
 Security
 - Signature bypass is for local debugging only: `ADDON_SKIP_SIGNATURE_VERIFY=true`.
 - JWT acceptance is intended for Developer flows; use HMAC in production where possible.
-

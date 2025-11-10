@@ -232,7 +232,7 @@ that powers classic actions (add_tag, set_billable, etc.).
   - set_project_by_id, set_project_by_name (name resolved via cache)
   - set_task_by_id, set_task_by_name (name resolved under current or newly set project via cache)
   - **openapi_call** (IFTTT: execute any Clockify API endpoint with placeholder resolution)
-- Signatures: Developer webhooks are signed. The validator accepts `clockify-webhook-signature`, `x-clockify-webhook-signature` (case variants), and Developer’s JWT header `Clockify-Signature` by default. Toggle JWT acceptance with `ADDON_ACCEPT_JWT_SIGNATURE=true|false` (default: true). If your environment still 401s, use the dev bypass below to prove E2E and share one sample header so we can adapt.
+- Signatures: Developer webhooks are signed. The validator accepts `clockify-webhook-signature`, `x-clockify-webhook-signature` (case variants), and Developer’s JWT header `Clockify-Signature` (enable with `ADDON_ACCEPT_JWT_SIGNATURE=true`; default is `false`). If your environment still 401s, use the dev bypass below to prove E2E and share one sample header so we can adapt.
 - Dev bypass: To test end‑to‑end without signature problems and apply changes:
   - `ADDON_SKIP_SIGNATURE_VERIFY=true RULES_APPLY_CHANGES=true bash scripts/run-rules.sh --base-url "https://<ngrok>/rules"`
   - Create a rule in the UI, then create/update a matching time entry in the installed workspace.

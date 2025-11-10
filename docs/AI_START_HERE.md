@@ -32,7 +32,7 @@ TEMPLATE=auto-tag-assistant make zero-shot-run
 
 Developer signatures
 - HMAC header: `clockify-webhook-signature` (and case variants) is always supported.
-- JWT header: `Clockify-Signature` from Developer is accepted by default. Toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
+- JWT header: `Clockify-Signature` from Developer is accepted only when you set `ADDON_ACCEPT_JWT_SIGNATURE=true` (default `false`).
 
 Dev shortcuts (when Developer webhooks 401 during setup):
 ```

@@ -127,7 +127,7 @@ The IFTTT builder lets you create powerful automations with any webhook trigger 
 ## 7) Test in Developer
 - Create/Update time entries that match your rule in the installed workspace.
 - Watch server logs for webhook processing:
-  - Signatures: validator accepts HMAC (`clockify-webhook-signature`) and Developer JWT header (`Clockify-Signature`) by default. No need to skip verification.
+- Signatures: validator accepts HMAC (`clockify-webhook-signature`) and Developer JWT header (`Clockify-Signature`) when you opt in with `ADDON_ACCEPT_JWT_SIGNATURE=true` (default `false`). No need to skip verification once enabled.
   - Responses like:
 ```
 {"event":"NEW_TIME_ENTRY","status":"actions_applied","actionsCount":1,"actions":[...]}

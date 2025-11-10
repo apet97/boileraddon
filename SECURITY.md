@@ -10,7 +10,7 @@ This project provides a Clockify add-on boilerplate. Use these practices when bu
 - Webhooks and lifecycle
   - Verify signatures for webhook/lifecycle requests before processing.
   - Reject unsigned or malformed requests.
-  - Developer environments may send a JWT header (`Clockify-Signature`). The SDK validator can accept it by default (toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`). Prefer HMAC (`clockify-webhook-signature`) for production consistency.
+  - Developer environments may send a JWT header (`Clockify-Signature`). The SDK validator accepts this header only when `ADDON_ACCEPT_JWT_SIGNATURE=true` (disabled by default for production). Prefer HMAC (`clockify-webhook-signature`) for production consistency.
 - Embedding and origins
   - Frame embedding: set `ADDON_FRAME_ANCESTORS='self' https://*.clockify.me` so the settings UI is only embeddable inside Clockify.
   - CORS: set `ADDON_CORS_ORIGINS=https://app.clockify.me,https://developer.clockify.me` (and `ADDON_CORS_ALLOW_CREDENTIALS=true` if needed). CORS is disabled by default.
