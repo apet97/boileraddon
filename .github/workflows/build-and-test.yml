@@ -50,6 +50,18 @@ jobs:
           name: jacoco-aggregate
           path: target/site/jacoco-aggregate/**
 
+      - name: OWASP Dependency Check
+        run: mvn -B -Psecurity-scan dependency-check:check
+        continue-on-error: false
+      - name: Upload OWASP Dependency Check reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-dependency-check
+          path: |
+            **/target/dependency-check-report.html
+            **/target/dependency-check-report.json
+
       - name: Compute coverage summary (for PR comment)
         if: ${{ github.event_name == 'pull_request' }}
         run: |
