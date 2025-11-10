@@ -2,6 +2,8 @@ package com.clockify.addon.sdk.security;
 
 import com.clockify.addon.sdk.HttpResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -14,6 +16,8 @@ import java.nio.charset.StandardCharsets;
  * - validate(signatureHeader, body, secret): low-level validator
  */
 public final class WebhookSignatureValidator {
+    private static final Logger logger = LoggerFactory.getLogger(WebhookSignatureValidator.class);
+
     private WebhookSignatureValidator() {}
 
     public static final String SIGNATURE_HEADER = "clockify-webhook-signature";
@@ -40,54 +44,91 @@ public final class WebhookSignatureValidator {
     /**
      * Validates the request using the stored installation token for the workspace.
      * Returns 401 if token/signature missing; 403 if signature mismatch.
+     * Logs detailed information at each decision point for troubleshooting.
      */
     public static VerificationResult verify(HttpServletRequest request, String workspaceId) {
         if (workspaceId == null || workspaceId.isBlank()) {
+            logger.warn("Webhook signature validation failed: workspaceId is missing or blank");
             return new VerificationResult(false, HttpResponse.error(401, "{\"error\":\"workspaceId missing\"}", "application/json"));
         }
+
         var tokenOpt = TokenStore.get(workspaceId);
         if (tokenOpt.isEmpty()) {
+            logger.warn("Webhook signature validation failed for workspace '{}': no installation token found in TokenStore", workspaceId);
             return new VerificationResult(false, HttpResponse.error(401, "{\"error\":\"installation token not found\"}", "application/json"));
         }
+        logger.debug("Webhook signature validation starting for workspace '{}'", workspaceId);
+
         String sigHeader = request.getHeader(SIGNATURE_HEADER);
+        String signatureHeaderUsed = SIGNATURE_HEADER;
         if (sigHeader == null || sigHeader.isBlank()) {
             for (String h : ALT_HEADERS) {
                 String v = request.getHeader(h);
-                if (v != null && !v.isBlank()) { sigHeader = v; break; }
+                if (v != null && !v.isBlank()) {
+                    sigHeader = v;
+                    signatureHeaderUsed = h;
+                    logger.debug("Webhook signature validation: signature found in alternate header '{}'", h);
+                    break;
+                }
             }
+        } else {
+            logger.debug("Webhook signature validation: signature found in primary header");
         }
+
         if (sigHeader == null || sigHeader.isBlank()) {
+            logger.warn("Webhook signature validation failed for workspace '{}': no signature header found (checked {} headers)",
+                workspaceId, 1 + ALT_HEADERS.length);
             return new VerificationResult(false, HttpResponse.error(401, "{\"error\":\"signature header missing\"}", "application/json"));
         }
+
         byte[] body = readRawBody(request).getBytes(StandardCharsets.UTF_8);
+        logger.debug("Webhook signature validation: payload size = {} bytes", body.length);
 
         // Path 1: HMAC (sha256=<hex> or raw hex)
         if (looksLikeHmac(sigHeader)) {
+            logger.debug("Webhook signature validation: signature format is HMAC-SHA256");
             boolean ok = validate(sigHeader, body, tokenOpt.get().token());
             if (!ok) {
+                logger.warn("Webhook signature validation failed for workspace '{}': HMAC signature mismatch", workspaceId);
                 return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid signature\"}", "application/json"));
             }
+            logger.info("Webhook signature validation successful for workspace '{}': HMAC-SHA256 verified", workspaceId);
             return VerificationResult.ok();
         }
 
         // Path 2: Developer JWT (Clockify-Signature) — optionally accept by inspecting payload
-        if (looksLikeJwt(sigHeader) && acceptJwtDevSignature()) {
-            try {
-                String payload = decodeJwtPayload(sigHeader);
-                // naive JSON parse to avoid dependencies
-                String wsFromJwt = extractJsonString(payload, "workspaceId");
-                if (wsFromJwt != null && wsFromJwt.equals(workspaceId)) {
-                    return VerificationResult.ok();
+        if (looksLikeJwt(sigHeader)) {
+            boolean jwtAccepted = acceptJwtDevSignature();
+            logger.debug("Webhook signature validation: signature format is JWT (acceptance enabled: {})", jwtAccepted);
+
+            if (jwtAccepted) {
+                try {
+                    String payload = decodeJwtPayload(sigHeader);
+                    logger.debug("Webhook signature validation: JWT payload decoded successfully");
+                    // naive JSON parse to avoid dependencies
+                    String wsFromJwt = extractJsonString(payload, "workspaceId");
+                    if (wsFromJwt != null && wsFromJwt.equals(workspaceId)) {
+                        logger.info("Webhook signature validation successful for workspace '{}': JWT workspace ID matched", workspaceId);
+                        return VerificationResult.ok();
+                    }
+                    // fallback: allow when workspaceId missing but header present
+                    if (wsFromJwt == null || wsFromJwt.isBlank()) {
+                        logger.info("Webhook signature validation successful for workspace '{}': JWT accepted (workspaceId not in token)", workspaceId);
+                        return VerificationResult.ok();
+                    }
+                    logger.warn("Webhook signature validation failed for workspace '{}': JWT workspace ID mismatch (expected '{}', got '{}')",
+                        workspaceId, workspaceId, wsFromJwt);
+                } catch (Exception e) {
+                    logger.warn("Webhook signature validation failed for workspace '{}': JWT decoding error: {}", workspaceId, e.getMessage());
                 }
-                // fallback: allow when workspaceId missing but header present
-                if (wsFromJwt == null || wsFromJwt.isBlank()) {
-                    return VerificationResult.ok();
-                }
-            } catch (Exception ignored) {}
-            return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid jwt signature\"}", "application/json"));
+                return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid jwt signature\"}", "application/json"));
+            } else {
+                logger.warn("Webhook signature validation failed for workspace '{}': JWT signature provided but JWT acceptance is disabled", workspaceId);
+            }
         }
 
         // Unknown format — treat as invalid
+        logger.warn("Webhook signature validation failed for workspace '{}': signature format unrecognized (neither HMAC nor JWT)", workspaceId);
         return new VerificationResult(false, HttpResponse.error(403, "{\"error\":\"invalid signature\"}", "application/json"));
     }
 
