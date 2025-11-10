@@ -143,17 +143,22 @@ public class PooledDatabaseTokenStore implements TokenStoreSPI, AutoCloseable {
                 "VALUES (?, ?, ?, ?) " +
                 "ON CONFLICT (workspace_id) DO UPDATE SET auth_token = EXCLUDED.auth_token, last_accessed_at = EXCLUDED.last_accessed_at";
 
+        long startTime = System.currentTimeMillis();
         try (Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement(upsert)) {
             ps.setString(1, workspaceId);
             ps.setString(2, token);
             ps.setLong(3, now);
             ps.setLong(4, now);
-            ps.executeUpdate();
+            int rows = ps.executeUpdate();
+            long elapsed = System.currentTimeMillis() - startTime;
+            logger.info("Token saved for workspace '{}': rows_affected={}, elapsed_ms={}", workspaceId, rows, elapsed);
         } catch (SQLException e) {
+            long elapsed = System.currentTimeMillis() - startTime;
             String errorMsg = String.format("Failed to save token for workspace %s: %s",
                     workspaceId, e.getMessage());
-            logger.error(errorMsg, e);
+            logger.error("Token save failed for workspace '{}': elapsed_ms={}, error_code={}, message={}",
+                    workspaceId, elapsed, e.getErrorCode(), e.getMessage(), e);
             throw new RuntimeException(errorMsg, e);
         }
     }
@@ -161,22 +166,30 @@ public class PooledDatabaseTokenStore implements TokenStoreSPI, AutoCloseable {
     @Override
     public Optional<String> get(String workspaceId) {
         if (workspaceId == null || workspaceId.isBlank()) {
+            logger.debug("Token get requested with blank workspace ID");
             return Optional.empty();
         }
 
         String sql = "SELECT auth_token FROM addon_tokens WHERE workspace_id = ?";
+        long startTime = System.currentTimeMillis();
         try (Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, workspaceId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
+                    long elapsed = System.currentTimeMillis() - startTime;
+                    logger.debug("Token found for workspace '{}': elapsed_ms={}", workspaceId, elapsed);
                     return Optional.ofNullable(rs.getString(1));
                 }
             }
+            long elapsed = System.currentTimeMillis() - startTime;
+            logger.warn("Token not found for workspace '{}': elapsed_ms={}", workspaceId, elapsed);
         } catch (SQLException e) {
+            long elapsed = System.currentTimeMillis() - startTime;
             String errorMsg = String.format("Failed to fetch token for workspace %s: %s",
                     workspaceId, e.getMessage());
-            logger.error(errorMsg, e);
+            logger.error("Token get failed for workspace '{}': elapsed_ms={}, error_code={}, message={}",
+                    workspaceId, elapsed, e.getErrorCode(), e.getMessage(), e);
             throw new RuntimeException(errorMsg, e);
         }
 
@@ -186,18 +199,24 @@ public class PooledDatabaseTokenStore implements TokenStoreSPI, AutoCloseable {
     @Override
     public void remove(String workspaceId) {
         if (workspaceId == null || workspaceId.isBlank()) {
+            logger.debug("Token remove requested with blank workspace ID");
             return;
         }
 
         String sql = "DELETE FROM addon_tokens WHERE workspace_id = ?";
+        long startTime = System.currentTimeMillis();
         try (Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, workspaceId);
-            ps.executeUpdate();
+            int rows = ps.executeUpdate();
+            long elapsed = System.currentTimeMillis() - startTime;
+            logger.info("Token removed for workspace '{}': rows_deleted={}, elapsed_ms={}", workspaceId, rows, elapsed);
         } catch (SQLException e) {
+            long elapsed = System.currentTimeMillis() - startTime;
             String errorMsg = String.format("Failed to delete token for workspace %s: %s",
                     workspaceId, e.getMessage());
-            logger.error(errorMsg, e);
+            logger.error("Token remove failed for workspace '{}': elapsed_ms={}, error_code={}, message={}",
+                    workspaceId, elapsed, e.getErrorCode(), e.getMessage(), e);
             throw new RuntimeException(errorMsg, e);
         }
     }
@@ -207,16 +226,24 @@ public class PooledDatabaseTokenStore implements TokenStoreSPI, AutoCloseable {
      */
     public long count() {
         String sql = "SELECT COUNT(*) FROM addon_tokens";
+        long startTime = System.currentTimeMillis();
         try (Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             if (rs.next()) {
-                return rs.getLong(1);
+                long count = rs.getLong(1);
+                long elapsed = System.currentTimeMillis() - startTime;
+                logger.debug("Token count query completed: count={}, elapsed_ms={}", count, elapsed);
+                return count;
             }
+            long elapsed = System.currentTimeMillis() - startTime;
+            logger.debug("Token count query returned no results: elapsed_ms={}", elapsed);
             return 0L;
         } catch (SQLException e) {
+            long elapsed = System.currentTimeMillis() - startTime;
             String errorMsg = String.format("Failed to count tokens: %s", e.getMessage());
-            logger.error(errorMsg, e);
+            logger.error("Token count failed: elapsed_ms={}, error_code={}, message={}",
+                    elapsed, e.getErrorCode(), e.getMessage(), e);
             throw new RuntimeException(errorMsg, e);
         }
     }
@@ -225,12 +252,29 @@ public class PooledDatabaseTokenStore implements TokenStoreSPI, AutoCloseable {
      * Gets HikariCP pool statistics for monitoring.
      */
     public HikariPoolStats getPoolStats() {
-        return new HikariPoolStats(
-                dataSource.getHikariPoolMXBean().getActiveConnections(),
-                dataSource.getHikariPoolMXBean().getIdleConnections(),
-                dataSource.getHikariPoolMXBean().getTotalConnections(),
-                dataSource.getHikariPoolMXBean().getThreadsAwaitingConnection()
-        );
+        int active = dataSource.getHikariPoolMXBean().getActiveConnections();
+        int idle = dataSource.getHikariPoolMXBean().getIdleConnections();
+        int total = dataSource.getHikariPoolMXBean().getTotalConnections();
+        int waiting = dataSource.getHikariPoolMXBean().getThreadsAwaitingConnection();
+
+        HikariPoolStats stats = new HikariPoolStats(active, idle, total, waiting);
+
+        // Log pool statistics at DEBUG level for monitoring
+        double usagePercent = total > 0 ? (active * 100.0 / total) : 0;
+        logger.debug("Connection pool stats: active={}, idle={}, total={}, waiting={}, usage={}%",
+                active, idle, total, waiting, String.format("%.1f", usagePercent));
+
+        // Warn if pool is approaching exhaustion
+        if (waiting > 0) {
+            logger.warn("Threads waiting for connection pool: {} threads (active={}, total={})",
+                    waiting, active, total);
+        }
+        if (usagePercent > 80) {
+            logger.warn("Connection pool usage high: {}% (active={}, total={})",
+                    String.format("%.1f", usagePercent), active, total);
+        }
+
+        return stats;
     }
 
     /**
