@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
+import com.clockify.addon.sdk.error.ErrorHandler;
 
 import java.io.IOException;
 import java.util.Map;
@@ -59,12 +60,15 @@ public class AddonServlet extends HttpServlet {
             HttpResponse response = handleRequest(req, path);
             sendResponse(resp, response);
         } catch (Exception e) {
-            logger.error("Error handling request: {} {}", method, path, e);
-            String errorBody = objectMapper.createObjectNode()
-                    .put("message", "Internal server error")
-                    .put("details", e.getMessage())
-                    .toString();
-            sendResponse(resp, HttpResponse.error(500, errorBody, "application/json"));
+            // Use centralized error handler for safe error responses
+            ErrorHandler.ErrorResponse errorResponse = ErrorHandler.unknownError(e,
+                String.format("%s %s", method, path));
+            HttpResponse response = HttpResponse.error(
+                errorResponse.getStatusCode(),
+                errorResponse.getBody(),
+                errorResponse.getContentType()
+            );
+            sendResponse(resp, response);
         }
     }
 
