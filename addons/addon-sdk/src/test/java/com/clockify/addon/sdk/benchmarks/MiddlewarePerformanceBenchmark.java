@@ -117,8 +117,19 @@ public class MiddlewarePerformanceBenchmark {
      */
     @Benchmark
     public void csrfProtectionFilterSafeRequest(Blackhole bh) throws Exception {
-        mockRequest.setMethod("GET");
-        csrfProtectionFilter.doFilter(mockRequest, mockResponse, mockFilterChain);
+        // Create a separate mock for GET requests since HttpServletRequest doesn't have setMethod()
+        HttpServletRequest getRequest = Mockito.mock(HttpServletRequest.class);
+        Mockito.when(getRequest.getMethod()).thenReturn("GET");
+        Mockito.when(getRequest.getRequestURI()).thenReturn("/webhook");
+        Mockito.when(getRequest.getRemoteAddr()).thenReturn("192.168.1.100");
+        Mockito.when(getRequest.getHeader("Content-Type")).thenReturn("application/json");
+        Mockito.when(getRequest.getHeader("User-Agent")).thenReturn("Clockify-Webhook/1.0");
+        Mockito.when(getRequest.getHeader("Origin")).thenReturn("https://app.clockify.me");
+        Mockito.when(getRequest.getScheme()).thenReturn("http");
+        Mockito.when(getRequest.getServerName()).thenReturn("localhost");
+        Mockito.when(getRequest.getServerPort()).thenReturn(8080);
+
+        csrfProtectionFilter.doFilter(getRequest, mockResponse, mockFilterChain);
         bh.consume(mockResponse);
     }
 
