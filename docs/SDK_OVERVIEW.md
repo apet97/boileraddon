@@ -15,12 +15,16 @@ Routing note:
 
 ## Middleware
 
-- SecurityHeadersFilter — adds security headers and optional CSP frame-ancestors from `ADDON_FRAME_ANCESTORS`.
-- CorsFilter — strict allowlist via `ADDON_CORS_ORIGINS` (CSV). Optional `ADDON_CORS_ALLOW_CREDENTIALS=true`.
+- **SecurityHeadersFilter** — adds security headers and optional CSP frame-ancestors from `ADDON_FRAME_ANCESTORS`.
+- **CorsFilter** — strict allowlist via `ADDON_CORS_ORIGINS` (CSV). Optional `ADDON_CORS_ALLOW_CREDENTIALS=true`.
   - Supports exact origins (e.g., `https://app.clockify.me`) and subdomain wildcards (e.g., `https://*.example.com`).
   - Wildcards only match subdomains, not the bare domain.
-- RateLimiter — opt-in throttling by `ip` or `workspace`, configured via `ADDON_RATE_LIMIT` and `ADDON_LIMIT_BY`.
-- RequestLoggingFilter — request/response logging for debugging (disable in production unless needed).
+- **RateLimiter** — opt-in throttling by `ip` or `workspace`, configured via `ADDON_RATE_LIMIT` and `ADDON_LIMIT_BY`.
+- **RequestLoggingFilter** — request/response logging for debugging (disable in production unless needed).
+- **CsrfProtectionFilter** — CSRF protection with token-based validation for state-changing operations
+- **RequestIdPropagationFilter** — Distributed tracing with unique request IDs
+- **DiagnosticContextFilter** — Structured logging with request context
+- **RequestSizeLimitFilter** — Request size limits to prevent DoS attacks
 
 Attach filters to the `EmbeddedServer` before start so they protect all routes (manifest, lifecycle, custom endpoints, webhooks).
 
@@ -34,8 +38,16 @@ Attach filters to the `EmbeddedServer` before start so they protect all routes (
 
 Consolidated in the SDK (preferred for all modules):
 
-- TokenStore — workspace-scoped installation token storage. The demo uses an in-memory store; production should implement a persistent store (see docs/DATABASE_TOKEN_STORE.md). All Clockify API calls reuse this token via the `x-addon-token` header.
-- WebhookSignatureValidator — validates `clockify-webhook-signature` using a shared secret derived from the installation token. Reject mismatches with 401/403.
+- **TokenStore** — workspace-scoped installation token storage. The demo uses an in-memory store; production should implement a persistent store (see docs/DATABASE_TOKEN_STORE.md). All Clockify API calls reuse this token via the `x-addon-token` header.
+- **WebhookSignatureValidator** — validates `clockify-webhook-signature` using a shared secret derived from the installation token. Reject mismatches with 401/403.
+- **JWT Security** — Algorithm enforcement, strict kid handling, JWKS-based key management
+- **CSRF Protection** — Token-based validation with constant-time comparison for state-changing operations
+- **RFC-7807 Error Handling** — Standardized problem+json error responses
+- **Request ID Propagation** — Distributed tracing for all requests with X-Request-Id headers
+- **Security Headers** — Comprehensive HTTP security headers (CSP, HSTS, XSS protection)
+- **Input Validation** — Comprehensive parameter and payload validation
+- **Path Sanitization** — URL path validation and sanitization
+- **Rate Limiting** — IP and workspace-based request throttling
 
 Usage patterns:
 - Lifecycle `INSTALLED`: persist `workspaceId`, `authToken` (installation token), and any environment hints.
@@ -62,13 +74,22 @@ Usage patterns:
 
 ## Environment Flags (summary)
 
-- ADDON_BASE_URL — external base URL for this module (e.g., ngrok HTTPS URL).
-- ADDON_PORT — local port to listen on (default 8080).
-- ADDON_FRAME_ANCESTORS — CSP `frame-ancestors` value (e.g., `'self' https://*.clockify.me`).
-- ADDON_RATE_LIMIT — numeric rate (requests/sec) for RateLimiter.
-- ADDON_LIMIT_BY — `ip` or `workspace` (how to bucket limits).
-- ADDON_CORS_ORIGINS — CSV allowlist for CORS; enables preflight handling.
-- ADDON_CORS_ALLOW_CREDENTIALS — `true|false`; credentials support for CORS (off by default).
+- **ADDON_BASE_URL** — external base URL for this module (e.g., ngrok HTTPS URL).
+- **ADDON_PORT** — local port to listen on (default 8080).
+- **ADDON_FRAME_ANCESTORS** — CSP `frame-ancestors` value (e.g., `'self' https://*.clockify.me`).
+- **ADDON_RATE_LIMIT** — numeric rate (requests/sec) for RateLimiter.
+- **ADDON_LIMIT_BY** — `ip` or `workspace` (how to bucket limits).
+- **ADDON_CORS_ORIGINS** — CSV allowlist for CORS; enables preflight handling.
+- **ADDON_CORS_ALLOW_CREDENTIALS** — `true|false`; credentials support for CORS (off by default).
+- **ADDON_REQUEST_LOGGING** — enable request/response logging for debugging
+- **ADDON_CSRF_SAMESITE** — SameSite attribute for CSRF cookies (default: "None")
+- **ADDON_REQUEST_SIZE_LIMIT** — maximum request size in bytes (default: 10MB)
+- **CLOCKIFY_JWT_PUBLIC_KEY** — JWT public key for settings iframe security
+- **CLOCKIFY_JWT_PUBLIC_KEY_MAP** — JSON map of kid-specific public keys
+- **CLOCKIFY_JWT_DEFAULT_KID** — default key ID for JWT verification
+- **CLOCKIFY_JWT_EXPECT_ISS** — expected JWT issuer claim
+- **CLOCKIFY_JWT_EXPECT_AUD** — expected JWT audience claim
+- **CLOCKIFY_JWT_LEEWAY_SECONDS** — clock skew allowance for JWT validation
 
 ## Pointers
 

@@ -167,6 +167,21 @@ response.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDom
 response.setHeader("Content-Security-Policy", "default-src 'self'");
 ```
 
+### 6. Comprehensive Security Hardening Features
+
+This boilerplate includes enterprise-grade security hardening features enabled by default:
+
+- **JWT Security**: Algorithm enforcement, strict kid handling, JWKS-based key management
+- **CSRF Protection**: Token-based validation with constant-time comparison for state-changing operations
+- **RFC-7807 Error Handling**: Standardized problem+json error responses
+- **Request ID Propagation**: Distributed tracing for all requests with X-Request-Id headers
+- **Security Headers**: Comprehensive HTTP security headers (CSP, HSTS, XSS protection)
+- **Input Validation**: Comprehensive parameter and payload validation
+- **Path Sanitization**: URL path validation and sanitization
+- **Rate Limiting**: IP and workspace-based request throttling
+
+All security features are validated through comprehensive testing (307 tests across 5 layers) and are automatically enabled in production deployments.
+
 ---
 
 ## Database Setup

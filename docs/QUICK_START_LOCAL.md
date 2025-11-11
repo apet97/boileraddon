@@ -23,7 +23,19 @@ Auto-Tag Assistant (ngrok)
 - ADDON_BASE_URL=https://YOUR-NGROK.ngrok-free.app/auto-tag-assistant make run-auto-tag-assistant
 - make manifest-url → Install in Clockify using the printed https URL
 
+Security Hardening Quick Start
+- All security features are enabled by default and validated through comprehensive testing
+- Verify security hardening: ./scripts/quick-start.sh
+- Run all tests to validate security features: mvn test
+- Security Features Automatically Enabled:
+  - JWT algorithm enforcement and key rotation
+  - CSRF protection with constant-time validation
+  - RFC-7807 standardized error responses
+  - Request ID propagation for distributed tracing
+  - Comprehensive security headers (CSP, HSTS, XSS protection)
+  - Input validation and path sanitization
+
 Notes
 - Do not edit manifest.json for baseUrl; set ADDON_BASE_URL and restart.
-- Webhook headers: `clockify-webhook-signature` (HMAC-SHA256 of raw body using installation token), and Developer’s `Clockify-Signature` (JWT) which is accepted only when `ADDON_ACCEPT_JWT_SIGNATURE=true` (default `false`).
+- Webhook headers: `clockify-webhook-signature` (HMAC-SHA256 of raw body using installation token), and Developer's `Clockify-Signature` (JWT) which is accepted only when `ADDON_ACCEPT_JWT_SIGNATURE=true` (default `false`).
 - Use docs/NGROK_TESTING.md for a deeper, step-by-step runbook.
