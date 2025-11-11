@@ -33,7 +33,7 @@ class MetricsHandlerTest {
         HttpResponse response = metricsHandler.handle(mockRequest);
 
         assertNotNull(response);
-        assertEquals(200, response.getStatus());
+        assertEquals(200, response.getStatusCode());
         assertEquals("text/plain; version=0.0.4; charset=utf-8", response.getContentType());
         assertNotNull(response.getBody());
     }
@@ -58,7 +58,7 @@ class MetricsHandlerTest {
         HttpResponse response = metricsHandler.handle(null);
 
         assertNotNull(response);
-        assertEquals(200, response.getStatus());
+        assertEquals(200, response.getStatusCode());
         assertNotNull(response.getBody());
     }
 

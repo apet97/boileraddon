@@ -277,8 +277,8 @@ class RedactingLoggerTest {
 
     @Test
     void testRedactingLoggerConstructor() {
-        // Test that the constructor properly initializes the underlying logger
-        RedactingLogger customLogger = new RedactingLogger(RedactingLoggerTest.class);
+        // Test that the static factory method properly initializes the underlying logger
+        RedactingLogger customLogger = RedactingLogger.get(RedactingLoggerTest.class);
         assertNotNull(customLogger);
 
         // The underlying logger should be the same as what LoggerFactory would return

@@ -222,6 +222,11 @@ public class MiddlewarePerformanceBenchmark {
         public String getRequestURI() { return requestURI; }
 
         @Override
+        public StringBuffer getRequestURL() {
+            return new StringBuffer("http://localhost:8080" + requestURI);
+        }
+
+        @Override
         public String getRemoteAddr() { return remoteAddr; }
 
         @Override
@@ -327,6 +332,7 @@ public class MiddlewarePerformanceBenchmark {
         @Override public void sendError(int sc, String msg) {}
         @Override public void sendError(int sc) {}
         @Override public void sendRedirect(String location) {}
+        @Override public void sendRedirect(String location, int sc, boolean clearBuffer) {}
         @Override public void setDateHeader(String name, long date) {}
         @Override public void addDateHeader(String name, long date) {}
         @Override public void setHeader(String name, String value) { headers.put(name, value); }
@@ -359,7 +365,7 @@ public class MiddlewarePerformanceBenchmark {
      */
     public static class MockFilterChain implements FilterChain {
         @Override
-        public void doFilter(HttpServletRequest request, HttpServletResponse response)
+        public void doFilter(jakarta.servlet.ServletRequest request, jakarta.servlet.ServletResponse response)
                 throws IOException, ServletException {
             // Simulate minimal processing time
             try {
