@@ -22,15 +22,9 @@ class DatabaseMetricsTest {
 
     @BeforeEach
     void setUp() {
-        // Setup in-memory H2 database for testing
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
-        config.setUsername("sa");
-        config.setPassword("");
-        config.setMaximumPoolSize(5);
-        config.setMinimumIdle(1);
-
-        dataSource = new HikariDataSource(config);
+        // Only create data source if needed by specific tests
+        // Most tests don't need a real database connection
+        dataSource = null;
     }
 
     @AfterEach
@@ -44,12 +38,22 @@ class DatabaseMetricsTest {
     void testRegisterConnectionPoolGauges() {
         String poolName = "test-pool";
 
-        // Should not throw exception
-        DatabaseMetrics.registerConnectionPoolGauges(poolName, dataSource);
+        // Create data source only for this test
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
+        config.setUsername("sa");
+        config.setPassword("");
+        config.setMaximumPoolSize(5);
+        config.setMinimumIdle(1);
 
-        // Verify that metrics are registered (we can't easily verify the actual metrics)
-        // But we can verify the method completes without errors
-        assertNotNull(dataSource);
+        try (HikariDataSource testDataSource = new HikariDataSource(config)) {
+            // Should not throw exception
+            DatabaseMetrics.registerConnectionPoolGauges(poolName, testDataSource);
+
+            // Verify that metrics are registered (we can't easily verify the actual metrics)
+            // But we can verify the method completes without errors
+            assertNotNull(testDataSource);
+        }
     }
 
     @Test
