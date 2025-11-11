@@ -239,6 +239,11 @@ public class MiddlewarePerformanceBenchmark {
         }
 
         @Override
+        public long getDateHeader(String name) {
+            return -1; // Default value for date headers
+        }
+
+        @Override
         public java.util.Enumeration<String> getHeaderNames() {
             return java.util.Collections.enumeration(headers.keySet());
         }
