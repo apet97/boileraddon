@@ -10,6 +10,8 @@ import com.clockify.addon.sdk.security.DatabaseTokenStore;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.ConfigValidator;
 import com.clockify.addon.sdk.config.SecretsPolicy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Auto-Tag Assistant Add-on
@@ -30,6 +32,8 @@ import com.clockify.addon.sdk.config.SecretsPolicy;
  * 5. In Clockify Admin > Add-ons, install using: https://YOUR-SUBDOMAIN.ngrok-free.app/auto-tag-assistant/manifest.json
  */
 public class AutoTagAssistantApp {
+    private static final Logger logger = LoggerFactory.getLogger(AutoTagAssistantApp.class);
+
     public static void main(String[] args) throws Exception {
         SecretsPolicy.enforce();
         // Read and validate configuration from environment
@@ -119,9 +123,9 @@ public class AutoTagAssistantApp {
                 double permits = Double.parseDouble(rateLimit.trim());
                 String limitBy = System.getenv().getOrDefault("ADDON_LIMIT_BY", "ip");
                 server.addFilter(new com.clockify.addon.sdk.middleware.RateLimiter(permits, limitBy));
-                System.out.println("RateLimiter enabled: " + permits + "/sec by " + limitBy);
+                logger.info("RateLimiter enabled: {}/sec by {}", permits, limitBy);
             } catch (NumberFormatException nfe) {
-                System.err.println("Invalid ADDON_RATE_LIMIT value. Expected number, got: " + rateLimit);
+                logger.error("Invalid ADDON_RATE_LIMIT value. Expected number, got: {}", rateLimit);
             }
         }
 
@@ -129,31 +133,27 @@ public class AutoTagAssistantApp {
         String cors = System.getenv("ADDON_CORS_ORIGINS");
         if (cors != null && !cors.isBlank()) {
             server.addFilter(new com.clockify.addon.sdk.middleware.CorsFilter(cors));
-            System.out.println("CORS enabled for origins: " + cors);
+            logger.info("CORS enabled for origins: {}", cors);
         }
 
         // Optional request logging (headers scrubbed): ADDON_REQUEST_LOGGING=true
         if ("true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_REQUEST_LOGGING", "false"))
                 || "1".equals(System.getenv().getOrDefault("ADDON_REQUEST_LOGGING", "0"))) {
             server.addFilter(new com.clockify.addon.sdk.middleware.RequestLoggingFilter());
-            System.out.println("Request logging enabled (sensitive headers redacted)");
+            logger.info("Request logging enabled (sensitive headers redacted)");
         }
 
-        System.out.println("=".repeat(80));
-        System.out.println("Auto-Tag Assistant Add-on Starting");
-        System.out.println("=".repeat(80));
-        System.out.println("Base URL: " + baseUrl);
-        System.out.println("Port: " + port);
-        System.out.println("Context Path: " + contextPath);
-        System.out.println();
-        System.out.println("Endpoints:");
-        System.out.println("  Manifest:  " + baseUrl + "/manifest.json");
-        System.out.println("  Settings:  " + baseUrl + "/settings");
-        System.out.println("  Lifecycle: " + baseUrl + "/lifecycle/installed");
-        System.out.println("              " + baseUrl + "/lifecycle/deleted");
-        System.out.println("  Webhook:   " + baseUrl + "/webhook");
-        System.out.println("  Health:    " + baseUrl + "/health");
-        System.out.println("=".repeat(80));
+        logger.info("Auto-Tag Assistant Add-on Starting");
+        logger.info("Base URL: {}", baseUrl);
+        logger.info("Port: {}", port);
+        logger.info("Context Path: {}", contextPath);
+        logger.info("Endpoints:");
+        logger.info("  Manifest:  {}/manifest.json", baseUrl);
+        logger.info("  Settings:  {}/settings", baseUrl);
+        logger.info("  Lifecycle: {}/lifecycle/installed", baseUrl);
+        logger.info("              {}/lifecycle/deleted", baseUrl);
+        logger.info("  Webhook:   {}/webhook", baseUrl);
+        logger.info("  Health:    {}/health", baseUrl);
 
         // Add shutdown hook for graceful stop
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -176,9 +176,9 @@ public class AutoTagAssistantApp {
         String apiBaseUrl = System.getenv().getOrDefault("CLOCKIFY_API_BASE_URL", "https://api.clockify.me/api");
         try {
             com.clockify.addon.sdk.security.TokenStore.save(workspaceId, installationToken, apiBaseUrl);
-            System.out.println("Preloaded installation token for workspace " + workspaceId);
+            logger.info("Preloaded installation token for workspace {}", workspaceId);
         } catch (Exception e) {
-            System.err.println("Failed to preload local installation token: " + e.getMessage());
+            logger.error("Failed to preload local installation token", e);
         }
     }
 
@@ -194,7 +194,7 @@ public class AutoTagAssistantApp {
                 }
             }
         } catch (java.net.URISyntaxException e) {
-            System.err.println("Warning: Could not parse base URL '" + baseUrl + "', using '/' as context path: " + e.getMessage());
+            logger.warn("Could not parse base URL '{}', using '/' as context path", baseUrl, e);
         }
         return contextPath;
     }

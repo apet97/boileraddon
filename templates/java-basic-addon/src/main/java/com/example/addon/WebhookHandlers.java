@@ -5,6 +5,8 @@ import com.clockify.addon.sdk.HttpResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 
@@ -14,6 +16,7 @@ import java.io.BufferedReader;
  * Configure which events to receive in manifest.json under webhooks.events.
  */
 public class WebhookHandlers {
+    private static final Logger logger = LoggerFactory.getLogger(WebhookHandlers.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static void register(ClockifyAddon addon) {
@@ -27,14 +30,18 @@ public class WebhookHandlers {
                         ? payload.get("workspaceId").asText()
                         : "unknown";
 
-                System.out.println("Received webhook: " + eventType + " for workspace: " + workspaceId);
+                logger.info("Received webhook: {} for workspace: {}", eventType, workspaceId);
 
-                // TODO: Process the webhook event based on eventType.
-                // Payload details are available in the parsed JSON above.
+                // Process the webhook event based on eventType
+                // Example: Extract time entry data and implement your business logic
+                if (payload != null && payload.has("data")) {
+                    JsonNode data = payload.get("data");
+                    // Add your custom logic here
+                }
 
                 return HttpResponse.ok("Webhook processed");
             } catch (Exception e) {
-                System.err.println("Failed to process webhook payload: " + e.getMessage());
+                logger.error("Failed to process webhook payload", e);
                 return HttpResponse.error(500, "Failed to process webhook event");
             }
         });

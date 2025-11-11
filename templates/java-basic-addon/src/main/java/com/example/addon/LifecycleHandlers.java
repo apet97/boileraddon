@@ -5,6 +5,8 @@ import com.clockify.addon.sdk.HttpResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 
@@ -14,6 +16,7 @@ import java.io.BufferedReader;
  * IMPORTANT: Store the auth token from INSTALLED event - it's needed for all Clockify API calls.
  */
 public class LifecycleHandlers {
+    private static final Logger logger = LoggerFactory.getLogger(LifecycleHandlers.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static void register(ClockifyAddon addon) {
@@ -25,14 +28,15 @@ public class LifecycleHandlers {
                         ? payload.get("workspaceId").asText()
                         : "unknown";
 
-                System.out.println("Add-on installed in workspace: " + workspaceId);
+                logger.info("Add-on installed in workspace: {}", workspaceId);
 
-                // TODO: Store auth token from payload.get("authToken") for
-                // making Clockify API calls for this workspace.
+                // Store auth token from payload.get("authToken") for
+                // making Clockify API calls for this workspace
+                // Example: tokenStore.saveToken(workspaceId, payload.get("authToken").asText());
 
                 return HttpResponse.ok("Installed");
             } catch (Exception e) {
-                System.err.println("Failed to process INSTALLED payload: " + e.getMessage());
+                logger.error("Failed to process INSTALLED payload", e);
                 return HttpResponse.error(500, "Failed to process installation event");
             }
         });
@@ -45,13 +49,14 @@ public class LifecycleHandlers {
                         ? payload.get("workspaceId").asText()
                         : "unknown";
 
-                System.out.println("Add-on deleted from workspace: " + workspaceId);
+                logger.info("Add-on deleted from workspace: {}", workspaceId);
 
-                // TODO: Clean up any stored data for this workspace.
+                // Clean up any stored data for this workspace
+                // Example: tokenStore.deleteToken(workspaceId);
 
                 return HttpResponse.ok("Deleted");
             } catch (Exception e) {
-                System.err.println("Failed to process DELETED payload: " + e.getMessage());
+                logger.error("Failed to process DELETED payload", e);
                 return HttpResponse.error(500, "Failed to process deletion event");
             }
         });

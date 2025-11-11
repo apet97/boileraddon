@@ -24,8 +24,13 @@ public class WebhookHandlers {
         String ws = payload.has("workspaceId")?payload.get("workspaceId").asText(null):null;
         var sig = WebhookSignatureValidator.verify(req, ws);
         if (!sig.isValid()) return sig.response();
-        // TODO: Implement real business logic here
-        return HttpResponse.ok("{\"processed\":true}", "application/json");
+        // Implement your business logic here
+        // Example: Process time entry data from payload
+        String eventType = payload.has("event") ? payload.get("event").asText() : "unknown";
+        String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText() : "unknown";
+
+        // Add your custom logic based on event type
+        return HttpResponse.ok("{\"processed\":true,\"event\":\"" + eventType + "\"}", "application/json");
     }
 
     private static JsonNode parse(HttpServletRequest r) throws Exception {

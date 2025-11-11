@@ -5,6 +5,8 @@ import com.clockify.addon.sdk.HttpResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 
@@ -21,6 +23,7 @@ import java.io.BufferedReader;
  * - Clean up any stored data for this workspace
  */
 public class LifecycleHandlers {
+    private static final Logger logger = LoggerFactory.getLogger(LifecycleHandlers.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static void register(ClockifyAddon addon) {
@@ -34,15 +37,12 @@ public class LifecycleHandlers {
                 String authToken = payload.has("authToken") ? payload.get("authToken").asText(null) : null;
                 String apiUrl = payload.has("apiUrl") ? payload.get("apiUrl").asText(null) : null;
 
-                System.out.println("\n" + "=".repeat(80));
-                System.out.println("LIFECYCLE EVENT: INSTALLED");
-                System.out.println("=".repeat(80));
-                System.out.println("Workspace ID: " + workspaceDisplayId);
-                System.out.println("User ID: " + userId);
-                System.out.println("Payload: " + payload.toPrettyString());
-                System.out.println("Auth token provided: " + (authToken != null && !authToken.isEmpty()));
-                System.out.println("API base URL provided: " + (apiUrl != null && !apiUrl.isEmpty()));
-                System.out.println("=".repeat(80));
+                logger.info("LIFECYCLE EVENT: INSTALLED");
+                logger.info("Workspace ID: {}", workspaceDisplayId);
+                logger.info("User ID: {}", userId);
+                logger.info("Auth token provided: {}", authToken != null && !authToken.isEmpty());
+                logger.info("API base URL provided: {}", apiUrl != null && !apiUrl.isEmpty());
+                logger.debug("Installation payload: {}", payload.toPrettyString());
 
                 // IMPORTANT: In a real implementation, you MUST:
                 // 1. Extract the auth token from the payload
@@ -54,14 +54,13 @@ public class LifecycleHandlers {
                 // tokenStore.save(workspaceId, authToken);
 
                 if (authToken == null || authToken.isEmpty()) {
-                    System.out.println("⚠️  TODO: Missing auth token in payload; verify installation payload structure.");
+                    logger.warn("Missing auth token in payload; verify installation payload structure");
                 } else if (workspaceId == null || workspaceId.isEmpty()) {
-                    System.out.println("⚠️  Unable to store auth token because workspaceId is missing.");
+                    logger.warn("Unable to store auth token because workspaceId is missing");
                 } else {
                     com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, apiUrl);
-                    System.out.println("✅ Stored auth token for workspace " + workspaceId);
+                    logger.info("Stored auth token for workspace {}", workspaceId);
                 }
-                System.out.println();
 
                 String responseBody = objectMapper.createObjectNode()
                         .put("status", "installed")
@@ -71,8 +70,7 @@ public class LifecycleHandlers {
                 return HttpResponse.ok(responseBody, "application/json");
 
             } catch (Exception e) {
-                System.err.println("Error handling INSTALLED event: " + e.getMessage());
-                e.printStackTrace();
+                logger.error("Error handling INSTALLED event", e);
                 String errorBody = objectMapper.createObjectNode()
                         .put("message", "Failed to process installation")
                         .put("details", e.getMessage())
@@ -88,11 +86,8 @@ public class LifecycleHandlers {
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
                 String workspaceDisplayId = workspaceId != null ? workspaceId : "unknown";
 
-                System.out.println("\n" + "=".repeat(80));
-                System.out.println("LIFECYCLE EVENT: DELETED");
-                System.out.println("=".repeat(80));
-                System.out.println("Workspace ID: " + workspaceDisplayId);
-                System.out.println("=".repeat(80));
+                logger.info("LIFECYCLE EVENT: DELETED");
+                logger.info("Workspace ID: {}", workspaceDisplayId);
 
                 // IMPORTANT: In a real implementation:
                 // 1. Remove stored auth token for this workspace
@@ -104,16 +99,15 @@ public class LifecycleHandlers {
                 // userSettingsStore.deleteByWorkspace(workspaceId);
 
                 if (workspaceId == null || workspaceId.isEmpty()) {
-                    System.out.println("⚠️  Unable to remove auth token because workspaceId is missing.");
+                    logger.warn("Unable to remove auth token because workspaceId is missing");
                 } else {
                     boolean removed = com.clockify.addon.sdk.security.TokenStore.delete(workspaceId);
                     if (removed) {
-                        System.out.println("✅ Removed stored auth token for workspace " + workspaceId);
+                        logger.info("Removed stored auth token for workspace {}", workspaceId);
                     } else {
-                        System.out.println("ℹ️  No stored auth token found for workspace " + workspaceId);
+                        logger.info("No stored auth token found for workspace {}", workspaceId);
                     }
                 }
-                System.out.println();
 
                 String responseBody = objectMapper.createObjectNode()
                         .put("status", "uninstalled")
@@ -123,8 +117,7 @@ public class LifecycleHandlers {
                 return HttpResponse.ok(responseBody, "application/json");
 
             } catch (Exception e) {
-                System.err.println("Error handling DELETED event: " + e.getMessage());
-                e.printStackTrace();
+                logger.error("Error handling DELETED event", e);
                 String errorBody = objectMapper.createObjectNode()
                         .put("message", "Failed to process uninstallation")
                         .put("details", e.getMessage())

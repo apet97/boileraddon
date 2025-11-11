@@ -2,6 +2,8 @@ package com.example.rules.cache;
 
 import com.example.rules.engine.Rule;
 import com.example.rules.store.RulesStoreSPI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -16,6 +18,8 @@ import java.util.concurrent.TimeUnit;
  * Automatically refreshes rules periodically and on demand.
  */
 public final class RuleCache {
+    private static final Logger logger = LoggerFactory.getLogger(RuleCache.class);
+
     private RuleCache() {}
 
     private static final Map<String, List<Rule>> RULES_CACHE = new ConcurrentHashMap<>();
@@ -42,7 +46,7 @@ public final class RuleCache {
                 refreshAll();
             } catch (Exception e) {
                 // Log but don't crash the scheduler
-                System.err.println("Error refreshing rule cache: " + e.getMessage());
+                logger.error("Error refreshing rule cache", e);
             }
         }, 1, 1, TimeUnit.MINUTES); // Check every minute
     }
@@ -83,7 +87,7 @@ public final class RuleCache {
             return enabledRules;
         } catch (Exception e) {
             // On error, return empty list but don't update cache
-            System.err.println("Error refreshing rules for workspace " + workspaceId + ": " + e.getMessage());
+            logger.error("Error refreshing rules for workspace {}", workspaceId, e);
             return Collections.emptyList();
         }
     }
@@ -99,7 +103,7 @@ public final class RuleCache {
             try {
                 refreshRules(workspaceId);
             } catch (Exception e) {
-                System.err.println("Error refreshing rules for workspace " + workspaceId + ": " + e.getMessage());
+                logger.error("Error refreshing rules for workspace {}", workspaceId, e);
             }
         }
     }

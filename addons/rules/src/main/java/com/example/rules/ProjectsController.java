@@ -84,6 +84,12 @@ public class ProjectsController {
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
+                // Check write permissions
+                if (!PermissionChecker.canWriteProjects(workspaceId)) {
+                    return ErrorResponse.of(403, "PROJECTS.INSUFFICIENT_PERMISSIONS",
+                        "Insufficient permissions to create projects", request, false);
+                }
+
                 JsonNode body = parseRequestBody(request);
 
                 // Validate required fields
@@ -143,6 +149,12 @@ public class ProjectsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
+
+                // Check write permissions
+                if (!PermissionChecker.canWriteProjects(workspaceId)) {
+                    return ErrorResponse.of(403, "PROJECTS.INSUFFICIENT_PERMISSIONS",
+                        "Insufficient permissions to update projects", request, false);
+                }
 
                 String projectId = extractProjectId(request);
                 if (projectId == null) {
@@ -208,6 +220,12 @@ public class ProjectsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
+
+                // Check write permissions
+                if (!PermissionChecker.canWriteProjects(workspaceId)) {
+                    return ErrorResponse.of(403, "PROJECTS.INSUFFICIENT_PERMISSIONS",
+                        "Insufficient permissions to delete projects", request, false);
+                }
 
                 String projectId = extractProjectId(request);
                 if (projectId == null) {

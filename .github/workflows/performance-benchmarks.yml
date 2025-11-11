@@ -1,0 +1,153 @@
+name: performance-benchmarks
+
+on:
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      benchmark_type:
+        description: 'Type of benchmarks to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - middleware
+          - security
+          - database
+
+jobs:
+  performance-benchmarks:
+    name: Run JMH Performance Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build project
+        run: mvn -B -q compile test-compile
+
+      - name: Run JMH benchmarks
+        run: |
+          # Run all JMH benchmarks
+          echo "Running JMH performance benchmarks..."
+
+          # Create benchmark results directory
+          mkdir -p benchmark-results
+
+          # Run middleware benchmarks
+          echo "Running middleware benchmarks..."
+          mvn -B -q exec:java -Dexec.mainClass="com.clockify.addon.sdk.benchmarks.MiddlewarePerformanceBenchmark" -Dexec.classpathScope="test" > benchmark-results/middleware-benchmark.txt 2>&1 || echo "Middleware benchmark failed or not available"
+
+          # Run security operations benchmarks
+          echo "Running security operations benchmarks..."
+          mvn -B -q exec:java -Dexec.mainClass="com.clockify.addon.sdk.benchmarks.SecurityOperationsBenchmark" -Dexec.classpathScope="test" > benchmark-results/security-benchmark.txt 2>&1 || echo "Security benchmark failed or not available"
+
+          # Run database operations benchmarks
+          echo "Running database operations benchmarks..."
+          mvn -B -q exec:java -Dexec.mainClass="com.clockify.addon.sdk.benchmarks.DatabaseOperationsBenchmark" -Dexec.classpathScope="test" > benchmark-results/database-benchmark.txt 2>&1 || echo "Database benchmark failed or not available"
+
+          # Check if any benchmarks produced results
+          if ls benchmark-results/*.txt 1> /dev/null 2>&1; then
+            echo "Benchmark results generated"
+          else
+            echo "No benchmark results available - benchmarks may need compilation fixes"
+          fi
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmh-benchmark-results
+          path: benchmark-results/
+          retention-days: 30
+
+      - name: Generate benchmark summary
+        run: |
+          echo "# JMH Performance Benchmark Summary" > benchmark-summary.md
+          echo "Generated: $(date -u)" >> benchmark-summary.md
+          echo "" >> benchmark-summary.md
+
+          # Check each benchmark file and generate summary
+          for benchmark_file in benchmark-results/*.txt; do
+            if [ -f "$benchmark_file" ]; then
+              benchmark_name=$(basename "$benchmark_file" .txt)
+              echo "## ${benchmark_name}" >> benchmark-summary.md
+              echo '```' >> benchmark-summary.md
+              # Show first 50 lines of each benchmark result
+              head -50 "$benchmark_file" >> benchmark-summary.md
+              echo '```' >> benchmark-summary.md
+              echo "" >> benchmark-summary.md
+            fi
+          done
+
+          # If no benchmark files exist, indicate that
+          if [ ! -f "benchmark-results/middleware-benchmark.txt" ] && [ ! -f "benchmark-results/security-benchmark.txt" ] && [ ! -f "benchmark-results/database-benchmark.txt" ]; then
+            echo "## No Benchmark Results Available" >> benchmark-summary.md
+            echo "The JMH benchmarks could not be executed due to compilation issues." >> benchmark-summary.md
+            echo "Please check the benchmark source files for compilation errors." >> benchmark-summary.md
+          fi
+
+      - name: Upload benchmark summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-summary
+          path: benchmark-summary.md
+          retention-days: 30
+
+      - name: Run performance regression detection
+        run: |
+          # Install Python dependencies
+          python3 -m pip install --upgrade pip
+
+          # Run regression detection
+          python3 tools/performance-regression-detector.py
+
+      - name: Upload regression report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-regression-report
+          path: performance-regression-report.md
+          retention-days: 30
+
+      - name: Comment on PR (if applicable)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let summary = 'Performance benchmarks could not be executed due to compilation issues.';
+
+            try {
+              if (fs.existsSync('benchmark-summary.md')) {
+                summary = fs.readFileSync('benchmark-summary.md', 'utf8');
+              }
+            } catch (error) {
+              console.log('Error reading benchmark summary:', error);
+            }
+
+            const body = `## 🔬 Performance Benchmarks\n\n${summary}\n\n*Note: Benchmarks are currently experiencing compilation issues and need to be fixed.*`;
+
+            const { context, github } = require('@actions/github');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });

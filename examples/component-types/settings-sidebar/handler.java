@@ -4,6 +4,8 @@ import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
 import com.example.addon.security.JwtVerifier;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,6 +19,8 @@ import java.util.Map;
  * and allows users to configure addon-specific settings.
  */
 public class SettingsSidebarHandler implements RequestHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(SettingsSidebarHandler.class);
 
     private final JwtVerifier jwtVerifier;
     private final Map<String, WorkspaceSettings> settingsStore;
@@ -45,17 +49,17 @@ public class SettingsSidebarHandler implements RequestHandler {
             String userId = claims.getString("userId");
             String userName = claims.getString("userName");
 
-            System.out.println("Settings page accessed by: " + userName + " (workspace: " + workspaceId + ")");
+            logger.info("Settings page accessed by: {} (workspace: {})", userName, workspaceId);
 
             // Load and return the settings HTML
             String html = loadSettingsHtml();
             return HttpResponse.ok(html, "text/html; charset=UTF-8");
 
         } catch (SecurityException e) {
-            System.err.println("JWT verification failed: " + e.getMessage());
+            logger.error("JWT verification failed: {}", e.getMessage(), e);
             return HttpResponse.unauthorized("Invalid or expired JWT token");
         } catch (Exception e) {
-            System.err.println("Failed to load settings page: " + e.getMessage());
+            logger.error("Failed to load settings page: {}", e.getMessage(), e);
             return HttpResponse.internalServerError("Failed to load settings");
         }
     }
@@ -94,12 +98,12 @@ public class SettingsSidebarHandler implements RequestHandler {
 
             settingsStore.put(workspaceId, workspaceSettings);
 
-            System.out.println("Settings saved for workspace: " + workspaceId);
+            logger.info("Settings saved for workspace: {}", workspaceId);
 
             return HttpResponse.ok("{\"success\": true, \"message\": \"Settings saved successfully\"}");
 
         } catch (Exception e) {
-            System.err.println("Failed to save settings: " + e.getMessage());
+            logger.error("Failed to save settings: {}", e.getMessage(), e);
             return HttpResponse.internalServerError("Failed to save settings");
         }
     }

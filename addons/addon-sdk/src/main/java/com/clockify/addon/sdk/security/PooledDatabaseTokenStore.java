@@ -94,10 +94,22 @@ public class PooledDatabaseTokenStore implements TokenStoreSPI, AutoCloseable {
         // Register shutdown hook for graceful shutdown
         config.setRegisterMbeans(true);
 
+        // Enable Micrometer metrics integration
+        config.setMetricRegistry(com.clockify.addon.sdk.metrics.MetricsHandler.registry());
+
         this.dataSource = new HikariDataSource(config);
 
         logger.info("PooledDatabaseTokenStore initialized: jdbcUrl={}, poolSize={}, idleTimeout={}ms",
                 jdbcUrl, poolSize, DEFAULT_IDLE_TIMEOUT_MS);
+
+        // Register connection pool gauges for Micrometer monitoring
+        try {
+            com.clockify.addon.sdk.metrics.DatabaseMetrics.registerConnectionPoolGauges(
+                config.getPoolName(), this.dataSource);
+            logger.debug("Registered Micrometer connection pool gauges for: {}", config.getPoolName());
+        } catch (Exception e) {
+            logger.warn("Failed to register Micrometer connection pool gauges: {}", e.getMessage());
+        }
 
         // Ensure table exists
         ensureTable();

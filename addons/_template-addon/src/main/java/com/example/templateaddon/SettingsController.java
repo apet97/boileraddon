@@ -7,7 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 /**
  * Serves HTML for add-on settings or UI components.
  *
- * TODO: Replace the placeholder HTML with your actual UI.
+ * Replace this placeholder HTML with your actual UI implementation.
  */
 public class SettingsController implements RequestHandler {
     @Override
@@ -25,7 +25,7 @@ public class SettingsController implements RequestHandler {
                 </head>
                 <body>
                     <h1>Template Add-on</h1>
-                    <p class=\"todo\">TODO: Replace this HTML with your sidebar or settings UI.</p>
+                    <p>Welcome to your add-on settings. Customize this UI to match your add-on's functionality.</p>
                 </body>
                 </html>
                 """;

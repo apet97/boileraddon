@@ -16,6 +16,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -34,6 +36,8 @@ import java.util.UUID;
  * with proper workspace scoping, permission checks, and error handling.
  */
 class CrudEndpointsSmokeIT {
+    private static final Logger logger = LoggerFactory.getLogger(CrudEndpointsSmokeIT.class);
+
     private EmbeddedServer server;
     private Thread serverThread;
     private int port;
@@ -141,7 +145,7 @@ class CrudEndpointsSmokeIT {
     void rulesCrudOperations() throws Exception {
         // Test GET /api/rules - should return empty array initially
         String initialUrl = baseUrl + "/api/rules?workspaceId=" + workspaceId;
-        System.out.println("DEBUG: Initial GET URL: " + initialUrl);
+        logger.debug("Initial GET URL: {}", initialUrl);
 
         HttpResponse<String> listResponse = client.send(
             HttpRequest.newBuilder(URI.create(initialUrl))
@@ -151,8 +155,8 @@ class CrudEndpointsSmokeIT {
         );
 
         // Debug: print response details
-        System.out.println("DEBUG: Initial GET response status: " + listResponse.statusCode());
-        System.out.println("DEBUG: Initial GET response body: " + listResponse.body());
+        logger.debug("Initial GET response status: {}", listResponse.statusCode());
+        logger.debug("Initial GET response body: {}", listResponse.body());
 
         Assertions.assertEquals(200, listResponse.statusCode());
         JsonNode rules = mapper.readTree(listResponse.body());
@@ -170,21 +174,21 @@ class CrudEndpointsSmokeIT {
         );
 
         // Debug: print all Set-Cookie headers
-        System.out.println("DEBUG: All Set-Cookie headers:");
-        csrfResponse.headers().allValues("Set-Cookie").forEach(System.out::println);
+        logger.debug("All Set-Cookie headers:");
+        csrfResponse.headers().allValues("Set-Cookie").forEach(header -> logger.debug("  {}", header));
 
         // Debug: print all response headers
-        System.out.println("DEBUG: All response headers:");
-        csrfResponse.headers().map().forEach((k, v) -> System.out.println("  " + k + ": " + v));
+        logger.debug("All response headers:");
+        csrfResponse.headers().map().forEach((k, v) -> logger.debug("  {}: {}", k, v));
 
         // Extract CSRF token from cookie
         String csrfToken = extractCsrfTokenFromCookies(csrfResponse);
-        System.out.println("DEBUG: Extracted CSRF token: " + csrfToken);
+        logger.debug("Extracted CSRF token: {}", csrfToken);
 
         // If CSRF token is null, try to get it from the session directly
         if (csrfToken == null) {
             csrfToken = "test-csrf-token"; // Fallback for testing
-            System.out.println("DEBUG: Using fallback CSRF token");
+            logger.debug("Using fallback CSRF token");
         }
         Assertions.assertNotNull(csrfToken, "CSRF token should be present in cookies");
 
@@ -263,16 +267,16 @@ class CrudEndpointsSmokeIT {
         );
 
         // Debug: print all Set-Cookie headers
-        System.out.println("DEBUG rulesValidationAndErrorHandling: All Set-Cookie headers:");
-        csrfResponse.headers().allValues("Set-Cookie").forEach(System.out::println);
+        logger.debug("rulesValidationAndErrorHandling: All Set-Cookie headers:");
+        csrfResponse.headers().allValues("Set-Cookie").forEach(header -> logger.debug("  {}", header));
 
         String csrfToken = extractCsrfTokenFromCookies(csrfResponse);
-        System.out.println("DEBUG rulesValidationAndErrorHandling: Extracted CSRF token: " + csrfToken);
+        logger.debug("rulesValidationAndErrorHandling: Extracted CSRF token: {}", csrfToken);
 
         // If CSRF token is null, use fallback
         if (csrfToken == null) {
             csrfToken = "test-csrf-token";
-            System.out.println("DEBUG rulesValidationAndErrorHandling: Using fallback CSRF token");
+            logger.debug("rulesValidationAndErrorHandling: Using fallback CSRF token");
         }
         Assertions.assertNotNull(csrfToken, "CSRF token should be present");
 
@@ -350,7 +354,7 @@ class CrudEndpointsSmokeIT {
         // If CSRF token is null, use fallback
         if (csrfToken == null) {
             csrfToken = "test-csrf-token";
-            System.out.println("DEBUG testEndpointDryRun: Using fallback CSRF token");
+            logger.debug("testEndpointDryRun: Using fallback CSRF token");
         }
         Assertions.assertNotNull(csrfToken, "CSRF token should be present");
 

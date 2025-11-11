@@ -1,0 +1,104 @@
+version: 2
+updates:
+  # Maven dependencies
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    reviewers:
+      - "maintainers"
+    assignees:
+      - "maintainers"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Docker dependencies (if any)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "first monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # Security updates (critical dependencies)
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+      - "critical"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+    # Focus on security-critical dependencies
+    target-branch: "main"
+    versioning-strategy: "auto"
+    ignore:
+      # Don't auto-update major versions for critical dependencies
+      - dependency-name: "org.springframework*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "com.fasterxml.jackson*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.eclipse.jetty*"
+        update-types: ["version-update:semver-major"]
+
+  # Development dependencies (test scope)
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "first wednesday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "test"
+    commit-message:
+      prefix: "test"
+      include: "scope"
+    # Only update test dependencies
+    groups:
+      test-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

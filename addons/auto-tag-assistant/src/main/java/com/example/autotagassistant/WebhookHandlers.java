@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -38,6 +40,7 @@ import java.util.Set;
  * 5. Use stored auth token to call Clockify API
  */
 public class WebhookHandlers {
+    private static final Logger logger = LoggerFactory.getLogger(WebhookHandlers.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public static void register(ClockifyAddon addon) {
@@ -63,14 +66,9 @@ public class WebhookHandlers {
                         return verificationResult.response();
                     }
 
-                    System.out.println("\n" + "=".repeat(80));
-                    System.out.println("WEBHOOK EVENT: " + eventType);
-                    System.out.println("=".repeat(80));
-                    System.out.println("Workspace ID: " + workspaceDisplayId);
-                    System.out.println("Event Type: " + eventType);
-                    System.out.println("Payload:");
-                    System.out.println(payload.toPrettyString());
-                    System.out.println("=".repeat(80));
+                    logger.info("WEBHOOK EVENT: {}", eventType);
+                    logger.info("Workspace ID: {}", workspaceDisplayId);
+                    logger.debug("Webhook payload: {}", payload.toPrettyString());
 
                     // Extract time entry information from payload
                     JsonNode timeEntry = payload.has("timeEntry")
@@ -93,38 +91,38 @@ public class WebhookHandlers {
                         || !tagNames.isEmpty()
                         || !formattedTags.isEmpty();
 
-                    System.out.println("\n📋 Auto-Tag Assistant Analysis:");
-                    System.out.println("  Time Entry ID: " + timeEntryId);
-                    System.out.println("  Description: " + (description.isEmpty() ? "(empty)" : description));
-                    System.out.println("  Has Tags: " + (hasTags ? "Yes ✓" : "No ✗"));
+                    logger.info("Auto-Tag Assistant Analysis:");
+                    logger.info("  Time Entry ID: {}", timeEntryId);
+                    logger.info("  Description: {}", description.isEmpty() ? "(empty)" : description);
+                    logger.info("  Has Tags: {}", hasTags ? "Yes" : "No");
                     if (hasTags) {
-                        System.out.println("  Tags: " + formatTagSummary(formattedTags, tagNames, tagIds));
+                        logger.info("  Tags: {}", formatTagSummary(formattedTags, tagNames, tagIds));
                         if (!tagIds.isEmpty()) {
-                            System.out.println("    IDs: " + String.join(", ", tagIds));
+                            logger.debug("    IDs: {}", String.join(", ", tagIds));
                         }
                         if (!tagNames.isEmpty()) {
-                            System.out.println("    Names: " + String.join(", ", tagNames));
+                            logger.debug("    Names: {}", String.join(", ", tagNames));
                         }
                     } else {
-                        System.out.println("  Tags: (none)");
+                        logger.info("  Tags: (none)");
                     }
 
                     HttpResponse response;
 
                     if (!hasTags) {
-                        System.out.println("\n⚠️  MISSING TAGS DETECTED!");
+                        logger.info("MISSING TAGS DETECTED!");
 
                         TagSuggestionResult suggestionResult = suggestTagsForTimeEntry(workspaceId, timeEntryId, description, timeEntry);
                         List<String> candidateTagNames = suggestionResult.getTagNames();
 
                         if (candidateTagNames.isEmpty()) {
-                            System.out.println("  ❌ No tag suggestions available for this time entry.");
+                            logger.info("No tag suggestions available for this time entry");
                             response = skipResponse("No tag suggestions available for this time entry.");
                         } else {
                             Optional<com.clockify.addon.sdk.security.TokenStore.WorkspaceToken> workspaceToken = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
                             if (workspaceToken.isEmpty()) {
                                 String message = "Missing stored auth token/API base URL for workspace " + workspaceId;
-                                System.err.println("❌ " + message);
+                                logger.error("{}", message);
                                 response = errorResponse(500, message);
                             } else {
                                 com.clockify.addon.sdk.security.TokenStore.WorkspaceToken token = workspaceToken.get();
@@ -134,7 +132,7 @@ public class WebhookHandlers {
                                     TagUpdateResult updateResult = applySuggestedTags(apiClient, workspaceId, timeEntryId, candidateTagNames);
 
                                     if (updateResult.getTagIdsByName().isEmpty()) {
-                                        System.out.println("  ℹ️  Suggestions did not resolve to any tags.");
+                                        logger.info("Suggestions did not resolve to any tags");
                                         response = skipResponse("Suggestions did not resolve to any tags.");
                                     } else {
                                         logSuccessfulUpdate(timeEntryId, updateResult);
@@ -142,24 +140,20 @@ public class WebhookHandlers {
                                     }
                                 } catch (Exception apiError) {
                                     String message = "Failed to update time entry tags: " + apiError.getMessage();
-                                    System.err.println("❌ " + message);
-                                    apiError.printStackTrace();
+                                    logger.error("{}", message, apiError);
                                     response = errorResponse(500, message);
                                 }
                             }
                         }
                     } else {
-                        System.out.println("  ✓ Time entry already has tags, no action needed");
+                        logger.info("Time entry already has tags, no action needed");
                         response = skipResponse("Time entry already had tags; no changes applied.");
                     }
-
-                    System.out.println("=".repeat(80) + "\n");
 
                     return response;
 
                 } catch (Exception e) {
-                    System.err.println("Error handling webhook: " + e.getMessage());
-                    e.printStackTrace();
+                    logger.error("Error handling webhook", e);
                     return errorResponse(500, "Failed to process webhook: " + e.getMessage());
                 }
             });
@@ -170,7 +164,7 @@ public class WebhookHandlers {
      * Suggest tag names based on the time entry description and other details.
      */
     private static TagSuggestionResult suggestTagsForTimeEntry(String workspaceId, String timeEntryId, String description, JsonNode timeEntry) {
-        System.out.println("  🤖 Auto-tagging analysis for workspace " + workspaceId + ":");
+        logger.info("Auto-tagging analysis for workspace {}:", workspaceId);
 
         String normalizedDescription = description == null ? "" : description.toLowerCase(Locale.ROOT);
         List<TagSuggestion> suggestions = new ArrayList<>();
@@ -216,11 +210,11 @@ public class WebhookHandlers {
         TagSuggestionResult result = new TagSuggestionResult(suggestions);
 
         if (result.getSuggestions().isEmpty()) {
-            System.out.println("  💤 No keyword-based tag suggestions found.");
+            logger.info("No keyword-based tag suggestions found");
         } else {
-            System.out.println("  🏷️  Suggested Tags:");
+            logger.info("Suggested Tags:");
             for (TagSuggestion suggestion : result.getSuggestions()) {
-                System.out.println("     - '" + suggestion.getName() + "' (" + suggestion.getReason() + ")");
+                logger.info("  - '{}' ({})", suggestion.getName(), suggestion.getReason());
             }
         }
 
@@ -289,7 +283,7 @@ public class WebhookHandlers {
                 tagId = createdTag.get("id").asText();
                 tagsByName.put(normalized, tagId);
                 createdTags.add(candidate);
-                System.out.println("  ➕ Created tag '" + candidate + "' with ID " + tagId);
+                logger.info("Created tag '{}' with ID {}", candidate, tagId);
             }
 
             if (tagId != null && !tagId.isBlank()) {
@@ -339,11 +333,11 @@ public class WebhookHandlers {
         List<String> appliedNames = new ArrayList<>(appliedMap.keySet());
         List<String> appliedIds = new ArrayList<>(appliedMap.values());
 
-        System.out.println("  ✅ Applied tags to time entry " + timeEntryId + ": " + String.join(", ", appliedNames));
-        System.out.println("  ✅ Tag IDs: " + String.join(", ", appliedIds));
+        logger.info("Applied tags to time entry {}: {}", timeEntryId, String.join(", ", appliedNames));
+        logger.debug("Tag IDs: {}", String.join(", ", appliedIds));
 
         if (!updateResult.getCreatedTagNames().isEmpty()) {
-            System.out.println("  🆕 Created tags during update: " + String.join(", ", updateResult.getCreatedTagNames()));
+            logger.info("Created tags during update: {}", String.join(", ", updateResult.getCreatedTagNames()));
         }
     }
 

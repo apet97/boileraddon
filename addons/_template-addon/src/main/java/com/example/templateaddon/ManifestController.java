@@ -6,7 +6,7 @@ import com.clockify.addon.sdk.DefaultManifestController;
 /**
  * Serves the runtime manifest.
  *
- * TODO: Update TemplateAddonApp so the manifest reflects your add-on name, description, and scopes.
+ * Update TemplateAddonApp to configure your add-on name, description, and required scopes.
  */
 public class ManifestController extends DefaultManifestController {
     public ManifestController(ClockifyManifest manifest) {

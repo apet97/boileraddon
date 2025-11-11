@@ -127,6 +127,41 @@ public final class DatabaseMetrics {
     }
 
     /**
+     * Registers connection pool gauges for real-time monitoring.
+     * Note: HikariCP-specific implementation is in the SDK's DatabaseMetrics class.
+     */
+    /*
+    public static void registerConnectionPoolGauges(String poolName,
+                                                   com.zaxxer.hikari.HikariDataSource dataSource) {
+        // Active connections gauge
+        io.micrometer.core.instrument.Gauge.builder("database_connection_pool_active", dataSource, ds -> ds.getHikariPoolMXBean().getActiveConnections())
+                .description("Number of active database connections")
+                .tag("pool_name", sanitize(poolName))
+                .register(REGISTRY);
+
+        // Idle connections gauge
+        io.micrometer.core.instrument.Gauge.builder("database_connection_pool_idle", dataSource, ds -> ds.getHikariPoolMXBean().getIdleConnections())
+                .description("Number of idle database connections")
+                .tag("pool_name", sanitize(poolName))
+                .register(REGISTRY);
+
+        // Total connections gauge
+        io.micrometer.core.instrument.Gauge.builder("database_connection_pool_total", dataSource, ds -> ds.getHikariPoolMXBean().getTotalConnections())
+                .description("Total number of database connections")
+                .tag("pool_name", sanitize(poolName))
+                .register(REGISTRY);
+
+        // Waiting threads gauge
+        io.micrometer.core.instrument.Gauge.builder("database_connection_pool_waiting", dataSource, ds -> ds.getHikariPoolMXBean().getThreadsAwaitingConnection())
+                .description("Number of threads waiting for database connections")
+                .tag("pool_name", sanitize(poolName))
+                .register(REGISTRY);
+
+        // Connection timeout counter - removed as getConnectionTimeout() doesn't exist on HikariPoolMXBean
+    }
+    */
+
+    /**
      * Records query performance metrics.
      */
     public static void recordQueryMetrics(String queryType, String entityType, long rowCount, long durationMs) {
@@ -195,6 +230,61 @@ public final class DatabaseMetrics {
                 .tag("result", hit ? "hit" : "miss")
                 .register(REGISTRY)
                 .record(durationMs, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Records database-specific metrics for PostgreSQL/MySQL monitoring.
+     */
+    public static void recordDatabaseSpecificMetrics(String databaseType, String metricName,
+                                                   String metricType, double value) {
+        switch (metricType.toLowerCase()) {
+            case "counter":
+                Counter.builder("database_specific_" + metricName)
+                        .description("Database-specific metric: " + metricName)
+                        .tag("database_type", sanitize(databaseType))
+                        .register(REGISTRY)
+                        .increment((long) value);
+                break;
+            case "gauge":
+                io.micrometer.core.instrument.Gauge.builder("database_specific_" + metricName, () -> value)
+                        .description("Database-specific gauge: " + metricName)
+                        .tag("database_type", sanitize(databaseType))
+                        .register(REGISTRY);
+                break;
+            case "timer":
+                Timer.builder("database_specific_" + metricName + "_duration_ms")
+                        .description("Database-specific timing: " + metricName)
+                        .tag("database_type", sanitize(databaseType))
+                        .register(REGISTRY)
+                        .record((long) value, TimeUnit.MILLISECONDS);
+                break;
+            default:
+                log.warn("Unknown metric type for database-specific metrics: {}", metricType);
+        }
+    }
+
+    /**
+     * Records database size metrics for capacity planning.
+     */
+    public static void recordDatabaseSizeMetrics(String databaseType, long tableCount,
+                                               long totalSizeBytes, long indexSizeBytes) {
+        // Table count gauge
+        io.micrometer.core.instrument.Gauge.builder("database_tables_total", () -> (double) tableCount)
+                .description("Total number of database tables")
+                .tag("database_type", sanitize(databaseType))
+                .register(REGISTRY);
+
+        // Total database size gauge
+        io.micrometer.core.instrument.Gauge.builder("database_size_bytes", () -> (double) totalSizeBytes)
+                .description("Total database size in bytes")
+                .tag("database_type", sanitize(databaseType))
+                .register(REGISTRY);
+
+        // Index size gauge
+        io.micrometer.core.instrument.Gauge.builder("database_index_size_bytes", () -> (double) indexSizeBytes)
+                .description("Database index size in bytes")
+                .tag("database_type", sanitize(databaseType))
+                .register(REGISTRY);
     }
 
     private static String sanitize(String value) {

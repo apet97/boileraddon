@@ -1,5 +1,8 @@
 package com.example.templateaddon;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -14,6 +17,7 @@ import java.util.Map;
  * override entries from the file, mirroring the behavior of many Node/CLI toolchains.
  */
 public final class EnvConfig {
+    private static final Logger logger = LoggerFactory.getLogger(EnvConfig.class);
     private static final String ENV_FILE_NAME = ".env";
     private static final Map<String, String> FILE_VALUES = loadEnvFile();
 
@@ -62,7 +66,7 @@ public final class EnvConfig {
                 values.put(key, value);
             }
         } catch (IOException e) {
-            System.err.println("Warning: Failed to read .env file: " + e.getMessage());
+            logger.warn("Failed to read .env file: {}", e.getMessage());
         }
         return Collections.unmodifiableMap(values);
     }
