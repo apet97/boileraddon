@@ -95,8 +95,8 @@ class MetricsHandlerTest {
 
         assertNotNull(response1);
         assertNotNull(response2);
-        assertEquals(200, response1.getStatus());
-        assertEquals(200, response2.getStatus());
+        assertEquals(200, response1.getStatusCode());
+        assertEquals(200, response2.getStatusCode());
 
         // Responses should be independent (different scrape results)
         assertNotNull(response1.getBody());

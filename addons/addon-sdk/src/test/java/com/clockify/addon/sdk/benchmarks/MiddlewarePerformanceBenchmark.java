@@ -233,6 +233,12 @@ public class MiddlewarePerformanceBenchmark {
         public String getHeader(String name) { return headers.get(name); }
 
         @Override
+        public int getIntHeader(String name) {
+            String value = headers.get(name);
+            return value != null ? Integer.parseInt(value) : -1;
+        }
+
+        @Override
         public java.util.Enumeration<String> getHeaderNames() {
             return java.util.Collections.enumeration(headers.keySet());
         }
