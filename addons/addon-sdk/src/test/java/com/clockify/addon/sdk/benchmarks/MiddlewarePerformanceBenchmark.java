@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -45,9 +46,9 @@ public class MiddlewarePerformanceBenchmark {
     private DiagnosticContextFilter diagnosticContextFilter;
     private RequestIdPropagationFilter requestIdPropagationFilter;
 
-    private MockHttpServletRequest mockRequest;
-    private MockHttpServletResponse mockResponse;
-    private MockFilterChain mockFilterChain;
+    private HttpServletRequest mockRequest;
+    private HttpServletResponse mockResponse;
+    private FilterChain mockFilterChain;
 
     @Setup
     public void setup() throws Exception {
@@ -63,18 +64,21 @@ public class MiddlewarePerformanceBenchmark {
         diagnosticContextFilter = new DiagnosticContextFilter();
         requestIdPropagationFilter = new RequestIdPropagationFilter();
 
-        // Create mock request/response objects
-        mockRequest = new MockHttpServletRequest();
-        mockResponse = new MockHttpServletResponse();
-        mockFilterChain = new MockFilterChain();
+        // Create mock request/response objects using Mockito
+        mockRequest = Mockito.mock(HttpServletRequest.class);
+        mockResponse = Mockito.mock(HttpServletResponse.class);
+        mockFilterChain = Mockito.mock(FilterChain.class);
 
         // Configure mock request for typical scenarios
-        mockRequest.setMethod("POST");
-        mockRequest.setRequestURI("/webhook");
-        mockRequest.setRemoteAddr("192.168.1.100");
-        mockRequest.addHeader("Content-Type", "application/json");
-        mockRequest.addHeader("User-Agent", "Clockify-Webhook/1.0");
-        mockRequest.addHeader("Origin", "https://app.clockify.me");
+        Mockito.when(mockRequest.getMethod()).thenReturn("POST");
+        Mockito.when(mockRequest.getRequestURI()).thenReturn("/webhook");
+        Mockito.when(mockRequest.getRemoteAddr()).thenReturn("192.168.1.100");
+        Mockito.when(mockRequest.getHeader("Content-Type")).thenReturn("application/json");
+        Mockito.when(mockRequest.getHeader("User-Agent")).thenReturn("Clockify-Webhook/1.0");
+        Mockito.when(mockRequest.getHeader("Origin")).thenReturn("https://app.clockify.me");
+        Mockito.when(mockRequest.getScheme()).thenReturn("http");
+        Mockito.when(mockRequest.getServerName()).thenReturn("localhost");
+        Mockito.when(mockRequest.getServerPort()).thenReturn(8080);
     }
 
     /**
@@ -199,191 +203,4 @@ public class MiddlewarePerformanceBenchmark {
         bh.consume(mockResponse);
     }
 
-    // ============ Mock Classes ============
-
-    /**
-     * Mock HttpServletRequest implementation for benchmarks
-     */
-    public static class MockHttpServletRequest implements HttpServletRequest {
-        private String method = "GET";
-        private String requestURI = "/";
-        private String remoteAddr = "127.0.0.1";
-        private java.util.Map<String, String> headers = new java.util.HashMap<>();
-
-        public void setMethod(String method) { this.method = method; }
-        public void setRequestURI(String uri) { this.requestURI = uri; }
-        public void setRemoteAddr(String addr) { this.remoteAddr = addr; }
-        public void addHeader(String name, String value) { headers.put(name, value); }
-
-        @Override
-        public String getMethod() { return method; }
-
-        @Override
-        public String getRequestURI() { return requestURI; }
-
-        @Override
-        public StringBuffer getRequestURL() {
-            return new StringBuffer("http://localhost:8080" + requestURI);
-        }
-
-        @Override
-        public String getRemoteAddr() { return remoteAddr; }
-
-        @Override
-        public String getHeader(String name) { return headers.get(name); }
-
-        @Override
-        public int getIntHeader(String name) {
-            String value = headers.get(name);
-            return value != null ? Integer.parseInt(value) : -1;
-        }
-
-        @Override
-        public long getDateHeader(String name) {
-            return -1; // Default value for date headers
-        }
-
-        @Override
-        public java.util.Enumeration<String> getHeaderNames() {
-            return java.util.Collections.enumeration(headers.keySet());
-        }
-
-        // Implement other required methods with default values
-        @Override public String getAuthType() { return null; }
-        @Override public java.util.Enumeration<String> getHeaders(String name) { return null; }
-        @Override public String getPathInfo() { return null; }
-        @Override public String getPathTranslated() { return null; }
-        @Override public String getContextPath() { return ""; }
-        @Override public String getQueryString() { return null; }
-        @Override public String getRemoteUser() { return null; }
-        @Override public boolean isUserInRole(String role) { return false; }
-        @Override public java.security.Principal getUserPrincipal() { return null; }
-        @Override public String getRequestedSessionId() { return null; }
-        @Override public String getServletPath() { return ""; }
-        @Override public jakarta.servlet.http.HttpSession getSession(boolean create) { return null; }
-        @Override public jakarta.servlet.http.HttpSession getSession() { return null; }
-        @Override public String changeSessionId() { return null; }
-        @Override public boolean isRequestedSessionIdValid() { return false; }
-        @Override public boolean isRequestedSessionIdFromCookie() { return false; }
-        @Override public boolean isRequestedSessionIdFromURL() { return false; }
-        @Override public boolean isRequestedSessionIdFromUrl() { return false; }
-        @Override public boolean authenticate(jakarta.servlet.http.HttpServletResponse response) { return false; }
-        @Override public void login(String username, String password) {}
-        @Override public void logout() {}
-        @Override public java.util.Collection<jakarta.servlet.http.Part> getParts() { return null; }
-        @Override public jakarta.servlet.http.Part getPart(String name) { return null; }
-        @Override public <T extends jakarta.servlet.http.HttpUpgradeHandler> T upgrade(Class<T> handlerClass) { return null; }
-        @Override public Object getAttribute(String name) { return null; }
-        @Override public java.util.Enumeration<String> getAttributeNames() { return null; }
-        @Override public String getCharacterEncoding() { return null; }
-        @Override public void setCharacterEncoding(String env) {}
-        @Override public int getContentLength() { return 0; }
-        @Override public long getContentLengthLong() { return 0; }
-        @Override public String getContentType() { return null; }
-        @Override public jakarta.servlet.ServletInputStream getInputStream() { return null; }
-        @Override public String getParameter(String name) { return null; }
-        @Override public java.util.Enumeration<String> getParameterNames() { return null; }
-        @Override public String[] getParameterValues(String name) { return null; }
-        @Override public java.util.Map<String, String[]> getParameterMap() { return null; }
-        @Override public String getProtocol() { return "HTTP/1.1"; }
-        @Override public String getScheme() { return "http"; }
-        @Override public String getServerName() { return "localhost"; }
-        @Override public int getServerPort() { return 8080; }
-        @Override public java.io.BufferedReader getReader() { return null; }
-        @Override public String getRemoteHost() { return "localhost"; }
-        @Override public void setAttribute(String name, Object o) {}
-        @Override public void removeAttribute(String name) {}
-        @Override public java.util.Locale getLocale() { return java.util.Locale.getDefault(); }
-        @Override public java.util.Enumeration<java.util.Locale> getLocales() { return null; }
-        @Override public boolean isSecure() { return false; }
-        @Override public jakarta.servlet.RequestDispatcher getRequestDispatcher(String path) { return null; }
-        @Override public String getRealPath(String path) { return null; }
-        @Override public int getRemotePort() { return 8080; }
-        @Override public String getLocalName() { return "localhost"; }
-        @Override public String getLocalAddr() { return "127.0.0.1"; }
-        @Override public int getLocalPort() { return 8080; }
-        @Override public jakarta.servlet.ServletContext getServletContext() { return null; }
-        @Override public jakarta.servlet.AsyncContext startAsync() { return null; }
-        @Override public jakarta.servlet.AsyncContext startAsync(jakarta.servlet.ServletRequest servletRequest, jakarta.servlet.ServletResponse servletResponse) { return null; }
-        @Override public boolean isAsyncStarted() { return false; }
-        @Override public boolean isAsyncSupported() { return false; }
-        @Override public jakarta.servlet.AsyncContext getAsyncContext() { return null; }
-        @Override public jakarta.servlet.DispatcherType getDispatcherType() { return jakarta.servlet.DispatcherType.REQUEST; }
-    }
-
-    /**
-     * Mock HttpServletResponse implementation for benchmarks
-     */
-    public static class MockHttpServletResponse implements HttpServletResponse {
-        private int status = 200;
-        private java.util.Map<String, String> headers = new java.util.HashMap<>();
-
-        @Override
-        public void addHeader(String name, String value) {
-            headers.put(name, value);
-        }
-
-        @Override
-        public void setStatus(int sc) {
-            this.status = sc;
-        }
-
-        @Override
-        public int getStatus() {
-            return status;
-        }
-
-        // Implement other required methods with default implementations
-        @Override public void addCookie(jakarta.servlet.http.Cookie cookie) {}
-        @Override public boolean containsHeader(String name) { return false; }
-        @Override public String encodeURL(String url) { return url; }
-        @Override public String encodeRedirectURL(String url) { return url; }
-        @Override public String encodeUrl(String url) { return url; }
-        @Override public String encodeRedirectUrl(String url) { return url; }
-        @Override public void sendError(int sc, String msg) {}
-        @Override public void sendError(int sc) {}
-        @Override public void sendRedirect(String location) {}
-        @Override public void sendRedirect(String location, int sc, boolean clearBuffer) {}
-        @Override public void setDateHeader(String name, long date) {}
-        @Override public void addDateHeader(String name, long date) {}
-        @Override public void setHeader(String name, String value) { headers.put(name, value); }
-        @Override public void setIntHeader(String name, int value) {}
-        @Override public void addIntHeader(String name, int value) {}
-        @Override public void setStatus(int sc, String sm) {}
-        @Override public String getHeader(String name) { return headers.get(name); }
-        @Override public java.util.Collection<String> getHeaders(String name) { return null; }
-        @Override public java.util.Collection<String> getHeaderNames() { return headers.keySet(); }
-        @Override public String getCharacterEncoding() { return null; }
-        @Override public String getContentType() { return null; }
-        @Override public jakarta.servlet.ServletOutputStream getOutputStream() { return null; }
-        @Override public java.io.PrintWriter getWriter() { return null; }
-        @Override public void setCharacterEncoding(String charset) {}
-        @Override public void setContentLength(int len) {}
-        @Override public void setContentLengthLong(long len) {}
-        @Override public void setContentType(String type) {}
-        @Override public void setBufferSize(int size) {}
-        @Override public int getBufferSize() { return 0; }
-        @Override public void flushBuffer() {}
-        @Override public void resetBuffer() {}
-        @Override public boolean isCommitted() { return false; }
-        @Override public void reset() {}
-        @Override public void setLocale(java.util.Locale loc) {}
-        @Override public java.util.Locale getLocale() { return java.util.Locale.getDefault(); }
-    }
-
-    /**
-     * Mock FilterChain implementation for benchmarks
-     */
-    public static class MockFilterChain implements FilterChain {
-        @Override
-        public void doFilter(jakarta.servlet.ServletRequest request, jakarta.servlet.ServletResponse response)
-                throws IOException, ServletException {
-            // Simulate minimal processing time
-            try {
-                Thread.sleep(1); // 1ms delay to simulate backend processing
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
 }
