@@ -22,8 +22,20 @@
         <hibernate.validator.version>8.0.2.Final</hibernate.validator.version>
         <testcontainers.version>1.20.4</testcontainers.version>
         <flyway.version>10.21.0</flyway.version>
-        <!-- SpotBugs 4.x doesn't support Java 17+ class files (version 69+) -->
-        <!-- TODO: Upgrade to SpotBugs 5.x when available or use Error Prone instead -->
+
+        <!--
+            SpotBugs Configuration:
+            SpotBugs 4.x doesn't support Java 17+ compiled class files (version 69+).
+            Error: "java.lang.IllegalArgumentException: Unsupported class file major version 69"
+
+            Options to address this:
+            1. Keep spotbugs.skip=true (current approach)
+            2. Upgrade to SpotBugs 5.x when available
+            3. Use alternative tools: Error Prone, NullAway, or Checker Framework
+            4. Downgrade to Java 11 (not recommended)
+
+            For now, we skip SpotBugs to allow builds with Java 17+.
+        -->
         <spotbugs.skip>true</spotbugs.skip>
         <dependency.check.cvss.threshold>7.0</dependency.check.cvss.threshold>
     </properties>

@@ -1,6 +1,7 @@
 package com.example.rules.store;
 
 import com.example.rules.engine.Rule;
+import com.example.rules.metrics.DatabaseMetrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,135 +49,154 @@ public class DatabaseRulesStore implements RulesStoreSPI {
     @Override
     public Rule save(String workspaceId, Rule rule) {
         if (workspaceId == null || rule == null) throw new IllegalArgumentException("workspaceId and rule are required");
-        try (Connection c = conn()) {
-            String json = mapper.writeValueAsString(rule);
-            try (PreparedStatement ps = c.prepareStatement("UPDATE rules SET rule_json=? WHERE workspace_id=? AND rule_id=?")) {
-                ps.setString(1, json);
-                ps.setString(2, workspaceId);
-                ps.setString(3, rule.getId());
-                int updated = ps.executeUpdate();
-                if (updated == 0) {
-                    try (PreparedStatement ins = c.prepareStatement("INSERT INTO rules(workspace_id, rule_id, rule_json) VALUES(?,?,?)")) {
-                        ins.setString(1, workspaceId);
-                        ins.setString(2, rule.getId());
-                        ins.setString(3, json);
-                        ins.executeUpdate();
+        return DatabaseMetrics.recordOperation("save", workspaceId, "rule", () -> {
+            try (Connection c = conn()) {
+                String json = mapper.writeValueAsString(rule);
+                try (PreparedStatement ps = c.prepareStatement("UPDATE rules SET rule_json=? WHERE workspace_id=? AND rule_id=?")) {
+                    ps.setString(1, json);
+                    ps.setString(2, workspaceId);
+                    ps.setString(3, rule.getId());
+                    int updated = ps.executeUpdate();
+                    if (updated == 0) {
+                        try (PreparedStatement ins = c.prepareStatement("INSERT INTO rules(workspace_id, rule_id, rule_json) VALUES(?,?,?)")) {
+                            ins.setString(1, workspaceId);
+                            ins.setString(2, rule.getId());
+                            ins.setString(3, json);
+                            ins.executeUpdate();
+                        }
                     }
                 }
+                return rule;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save rule", e);
             }
-            return rule;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to save rule", e);
-        }
+        });
     }
 
     @Override
     public Optional<Rule> get(String workspaceId, String ruleId) {
         if (workspaceId == null || ruleId == null) return Optional.empty();
-        try (Connection c = conn();
-             PreparedStatement ps = c.prepareStatement("SELECT rule_json FROM rules WHERE workspace_id=? AND rule_id=?")) {
-            ps.setString(1, workspaceId);
-            ps.setString(2, ruleId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    String json = rs.getString(1);
-                    return Optional.of(mapper.readValue(json, Rule.class));
+        return DatabaseMetrics.recordOperation("get", workspaceId, "rule", () -> {
+            try (Connection c = conn();
+                 PreparedStatement ps = c.prepareStatement("SELECT rule_json FROM rules WHERE workspace_id=? AND rule_id=?")) {
+                ps.setString(1, workspaceId);
+                ps.setString(2, ruleId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        String json = rs.getString(1);
+                        return Optional.of(mapper.readValue(json, Rule.class));
+                    }
                 }
+                return Optional.empty();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to get rule", e);
             }
-            return Optional.empty();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to get rule", e);
-        }
+        });
     }
 
     @Override
     public List<Rule> getAll(String workspaceId) {
         List<Rule> out = new ArrayList<>();
         if (workspaceId == null) return out;
-        try (Connection c = conn();
-             PreparedStatement ps = c.prepareStatement("SELECT rule_json FROM rules WHERE workspace_id=?")) {
-            ps.setString(1, workspaceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    out.add(mapper.readValue(rs.getString(1), Rule.class));
+        return DatabaseMetrics.recordOperation("getAll", workspaceId, "rule", () -> {
+            try (Connection c = conn();
+                 PreparedStatement ps = c.prepareStatement("SELECT rule_json FROM rules WHERE workspace_id=?")) {
+                ps.setString(1, workspaceId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        out.add(mapper.readValue(rs.getString(1), Rule.class));
+                    }
                 }
+                return out;
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to get rules", e);
             }
-            return out;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to get rules", e);
-        }
+        });
     }
 
     @Override
     public List<Rule> getEnabled(String workspaceId) {
-        List<Rule> all = getAll(workspaceId);
-        all.removeIf(r -> !r.isEnabled());
-        return all;
+        return DatabaseMetrics.recordOperation("getEnabled", workspaceId, "rule", () -> {
+            List<Rule> all = getAll(workspaceId);
+            all.removeIf(r -> !r.isEnabled());
+            return all;
+        });
     }
 
     @Override
     public boolean delete(String workspaceId, String ruleId) {
         if (workspaceId == null || ruleId == null) return false;
-        try (Connection c = conn();
-             PreparedStatement ps = c.prepareStatement("DELETE FROM rules WHERE workspace_id=? AND rule_id=?")) {
-            ps.setString(1, workspaceId);
-            ps.setString(2, ruleId);
-            int rows = ps.executeUpdate();
-            return rows > 0;
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to delete rule", e);
-        }
+        return DatabaseMetrics.recordOperation("delete", workspaceId, "rule", () -> {
+            try (Connection c = conn();
+                 PreparedStatement ps = c.prepareStatement("DELETE FROM rules WHERE workspace_id=? AND rule_id=?")) {
+                ps.setString(1, workspaceId);
+                ps.setString(2, ruleId);
+                int rows = ps.executeUpdate();
+                return rows > 0;
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to delete rule", e);
+            }
+        });
     }
 
     @Override
     public int deleteAll(String workspaceId) {
         if (workspaceId == null) return 0;
-        try (Connection c = conn();
-             PreparedStatement ps = c.prepareStatement("DELETE FROM rules WHERE workspace_id=?")) {
-            ps.setString(1, workspaceId);
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to delete all rules", e);
-        }
+        return DatabaseMetrics.recordOperation("deleteAll", workspaceId, "rule", () -> {
+            try (Connection c = conn();
+                 PreparedStatement ps = c.prepareStatement("DELETE FROM rules WHERE workspace_id=?")) {
+                ps.setString(1, workspaceId);
+                return ps.executeUpdate();
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to delete all rules", e);
+            }
+        });
     }
 
     @Override
     public boolean exists(String workspaceId, String ruleId) {
         if (workspaceId == null || ruleId == null) return false;
-        try (Connection c = conn();
-             PreparedStatement ps = c.prepareStatement("SELECT 1 FROM rules WHERE workspace_id=? AND rule_id=?")) {
-            ps.setString(1, workspaceId);
-            ps.setString(2, ruleId);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+        return DatabaseMetrics.recordOperation("exists", workspaceId, "rule", () -> {
+            try (Connection c = conn();
+                 PreparedStatement ps = c.prepareStatement("SELECT 1 FROM rules WHERE workspace_id=? AND rule_id=?")) {
+                ps.setString(1, workspaceId);
+                ps.setString(2, ruleId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    return rs.next();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to check existence", e);
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to check existence", e);
-        }
+        });
     }
 
     @Override
     public int count(String workspaceId) {
         if (workspaceId == null) return 0;
-        try (Connection c = conn();
-             PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM rules WHERE workspace_id=?")) {
-            ps.setString(1, workspaceId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return rs.getInt(1);
+        return DatabaseMetrics.recordOperation("count", workspaceId, "rule", () -> {
+            try (Connection c = conn();
+                 PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM rules WHERE workspace_id=?")) {
+                ps.setString(1, workspaceId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return rs.getInt(1);
+                }
+                return 0;
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to count rules", e);
             }
-            return 0;
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to count rules", e);
-        }
+        });
     }
 
     @Override
     public void clear() {
-        try (Connection c = conn(); Statement st = c.createStatement()) {
-            st.executeUpdate("DELETE FROM rules");
-        } catch (SQLException e) {
-            log.warn("Failed to clear rules: {}", e.getMessage());
-        }
+        DatabaseMetrics.recordOperation("clear", null, "rule", () -> {
+            try (Connection c = conn(); Statement st = c.createStatement()) {
+                st.executeUpdate("DELETE FROM rules");
+            } catch (SQLException e) {
+                log.warn("Failed to clear rules: {}", e.getMessage());
+            }
+            return null;
+        });
     }
 
     private Connection conn() throws SQLException {

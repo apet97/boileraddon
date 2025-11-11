@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1.3",
+  "key": "rules-engine",
+  "name": "Rules Engine",
+  "description": "Powerful IFTTT-style automation engine for Clockify that enables custom rules, webhook triggers, and API actions",
+  "baseUrl": "http://localhost:8080/rules",
+  "minimalSubscriptionPlan": "PRO",
+  "scopes": [
+    "TIME_ENTRY_READ",
+    "TIME_ENTRY_WRITE",
+    "PROJECT_READ",
+    "PROJECT_WRITE",
+    "TAG_READ",
+    "TAG_WRITE",
+    "TASK_READ",
+    "TASK_WRITE",
+    "CLIENT_READ",
+    "CLIENT_WRITE",
+    "WORKSPACE_READ"
+  ],
+  "components": [
+    {
+      "type": "sidebar",
+      "label": "Rules Engine",
+      "path": "/settings",
+      "accessLevel": "ADMINS"
+    }
+  ],
+  "webhooks": [
+    {
+      "event": "NEW_TIME_ENTRY",
+      "path": "/webhook"
+    },
+    {
+      "event": "TIME_ENTRY_UPDATED",
+      "path": "/webhook"
+    },
+    {
+      "event": "TIME_ENTRY_DELETED",
+      "path": "/webhook"
+    },
+    {
+      "event": "NEW_PROJECT",
+      "path": "/webhook"
+    },
+    {
+      "event": "NEW_CLIENT",
+      "path": "/webhook"
+    },
+    {
+      "event": "NEW_TAG",
+      "path": "/webhook"
+    },
+    {
+      "event": "NEW_TASK",
+      "path": "/webhook"
+    },
+    {
+      "event": "USER_JOINED_WORKSPACE",
+      "path": "/webhook"
+    },
+    {
+      "event": "USER_DELETED_FROM_WORKSPACE",
+      "path": "/webhook"
+    }
+  ],
+  "lifecycle": [
+    {
+      "path": "/lifecycle/installed",
+      "type": "INSTALLED"
+    },
+    {
+      "path": "/lifecycle/deleted",
+      "type": "DELETED"
+    }
+  ]
+}

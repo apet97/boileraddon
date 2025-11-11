@@ -99,6 +99,69 @@ JMH benchmarks for performance-critical paths.
   - Array iteration and filtering
   - ~10 benchmark methods
 
+### Layer 5: Docker-Dependent Tests (Database Integration)
+Tests that require Docker and Testcontainers for database operations.
+
+- **PooledDatabaseTokenStoreTest** (`PooledDatabaseTokenStoreTest.java`)
+  - Database connection pooling (HikariCP)
+  - Token CRUD operations against real PostgreSQL
+  - Resource management (AutoCloseable pattern)
+  - Try-with-resources validation
+  - Concurrent access patterns
+  - Idempotent close behavior
+  - ~11 tests, 274 lines
+
+**Docker Availability Handling:**
+- Tests automatically **skip** if Docker is not available
+- Tests automatically **run** if Docker is detected
+- Uses JUnit 5 `Assumptions` for graceful skipping
+- No manual intervention required
+
+**Running Docker Tests:**
+```bash
+# Ensure Docker is running
+docker ps
+
+# Run all tests (Docker tests included automatically)
+mvn test -pl addons/addon-sdk
+
+# Run only Docker-dependent tests
+mvn test -Dtest=PooledDatabaseTokenStoreTest -pl addons/addon-sdk
+
+# Run without Docker (tests will be skipped)
+# Just stop Docker - tests handle it gracefully
+```
+
+**Expected Output (Docker Available):**
+```
+[INFO] Tests run: 307, Failures: 0, Errors: 0, Skipped: 0
+```
+
+**Expected Output (Docker NOT Available):**
+```
+[INFO] Tests run: 296, Failures: 0, Errors: 0, Skipped: 11
+[INFO] Skipped: PooledDatabaseTokenStoreTest (Docker not available)
+```
+
+**What Testcontainers Does:**
+1. Detects Docker environment availability
+2. Downloads PostgreSQL 16-alpine image (~50MB, once)
+3. Starts ephemeral PostgreSQL container for tests
+4. Runs Flyway migrations automatically
+5. Executes database tests
+6. Stops and removes container after tests
+
+**Troubleshooting Docker Tests:**
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Tests skipped | Docker not running | Start Docker: `docker ps` should work |
+| "Port 5432 in use" | PostgreSQL already running | Stop local PostgreSQL or use different port |
+| "Failed to pull image" | Network issue | Pre-pull: `docker pull postgres:16-alpine` |
+| Tests timeout | Slow Docker | Increase timeout in test or check Docker resources |
+
+**See also:** [FROM_ZERO_SETUP.md](../FROM_ZERO_SETUP.md#docker-optional-but-recommended) for Docker installation guide.
+
 ## Test Utilities
 
 ### Test Data Builders (Fluent API)

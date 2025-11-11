@@ -2,10 +2,13 @@ package com.example.rules;
 
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
+import com.clockify.addon.sdk.logging.LoggingContext;
+import com.example.rules.api.ErrorResponse;
+import com.example.rules.cache.RuleCache;
 import com.example.rules.engine.Rule;
 import com.example.rules.engine.RuleValidator;
 import com.example.rules.store.RulesStoreSPI;
-import com.example.rules.cache.RuleCache;
+import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +26,7 @@ public class RulesController {
 
     private static final Logger logger = LoggerFactory.getLogger(RulesController.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String MEDIA_JSON = "application/json";
 
     private final RulesStoreSPI rulesStore;
 
@@ -37,19 +41,19 @@ public class RulesController {
      */
     public RequestHandler listRules() {
         return request -> {
-            try {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
                 String workspaceId = getWorkspaceId(request);
                 if (workspaceId == null) {
-                    return HttpResponse.error(400, "{\"error\":\"workspaceId is required\"}", "application/json");
+                    return workspaceRequired(request);
                 }
+                RequestContext.attachWorkspace(request, ctx, workspaceId);
 
                 List<Rule> rules = rulesStore.getAll(workspaceId);
                 String json = objectMapper.writeValueAsString(rules);
-                return HttpResponse.ok(json, "application/json");
+                return HttpResponse.ok(json, MEDIA_JSON);
 
             } catch (Exception e) {
-                logger.error("Error listing rules", e);
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.LIST_FAILED", "Failed to list rules", e, true);
             }
         };
     }
@@ -59,11 +63,12 @@ public class RulesController {
      */
     public RequestHandler saveRule() {
         return request -> {
-            try {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
                 String workspaceId = getWorkspaceId(request);
                 if (workspaceId == null) {
-                    return HttpResponse.error(400, "{\"error\":\"workspaceId is required\"}", "application/json");
+                    return workspaceRequired(request);
                 }
+                RequestContext.attachWorkspace(request, ctx, workspaceId);
 
                 JsonNode body = parseRequestBody(request);
                 Rule rule = objectMapper.treeToValue(body, Rule.class);
@@ -73,21 +78,24 @@ public class RulesController {
                     RuleValidator.validate(rule);
                 } catch (RuleValidator.RuleValidationException e) {
                     logger.warn("Rule validation failed: {}", e.getMessage());
-                    return HttpResponse.error(400, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                    return ErrorResponse.of(400, "RULES.VALIDATION_FAILED",
+                            "Rule validation failed", request, false, e.getMessage(),
+                            ErrorResponse.validationErrors(e.getMessage()));
                 }
 
                 Rule saved = rulesStore.save(workspaceId, rule);
                 // Invalidate cache for this workspace
                 RuleCache.invalidate(workspaceId);
                 String json = objectMapper.writeValueAsString(saved);
-                return HttpResponse.ok(json, "application/json");
+                return HttpResponse.ok(json, MEDIA_JSON);
 
             } catch (IllegalArgumentException e) {
                 logger.warn("Invalid rule: {}", e.getMessage());
-                return HttpResponse.error(400, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return ErrorResponse.of(400, "RULES.INVALID_RULE",
+                        "Invalid rule payload", request, false, e.getMessage(),
+                        ErrorResponse.validationErrors(e.getMessage()));
             } catch (Exception e) {
-                logger.error("Error saving rule", e);
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.SAVE_FAILED", "Failed to save rule", e, true);
             }
         };
     }
@@ -98,15 +106,16 @@ public class RulesController {
      */
     public RequestHandler deleteRule() {
         return request -> {
-            try {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
                 String workspaceId = getWorkspaceId(request);
                 if (workspaceId == null) {
-                    return HttpResponse.error(400, "{\"error\":\"workspaceId is required\"}", "application/json");
+                    return workspaceRequired(request);
                 }
+                RequestContext.attachWorkspace(request, ctx, workspaceId);
 
                 String ruleId = extractRuleId(request);
                 if (ruleId == null) {
-                    return HttpResponse.error(400, "{\"error\":\"ruleId is required\"}", "application/json");
+                    return ErrorResponse.of(400, "RULES.RULE_ID_REQUIRED", "ruleId is required", request, false);
                 }
 
                 boolean deleted = rulesStore.delete(workspaceId, ruleId);
@@ -117,11 +126,10 @@ public class RulesController {
                         .put("ruleId", ruleId)
                         .toString();
 
-                return HttpResponse.ok(json, "application/json");
+                return HttpResponse.ok(json, MEDIA_JSON);
 
             } catch (Exception e) {
-                logger.error("Error deleting rule", e);
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.DELETE_FAILED", "Failed to delete rule", e, true);
             }
         };
     }
@@ -171,19 +179,20 @@ public class RulesController {
      */
     public RequestHandler testRules() {
         return request -> {
-            try {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
                 String workspaceId = getWorkspaceId(request);
                 JsonNode body = parseRequestBody(request);
                 if ((workspaceId == null || workspaceId.isBlank()) && body != null && body.hasNonNull("workspaceId")) {
                     workspaceId = body.get("workspaceId").asText();
                 }
                 if (workspaceId == null || workspaceId.isBlank()) {
-                    return HttpResponse.error(400, "{\"error\":\"workspaceId is required\"}", "application/json");
+                    return workspaceRequired(request);
                 }
+                RequestContext.attachWorkspace(request, ctx, workspaceId);
 
                 JsonNode timeEntry = (body != null && body.has("timeEntry")) ? body.get("timeEntry") : body;
                 if (timeEntry == null || timeEntry.isNull()) {
-                    return HttpResponse.error(400, "{\"error\":\"timeEntry is required\"}", "application/json");
+                    return ErrorResponse.of(400, "RULES.TIME_ENTRY_REQUIRED", "timeEntry is required", request, false);
                 }
 
                 var evaluator = new com.example.rules.engine.Evaluator();
@@ -211,11 +220,10 @@ public class RulesController {
                     arr.add(an);
                 }
                 node.set("actions", arr);
-                return HttpResponse.ok(node.toString(), "application/json");
+                return HttpResponse.ok(node.toString(), MEDIA_JSON);
 
             } catch (Exception e) {
-                logger.error("Error testing rules", e);
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.TEST_FAILED", "Failed to evaluate rules", e, true);
             }
         };
     }
@@ -239,5 +247,14 @@ public class RulesController {
             }
         }
         return objectMapper.readTree(sb.toString());
+    }
+
+    private HttpResponse workspaceRequired(HttpServletRequest request) {
+        return ErrorResponse.of(400, "RULES.WORKSPACE_REQUIRED", "workspaceId is required", request, false);
+    }
+
+    private HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {
+        logger.error("{}: {}", code, e.getMessage(), e);
+        return ErrorResponse.of(500, code, message, request, retryable, e.getMessage());
     }
 }

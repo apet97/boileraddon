@@ -26,9 +26,9 @@ import java.io.IOException;
 public class RequestSizeLimitFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(RequestSizeLimitFilter.class);
 
+    public static final long ONE_MB = 1024L * 1024L;
     private final long maxSizeBytes;
     private static final long DEFAULT_MAX_SIZE_MB = 10;
-    private static final long MB_TO_BYTES = 1024 * 1024;
 
     /**
      * Creates request size limit filter with default limit (10 MB).
@@ -43,7 +43,7 @@ public class RequestSizeLimitFilter implements Filter {
      * @param maxSizeMB maximum request size in megabytes
      */
     public RequestSizeLimitFilter(long maxSizeMB) {
-        this.maxSizeBytes = maxSizeMB * MB_TO_BYTES;
+        this.maxSizeBytes = maxSizeMB * ONE_MB;
         logger.info("Request size limit filter initialized: {}MB ({}bytes)", maxSizeMB, maxSizeBytes);
     }
 
@@ -88,7 +88,7 @@ public class RequestSizeLimitFilter implements Filter {
             logger.warn("SECURITY: Request size {} exceeds limit {} from {} ({} {})",
                     contentLength, maxSizeBytes, clientIp, method, path);
 
-            sendSizeExceededError(httpResponse, maxSizeBytes / MB_TO_BYTES);
+            sendSizeExceededError(httpResponse, maxSizeBytes / ONE_MB);
             return;
         }
 
@@ -102,7 +102,7 @@ public class RequestSizeLimitFilter implements Filter {
             if (e.getCause() instanceof SizeLimitExceededException) {
                 logger.warn("SECURITY: Request size exceeded limit {} during processing from {}",
                         maxSizeBytes, getClientIp(httpRequest));
-                sendSizeExceededError(httpResponse, maxSizeBytes / MB_TO_BYTES);
+                sendSizeExceededError(httpResponse, maxSizeBytes / ONE_MB);
             } else {
                 // Re-throw other IOExceptions
                 throw e;

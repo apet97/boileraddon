@@ -1,9 +1,11 @@
 package com.clockify.addon.sdk.security;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -12,27 +14,51 @@ import java.sql.SQLException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Tests for PooledDatabaseTokenStore resource management and AutoCloseable implementation.
  *
- * NOTE: These tests require Docker (via Testcontainers) and are disabled by default.
+ * NOTE: These tests require Docker (via Testcontainers).
+ * - Tests will be SKIPPED automatically if Docker is not available
+ * - Tests will RUN automatically if Docker is available
+ *
  * To run these tests:
  * 1. Ensure Docker is running locally
- * 2. Remove the @Disabled annotation from the class
- * 3. Run: mvn test -Dtest=PooledDatabaseTokenStoreTest
+ * 2. Run: mvn test -Dtest=PooledDatabaseTokenStoreTest
  *
  * These tests validate critical resource cleanup behavior for production database connections.
  */
-@Disabled("Requires Docker - enable manually when Docker is available")
 @Testcontainers
 class PooledDatabaseTokenStoreTest {
 
-    @Container
-    private static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("addon_test")
-            .withUsername("test")
-            .withPassword("test");
+    // Lazy initialization - only creates container if Docker is available
+    // This prevents IllegalStateException during class loading
+    private static PostgreSQLContainer<?> postgres;
+
+    @BeforeAll
+    static void checkDockerAvailability() {
+        // Gracefully skip all tests if Docker is not available
+        // Tests will show as "skipped" rather than "failed"
+        boolean dockerAvailable = DockerClientFactory.instance().isDockerAvailable();
+        assumeTrue(dockerAvailable,
+            "Docker is not available. Skipping PooledDatabaseTokenStoreTest. " +
+            "Install Docker and ensure it's running to enable these tests.");
+
+        // Only initialize container if Docker is available
+        postgres = new PostgreSQLContainer<>("postgres:16-alpine")
+                .withDatabaseName("addon_test")
+                .withUsername("test")
+                .withPassword("test");
+        postgres.start();
+    }
+
+    @AfterAll
+    static void stopContainer() {
+        if (postgres != null && postgres.isRunning()) {
+            postgres.stop();
+        }
+    }
 
     private PooledDatabaseTokenStore tokenStore;
 

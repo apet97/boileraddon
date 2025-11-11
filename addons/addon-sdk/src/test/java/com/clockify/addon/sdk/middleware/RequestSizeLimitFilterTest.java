@@ -7,6 +7,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 
+import jakarta.servlet.ServletInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
@@ -19,9 +22,6 @@ import static org.mockito.Mockito.*;
  */
 class RequestSizeLimitFilterTest {
 
-    private static final long DEFAULT_MAX_SIZE_MB = 10;
-    private static final long MB_TO_BYTES = 1024 * 1024;
-
     @Test
     void defaultConstructor_uses10MBLimit() throws Exception {
         RequestSizeLimitFilter filter = new RequestSizeLimitFilter();
@@ -30,7 +30,7 @@ class RequestSizeLimitFilterTest {
         FilterChain chain = mock(FilterChain.class);
 
         // Just under 10 MB
-        long contentLength = (10 * MB_TO_BYTES) - 1;
+        long contentLength = (10 * RequestSizeLimitFilter.ONE_MB) - 1;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/webhook");
         when(req.getMethod()).thenReturn("POST");
@@ -50,7 +50,7 @@ class RequestSizeLimitFilterTest {
         FilterChain chain = mock(FilterChain.class);
 
         // 6 MB (exceeds 5 MB limit)
-        long contentLength = 6 * MB_TO_BYTES;
+        long contentLength = 6 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/webhook");
         when(req.getMethod()).thenReturn("POST");
@@ -75,7 +75,7 @@ class RequestSizeLimitFilterTest {
         FilterChain chain = mock(FilterChain.class);
 
         // Exactly 10 MB
-        long contentLength = 10 * MB_TO_BYTES;
+        long contentLength = 10 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/webhook");
         when(req.getMethod()).thenReturn("POST");
@@ -149,7 +149,7 @@ class RequestSizeLimitFilterTest {
         FilterChain chain = mock(FilterChain.class);
 
         // 3 MB (exceeds 2 MB limit)
-        long contentLength = 3 * MB_TO_BYTES;
+        long contentLength = 3 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/webhook");
         when(req.getMethod()).thenReturn("POST");
@@ -171,7 +171,7 @@ class RequestSizeLimitFilterTest {
         HttpServletResponse resp = mock(HttpServletResponse.class);
         FilterChain chain = mock(FilterChain.class);
 
-        long contentLength = 10 * MB_TO_BYTES;
+        long contentLength = 10 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/webhook");
         when(req.getMethod()).thenReturn("POST");
@@ -207,7 +207,7 @@ class RequestSizeLimitFilterTest {
         FilterChain chain = mock(FilterChain.class);
 
         // 50 MB file upload
-        long contentLength = 50 * MB_TO_BYTES;
+        long contentLength = 50 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/uploads");
         when(req.getMethod()).thenReturn("POST");
@@ -230,7 +230,7 @@ class RequestSizeLimitFilterTest {
         FilterChain chain = mock(FilterChain.class);
 
         // GET with body (unusual but possible)
-        long contentLength = 10 * MB_TO_BYTES;
+        long contentLength = 10 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/data");
         when(req.getMethod()).thenReturn("GET");
@@ -251,7 +251,7 @@ class RequestSizeLimitFilterTest {
         HttpServletResponse resp = mock(HttpServletResponse.class);
         FilterChain chain = mock(FilterChain.class);
 
-        long contentLength = 10 * MB_TO_BYTES;
+        long contentLength = 10 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/data");
         when(req.getMethod()).thenReturn("PUT");
@@ -287,7 +287,7 @@ class RequestSizeLimitFilterTest {
         HttpServletResponse resp = mock(HttpServletResponse.class);
         FilterChain chain = mock(FilterChain.class);
 
-        long contentLength = 10 * MB_TO_BYTES;
+        long contentLength = 10 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getHeader("X-Forwarded-For")).thenReturn("203.0.113.5");
         when(req.getRequestURI()).thenReturn("/api/v1/webhook");
@@ -330,7 +330,7 @@ class RequestSizeLimitFilterTest {
         HttpServletResponse resp = mock(HttpServletResponse.class);
         FilterChain chain = mock(FilterChain.class);
 
-        long contentLength = 10 * MB_TO_BYTES;
+        long contentLength = 10 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/webhook");
         when(req.getMethod()).thenReturn("POST");
@@ -366,7 +366,7 @@ class RequestSizeLimitFilterTest {
         {
             HttpServletRequest req2 = mock(HttpServletRequest.class);
             HttpServletResponse resp2 = mock(HttpServletResponse.class);
-            long contentLength = 20 * MB_TO_BYTES;
+            long contentLength = 20 * RequestSizeLimitFilter.ONE_MB;
             when(req2.getContentLength()).thenReturn((int) contentLength);
             when(req2.getRequestURI()).thenReturn("/api/v1/large");
             when(req2.getMethod()).thenReturn("POST");
@@ -387,7 +387,7 @@ class RequestSizeLimitFilterTest {
         HttpServletResponse resp = mock(HttpServletResponse.class);
         FilterChain chain = mock(FilterChain.class);
 
-        long contentLength = 10 * MB_TO_BYTES;
+        long contentLength = 10 * RequestSizeLimitFilter.ONE_MB;
         when(req.getContentLength()).thenReturn((int) contentLength);
         when(req.getRequestURI()).thenReturn("/api/v1/webhook");
         when(req.getMethod()).thenReturn("POST");
@@ -399,5 +399,96 @@ class RequestSizeLimitFilterTest {
         filter.doFilter(req, resp, chain);
 
         verify(resp).setContentType("application/json");
+    }
+
+    @Test
+    void chunkedRequestWithExpectOverLimit_returns413() throws Exception {
+        RequestSizeLimitFilter filter = new RequestSizeLimitFilter(1); // 1 MB
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        HttpServletResponse resp = mock(HttpServletResponse.class);
+        StringWriter sw = new StringWriter();
+        when(resp.getWriter()).thenReturn(new PrintWriter(sw));
+
+        byte[] body = new byte[2 * (int) RequestSizeLimitFilter.ONE_MB];
+        when(req.getContentLength()).thenReturn(-1);
+        when(req.getHeader("Expect")).thenReturn("100-continue");
+        when(req.getHeader("Transfer-Encoding")).thenReturn("chunked");
+        when(req.getInputStream()).thenReturn(new ByteArrayServletInputStream(body));
+        when(req.getRequestURI()).thenReturn("/api/upload");
+        when(req.getMethod()).thenReturn("POST");
+        when(req.getRemoteAddr()).thenReturn("192.0.2.1");
+
+        FilterChain chain = (ServletRequest request, ServletResponse response) -> {
+            ServletInputStream in = request.getInputStream();
+            byte[] buffer = new byte[8192];
+            while (in.read(buffer) != -1) {
+                // Consume stream to trigger limit
+            }
+        };
+
+        filter.doFilter(req, resp, chain);
+
+        verify(resp).setStatus(413);
+        assertTrue(sw.toString().contains("payload_too_large"));
+    }
+
+    @Test
+    void chunkedRequestWithinLimit_allowsProcessing() throws Exception {
+        RequestSizeLimitFilter filter = new RequestSizeLimitFilter(5); // 5 MB
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        HttpServletResponse resp = mock(HttpServletResponse.class);
+
+        byte[] body = new byte[(int) RequestSizeLimitFilter.ONE_MB]; // 1 MB
+        when(req.getContentLength()).thenReturn(-1);
+        when(req.getHeader("Transfer-Encoding")).thenReturn("chunked");
+        when(req.getInputStream()).thenReturn(new ByteArrayServletInputStream(body));
+        when(req.getRequestURI()).thenReturn("/api/chunked");
+        when(req.getMethod()).thenReturn("POST");
+        when(req.getRemoteAddr()).thenReturn("192.0.2.1");
+
+        FilterChain chain = (ServletRequest request, ServletResponse response) -> {
+            ServletInputStream in = request.getInputStream();
+            byte[] buffer = new byte[1024];
+            while (in.read(buffer) != -1) {
+                // consume
+            }
+        };
+
+        filter.doFilter(req, resp, chain);
+
+        verify(resp, never()).setStatus(413);
+    }
+
+    private static class ByteArrayServletInputStream extends ServletInputStream {
+        private final ByteArrayInputStream delegate;
+
+        ByteArrayServletInputStream(byte[] bytes) {
+            this.delegate = new ByteArrayInputStream(bytes);
+        }
+
+        @Override
+        public int read() {
+            return delegate.read();
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) {
+            return delegate.read(b, off, len);
+        }
+
+        @Override
+        public boolean isFinished() {
+            return delegate.available() == 0;
+        }
+
+        @Override
+        public boolean isReady() {
+            return true;
+        }
+
+        @Override
+        public void setReadListener(jakarta.servlet.ReadListener readListener) {
+            // no-op for tests
+        }
     }
 }

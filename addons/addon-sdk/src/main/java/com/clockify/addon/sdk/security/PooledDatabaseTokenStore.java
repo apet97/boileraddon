@@ -1,5 +1,7 @@
 package com.clockify.addon.sdk.security;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
@@ -39,6 +41,7 @@ import java.util.Optional;
  */
 public class PooledDatabaseTokenStore implements TokenStoreSPI, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(PooledDatabaseTokenStore.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final HikariDataSource dataSource;
 
@@ -139,17 +142,19 @@ public class PooledDatabaseTokenStore implements TokenStoreSPI, AutoCloseable {
         }
 
         long now = System.currentTimeMillis();
-        String upsert = "INSERT INTO addon_tokens (workspace_id, auth_token, created_at, last_accessed_at) " +
-                "VALUES (?, ?, ?, ?) " +
-                "ON CONFLICT (workspace_id) DO UPDATE SET auth_token = EXCLUDED.auth_token, last_accessed_at = EXCLUDED.last_accessed_at";
+        String upsert = "INSERT INTO addon_tokens (workspace_id, auth_token, api_base_url, created_at, last_accessed_at) " +
+                "VALUES (?, ?, ?, ?, ?) " +
+                "ON CONFLICT (workspace_id) DO UPDATE SET auth_token = EXCLUDED.auth_token, api_base_url = EXCLUDED.api_base_url, last_accessed_at = EXCLUDED.last_accessed_at";
+        String apiBaseUrl = extractApiBaseUrl(token);
 
         long startTime = System.currentTimeMillis();
         try (Connection c = dataSource.getConnection();
              PreparedStatement ps = c.prepareStatement(upsert)) {
             ps.setString(1, workspaceId);
             ps.setString(2, token);
-            ps.setLong(3, now);
+            ps.setString(3, apiBaseUrl);
             ps.setLong(4, now);
+            ps.setLong(5, now);
             int rows = ps.executeUpdate();
             long elapsed = System.currentTimeMillis() - startTime;
             logger.info("Token saved for workspace '{}': rows_affected={}, elapsed_ms={}", workspaceId, rows, elapsed);
@@ -319,6 +324,25 @@ public class PooledDatabaseTokenStore implements TokenStoreSPI, AutoCloseable {
             logger.warn("Could not auto-create addon_tokens table (may already exist or require manual setup): {}",
                     e.getMessage());
         }
+    }
+
+    private String extractApiBaseUrl(String rawToken) {
+        if (rawToken == null) {
+            return null;
+        }
+        String trimmed = rawToken.trim();
+        if (!trimmed.startsWith("{")) {
+            return null;
+        }
+        try {
+            JsonNode node = OBJECT_MAPPER.readTree(trimmed);
+            JsonNode current = node.get("current");
+            if (current != null && current.hasNonNull("apiBaseUrl")) {
+                return current.get("apiBaseUrl").asText();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     /**

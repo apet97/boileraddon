@@ -397,6 +397,9 @@ public class AddonServlet extends HttpServlet {
     private void sendResponse(HttpServletResponse resp, HttpResponse response) throws IOException {
         resp.setStatus(response.getStatusCode());
         resp.setContentType(response.getContentType());
+        if (response.getHeaders() != null) {
+            response.getHeaders().forEach(resp::setHeader);
+        }
         resp.getWriter().write(response.getBody());
     }
 }

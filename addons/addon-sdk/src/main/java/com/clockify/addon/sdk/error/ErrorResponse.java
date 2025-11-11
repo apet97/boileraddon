@@ -7,17 +7,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 
 /**
- * Standardized JSON error response format.
+ * Standardized JSON error response format compliant with RFC-7807 (Problem Details).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ErrorResponse {
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String ERROR_TYPE_BASE_URI = "https://developer.clockify.me/addons/errors/";
 
+    private String type;
+    private String title;
+    private String detail;
     private String error;
     private String message;
     private String errorCode;
-    private Integer statusCode;
-    private String path;
+    private Integer status;
+    private String instance;
     private Long timestamp;
     private Map<String, Object> details;
 
@@ -26,16 +30,19 @@ public class ErrorResponse {
     }
 
     /**
-     * Creates an error response.
+     * Creates an error response compliant with RFC-7807.
      *
      * @param error Short error identifier (e.g., "validation_failed")
-     * @param message Human-readable error message
+     * @param message Human-readable error message (used as detail)
      * @return Builder for additional fields
      */
     public static ErrorResponse create(String error, String message) {
         ErrorResponse response = new ErrorResponse();
         response.error = error;
         response.message = message;
+        response.detail = message;
+        response.type = ERROR_TYPE_BASE_URI + error;
+        response.title = getTitleForError(error);
         return response;
     }
 
@@ -44,7 +51,7 @@ public class ErrorResponse {
      */
     public static ErrorResponse validationError(String message) {
         return create("validation_failed", message)
-                .withStatusCode(400);
+                .withStatus(400);
     }
 
     /**
@@ -52,7 +59,7 @@ public class ErrorResponse {
      */
     public static ErrorResponse authenticationError(String message) {
         return create("authentication_failed", message)
-                .withStatusCode(401);
+                .withStatus(401);
     }
 
     /**
@@ -60,7 +67,7 @@ public class ErrorResponse {
      */
     public static ErrorResponse authorizationError(String message) {
         return create("authorization_failed", message)
-                .withStatusCode(403);
+                .withStatus(403);
     }
 
     /**
@@ -68,7 +75,7 @@ public class ErrorResponse {
      */
     public static ErrorResponse notFound(String message) {
         return create("not_found", message)
-                .withStatusCode(404);
+                .withStatus(404);
     }
 
     /**
@@ -76,7 +83,7 @@ public class ErrorResponse {
      */
     public static ErrorResponse serverError(String message) {
         return create("internal_server_error", message)
-                .withStatusCode(500);
+                .withStatus(500);
     }
 
     /**
@@ -84,7 +91,7 @@ public class ErrorResponse {
      */
     public static ErrorResponse badRequest(String message) {
         return create("bad_request", message)
-                .withStatusCode(400);
+                .withStatus(400);
     }
 
     public ErrorResponse withErrorCode(String errorCode) {
@@ -92,13 +99,13 @@ public class ErrorResponse {
         return this;
     }
 
-    public ErrorResponse withStatusCode(int statusCode) {
-        this.statusCode = statusCode;
+    public ErrorResponse withStatus(int status) {
+        this.status = status;
         return this;
     }
 
-    public ErrorResponse withPath(String path) {
-        this.path = path;
+    public ErrorResponse withInstance(String instance) {
+        this.instance = instance;
         return this;
     }
 
@@ -107,14 +114,31 @@ public class ErrorResponse {
         return this;
     }
 
+    // Backward compatibility method
+    public ErrorResponse withStatusCode(int statusCode) {
+        return withStatus(statusCode);
+    }
+
+    // Backward compatibility method
+    public ErrorResponse withPath(String path) {
+        return withInstance(path);
+    }
+
     // Getters
+    public String getType() { return type; }
+    public String getTitle() { return title; }
+    public String getDetail() { return detail; }
     public String getError() { return error; }
     public String getMessage() { return message; }
     public String getErrorCode() { return errorCode; }
-    public Integer getStatusCode() { return statusCode; }
-    public String getPath() { return path; }
+    public Integer getStatus() { return status; }
+    public String getInstance() { return instance; }
     public Long getTimestamp() { return timestamp; }
     public Map<String, Object> getDetails() { return details; }
+
+    // Backward compatibility getters
+    public Integer getStatusCode() { return status; }
+    public String getPath() { return instance; }
 
     /**
      * Converts to JSON string.
@@ -124,8 +148,40 @@ public class ErrorResponse {
             return objectMapper.writeValueAsString(this);
         } catch (JsonProcessingException e) {
             // Fallback to simple JSON if serialization fails
-            return String.format("{\"error\":\"%s\",\"message\":\"%s\",\"timestamp\":%d}",
-                    escapeJson(error), escapeJson(message), timestamp);
+            return String.format("{\"type\":\"%s\",\"title\":\"%s\",\"detail\":\"%s\",\"status\":%d,\"timestamp\":%d}",
+                    escapeJson(type), escapeJson(title), escapeJson(detail), status, timestamp);
+        }
+    }
+
+    /**
+     * Returns human-readable title for error type.
+     */
+    private static String getTitleForError(String error) {
+        switch (error) {
+            case "validation_failed":
+                return "Validation Failed";
+            case "authentication_failed":
+                return "Authentication Failed";
+            case "authorization_failed":
+                return "Authorization Failed";
+            case "not_found":
+                return "Not Found";
+            case "internal_server_error":
+                return "Internal Server Error";
+            case "bad_request":
+                return "Bad Request";
+            default:
+                // Capitalize and format unknown error types
+                String[] words = error.replace("_", " ").split("\\s+");
+                StringBuilder title = new StringBuilder();
+                for (String word : words) {
+                    if (!word.isEmpty()) {
+                        title.append(Character.toUpperCase(word.charAt(0)))
+                             .append(word.substring(1).toLowerCase())
+                             .append(" ");
+                    }
+                }
+                return title.toString().trim();
         }
     }
 

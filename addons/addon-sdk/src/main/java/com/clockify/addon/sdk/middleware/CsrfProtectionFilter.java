@@ -44,8 +44,10 @@ public class CsrfProtectionFilter implements Filter {
     private static final String CSRF_HEADER = "X-CSRF-Token";
     private static final String CSRF_PARAM = "__csrf";
     private static final int TOKEN_LENGTH = 32;  // 256 bits
+    private static final boolean COOKIE_ATTRIBUTE_SUPPORTED = cookieAttributeSupported();
 
     private final SecureRandom random = new SecureRandom();
+    private final String sameSiteAttribute;
 
     private static final Set<String> EXEMPT_PREFIXES = Set.of(
             "/webhook",
@@ -61,9 +63,19 @@ public class CsrfProtectionFilter implements Filter {
             "X-Clockify-Signature"
     };
 
+    public CsrfProtectionFilter() {
+        this(System.getenv().getOrDefault("ADDON_CSRF_SAMESITE", "None"));
+    }
+
+    public CsrfProtectionFilter(String sameSiteAttribute) {
+        this.sameSiteAttribute = normalizeSameSite(sameSiteAttribute);
+    }
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
+
+        logger.debug("CSRF filter processing request");
 
         if (!(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse)) {
             chain.doFilter(request, response);
@@ -75,6 +87,8 @@ public class CsrfProtectionFilter implements Filter {
         String method = httpRequest.getMethod();
         String path = requestPath(httpRequest);
 
+        logger.debug("CSRF filter processing {} {} from {}", method, path, getClientIp(httpRequest));
+
         if (isExempt(httpRequest, path, method)) {
             logger.debug("CSRF check exempted for path: {}", path);
             chain.doFilter(request, response);
@@ -84,6 +98,8 @@ public class CsrfProtectionFilter implements Filter {
         TokenState tokenState = getOrCreateCsrfToken(httpRequest);
         String csrfToken = tokenState.token();
         if (tokenState.generated() || isSafeMethod(method)) {
+            logger.debug("Sending CSRF cookie for {} request - generated: {}, safe: {}",
+                    method, tokenState.generated(), isSafeMethod(method));
             sendTokenCookie(httpResponse, httpRequest, csrfToken);
         }
 
@@ -240,13 +256,59 @@ public class CsrfProtectionFilter implements Filter {
     }
 
     private void sendTokenCookie(HttpServletResponse response, HttpServletRequest request, String token) {
-        Cookie cookie = new Cookie(CSRF_COOKIE_NAME, token);
-        cookie.setPath("/");
-        cookie.setHttpOnly(false); // exposed to JS for double-submit header
-        cookie.setSecure(request.isSecure());
-        cookie.setMaxAge(-1);
-        cookie.setAttribute("SameSite", "Strict");
-        response.addCookie(cookie);
+        boolean secure = isSecureRequest(request);
+        if (COOKIE_ATTRIBUTE_SUPPORTED) {
+            Cookie cookie = new Cookie(CSRF_COOKIE_NAME, token);
+            cookie.setPath("/");
+            cookie.setHttpOnly(false); // exposed to JS for double-submit header
+            cookie.setSecure(secure);
+            cookie.setMaxAge(-1);
+            cookie.setAttribute("SameSite", sameSiteAttribute);
+            response.addCookie(cookie);
+            logger.debug("Added CSRF cookie via Cookie object: {}", cookie.getValue());
+            return;
+        }
+
+        // Fallback for Servlet containers that do not support Cookie#setAttribute (Servlet <= 5)
+        StringBuilder sb = new StringBuilder();
+        sb.append(CSRF_COOKIE_NAME).append("=").append(token).append("; Path=/");
+        if (secure) {
+            sb.append("; Secure");
+        }
+        sb.append("; SameSite=").append(sameSiteAttribute);
+        response.addHeader("Set-Cookie", sb.toString());
+        logger.debug("Added CSRF cookie via Set-Cookie header: {}", sb.toString());
+    }
+
+    private static String normalizeSameSite(String value) {
+        if (value == null) {
+            return "None";
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return "None";
+        }
+        String upper = trimmed.toUpperCase();
+        if ("STRICT".equals(upper)) return "Strict";
+        if ("LAX".equals(upper)) return "Lax";
+        return "None";
+    }
+
+    private static boolean cookieAttributeSupported() {
+        try {
+            Cookie.class.getMethod("setAttribute", String.class, String.class);
+            return true;
+        } catch (NoSuchMethodException ex) {
+            return false;
+        }
+    }
+
+    private boolean isSecureRequest(HttpServletRequest request) {
+        if (request.isSecure()) {
+            return true;
+        }
+        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        return forwardedProto != null && forwardedProto.equalsIgnoreCase("https");
     }
 
     private String getClientIp(HttpServletRequest request) {

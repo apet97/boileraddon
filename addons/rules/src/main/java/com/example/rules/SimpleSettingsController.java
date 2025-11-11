@@ -2,6 +2,8 @@ package com.example.rules;
 
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
+import com.example.rules.config.RuntimeFlags;
+import com.example.rules.web.Nonce;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -12,9 +14,13 @@ public class SimpleSettingsController implements RequestHandler {
 
     @Override
     public HttpResponse handle(HttpServletRequest request) {
-        String applyMode = "true".equalsIgnoreCase(System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false")) ? "Apply" : "Log-only";
-        String skipSig = "true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_SKIP_SIGNATURE_VERIFY", "false")) ? "ON" : "OFF";
+        String applyMode = RuntimeFlags.applyChangesEnabled() ? "Apply" : "Log-only";
+        String skipSig = RuntimeFlags.skipSignatureVerification()
+                ? "ON"
+                : (RuntimeFlags.isDevEnvironment() ? "OFF" : "LOCKED");
+        String envLabel = RuntimeFlags.environmentLabel();
         String base = System.getenv().getOrDefault("ADDON_BASE_URL", "");
+        String nonce = Nonce.create();
 
         String html = """
 <!DOCTYPE html>
@@ -22,8 +28,9 @@ public class SimpleSettingsController implements RequestHandler {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'self'; style-src 'nonce-%s'; script-src 'nonce-%s'; base-uri 'self'; form-action 'self'" />
   <title>Rules Automation - Simple Builder</title>
-  <style>
+  <style nonce="%s">
     :root {
       --primary: #1976d2;
       --primary-light: #e3f2fd;
@@ -285,6 +292,7 @@ public class SimpleSettingsController implements RequestHandler {
       <div class="flex flex-wrap mt-16" style="gap: 12px;">
         <span class="status-badge">Mode: %s</span>
         <span class="status-badge">Signature: %s</span>
+        <span class="status-badge">Env: %s</span>
         <span class="status-badge">Base: %s</span>
       </div>
     </div>
@@ -296,22 +304,22 @@ public class SimpleSettingsController implements RequestHandler {
       </p>
 
       <div class="rule-templates">
-        <div class="template-card" onclick="useTemplate('billable')">
+        <div class="template-card" data-template="billable">
           <h4>💰 Mark Billable</h4>
           <p>Automatically mark time entries as billable when they contain specific keywords</p>
         </div>
 
-        <div class="template-card" onclick="useTemplate('urgent')">
+        <div class="template-card" data-template="urgent">
           <h4>🚨 Urgent Tag</h4>
           <p>Add "urgent" tag to time entries that mention urgent or ASAP</p>
         </div>
 
-        <div class="template-card" onclick="useTemplate('meeting')">
+        <div class="template-card" data-template="meeting">
           <h4>📅 Meeting Notes</h4>
           <p>Standardize meeting descriptions and add meeting tag</p>
         </div>
 
-        <div class="template-card" onclick="useTemplate('custom')">
+        <div class="template-card" data-template="custom">
           <h4>⚙️ Custom Rule</h4>
           <p>Build your own rule from scratch</p>
         </div>
@@ -338,40 +346,17 @@ public class SimpleSettingsController implements RequestHandler {
       </div>
 
       <h3 style="margin: 24px 0 16px 0; font-size: 16px;">Conditions (When to run)</h3>
-      <div id="conditions">
-        <div class="condition-row">
-          <select class="condition-type">
-            <option value="descriptionContains">Description contains</option>
-            <option value="descriptionEquals">Description equals</option>
-            <option value="hasTag">Has tag</option>
-            <option value="projectIdEquals">Project ID equals</option>
-            <option value="isBillable">Is billable</option>
-          </select>
-          <input type="text" class="condition-value" placeholder="Enter value" />
-          <button class="btn btn-secondary" onclick="removeCondition(this)">Remove</button>
-        </div>
-      </div>
-      <button class="btn btn-secondary" onclick="addCondition()">+ Add Condition</button>
+      <div id="conditions"></div>
+      <button class="btn btn-secondary" type="button" id="btnAddCondition">+ Add Condition</button>
 
       <h3 style="margin: 24px 0 16px 0; font-size: 16px;">Actions (What to do)</h3>
-      <div id="actions">
-        <div class="action-row">
-          <select class="action-type">
-            <option value="add_tag">Add tag</option>
-            <option value="remove_tag">Remove tag</option>
-            <option value="set_description">Set description</option>
-            <option value="set_billable">Set billable</option>
-          </select>
-          <input type="text" class="action-value" placeholder="Enter value" />
-          <button class="btn btn-secondary" onclick="removeAction(this)">Remove</button>
-        </div>
-      </div>
-      <button class="btn btn-secondary" onclick="addAction()">+ Add Action</button>
+      <div id="actions"></div>
+      <button class="btn btn-secondary" type="button" id="btnAddAction">+ Add Action</button>
 
       <div class="form-group mt-16">
-        <button class="btn btn-primary" onclick="saveRule()">💾 Save Rule</button>
-        <button class="btn btn-secondary" onclick="testRule()">🧪 Test Rule</button>
-        <button class="btn btn-secondary" onclick="showDebug()">🐛 Debug</button>
+        <button class="btn btn-primary" type="button" id="btnSaveRule">💾 Save Rule</button>
+        <button class="btn btn-secondary" type="button" id="btnTestRule">🧪 Test Rule</button>
+        <button class="btn btn-secondary" type="button" id="btnShowDebug">🐛 Debug</button>
         <span id="saveMessage" class="message"></span>
       </div>
     </div>
@@ -379,7 +364,7 @@ public class SimpleSettingsController implements RequestHandler {
     <div class="card">
       <h2>Your Rules</h2>
       <div class="flex justify-between mb-16">
-        <button class="btn btn-secondary" onclick="loadRules()">🔄 Refresh Rules</button>
+        <button class="btn btn-secondary" type="button" id="btnRefreshRules">🔄 Refresh Rules</button>
         <span id="rulesCount" class="status-badge">0 rules</span>
       </div>
       <div id="rulesList"></div>
@@ -388,20 +373,20 @@ public class SimpleSettingsController implements RequestHandler {
     <div class="card">
       <h2>Need Help?</h2>
       <div class="flex flex-wrap" style="gap: 12px;">
-        <button class="btn btn-secondary" onclick="window.location.href=baseUrl()+'/settings'">
+        <button class="btn btn-secondary" type="button" id="btnAdvancedBuilder">
           ⚙️ Advanced Builder
         </button>
-        <button class="btn btn-secondary" onclick="window.location.href=baseUrl()+'/ifttt'">
+        <button class="btn btn-secondary" type="button" id="btnIftttBuilder">
           🔗 IFTTT Builder
         </button>
-        <button class="btn btn-secondary" onclick="copyManifest()">
+        <button class="btn btn-secondary" type="button" id="btnCopyManifest">
           📋 Copy Manifest
         </button>
       </div>
     </div>
   </div>
 
-  <script>
+  <script nonce="%s">
     const baseUrl = () => {
       const u = new URL(window.location.href);
       let p = u.pathname;
@@ -452,57 +437,81 @@ public class SimpleSettingsController implements RequestHandler {
       showMessage('Template applied! Customize as needed.', 'success');
     }
 
+    const CONDITION_OPTIONS = [
+      { value: 'descriptionContains', label: 'Description contains' },
+      { value: 'descriptionEquals', label: 'Description equals' },
+      { value: 'hasTag', label: 'Has tag' },
+      { value: 'projectIdEquals', label: 'Project ID equals' },
+      { value: 'isBillable', label: 'Is billable' }
+    ];
+
+    const ACTION_OPTIONS = [
+      { value: 'add_tag', label: 'Add tag' },
+      { value: 'remove_tag', label: 'Remove tag' },
+      { value: 'set_description', label: 'Set description' },
+      { value: 'set_billable', label: 'Set billable' }
+    ];
+
     function addCondition(type = 'descriptionContains', value = '') {
       const div = document.createElement('div');
       div.className = 'condition-row';
-      div.innerHTML = `
-        <select class="condition-type">
-          <option value="descriptionContains">Description contains</option>
-          <option value="descriptionEquals">Description equals</option>
-          <option value="hasTag">Has tag</option>
-          <option value="projectIdEquals">Project ID equals</option>
-          <option value="isBillable">Is billable</option>
-        </select>
-        <input type="text" class="condition-value" placeholder="Enter value" value="${value}" />
-        <button class="btn btn-secondary" onclick="removeCondition(this)">Remove</button>
-      `;
+      const select = document.createElement('select');
+      select.className = 'condition-type';
+      CONDITION_OPTIONS.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        select.appendChild(option);
+      });
+      select.value = type;
 
-      const select = div.querySelector('.condition-type');
-      if (type) select.value = type;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'condition-value';
+      input.placeholder = 'Enter value';
+      input.value = value || '';
 
+      const remove = document.createElement('button');
+      remove.className = 'btn btn-secondary';
+      remove.type = 'button';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => div.remove());
+
+      div.append(select, input, remove);
       document.getElementById('conditions').appendChild(div);
     }
 
     function addAction(type = 'add_tag', value = '') {
       const div = document.createElement('div');
       div.className = 'action-row';
-      div.innerHTML = `
-        <select class="action-type">
-          <option value="add_tag">Add tag</option>
-          <option value="remove_tag">Remove tag</option>
-          <option value="set_description">Set description</option>
-          <option value="set_billable">Set billable</option>
-        </select>
-        <input type="text" class="action-value" placeholder="Enter value" value="${value}" />
-        <button class="btn btn-secondary" onclick="removeAction(this)">Remove</button>
-      `;
+      const select = document.createElement('select');
+      select.className = 'action-type';
+      ACTION_OPTIONS.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        select.appendChild(option);
+      });
+      select.value = type;
 
-      const select = div.querySelector('.action-type');
-      if (type) select.value = type;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'action-value';
+      input.placeholder = 'Enter value';
+      input.value = value || '';
 
+      const remove = document.createElement('button');
+      remove.className = 'btn btn-secondary';
+      remove.type = 'button';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => div.remove());
+
+      div.append(select, input, remove);
       document.getElementById('actions').appendChild(div);
     }
 
-    function removeCondition(button) {
-      button.parentElement.remove();
-    }
-
-    function removeAction(button) {
-      button.parentElement.remove();
-    }
-
     async function saveRule() {
-      const saveBtn = document.querySelector('button[onclick="saveRule()"]');
+      const saveBtn = document.getElementById('btnSaveRule');
       const originalText = saveBtn.textContent;
 
       try {
@@ -579,7 +588,7 @@ public class SimpleSettingsController implements RequestHandler {
     }
 
     async function testRule() {
-      const testBtn = document.querySelector('button[onclick="testRule()"]');
+      const testBtn = document.getElementById('btnTestRule');
       const originalText = testBtn.textContent;
 
       try {
@@ -645,7 +654,7 @@ public class SimpleSettingsController implements RequestHandler {
     }
 
     async function loadRules() {
-      const refreshBtn = document.querySelector('button[onclick="loadRules()"]');
+      const refreshBtn = document.getElementById('btnRefreshRules');
       const originalText = refreshBtn.textContent;
 
       const workspaceId = document.getElementById('workspaceId').value.trim();
@@ -666,22 +675,43 @@ public class SimpleSettingsController implements RequestHandler {
             return;
           }
 
-          rulesList.innerHTML = rules.map(rule => `
-            <div style="padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px;">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <strong>${rule.name}</strong>
-                  <span class="status-badge ${rule.enabled ? 'success' : ''}" style="margin-left: 8px;">
-                    ${rule.enabled ? 'Enabled' : 'Disabled'}
-                  </span>
-                </div>
-                <button class="btn btn-secondary" onclick="deleteRule('${rule.id}')">Delete</button>
-              </div>
-              <div style="margin-top: 8px; font-size: 12px; color: var(--text-light);">
-                ${rule.conditions?.length || 0} conditions • ${rule.actions?.length || 0} actions
-              </div>
-            </div>
-          `).join('');
+          rulesList.innerHTML = '';
+          rules.forEach(rule => {
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'padding:12px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;';
+
+            const topRow = document.createElement('div');
+            topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+
+            const info = document.createElement('div');
+            const title = document.createElement('strong');
+            title.textContent = rule.name || '(untitled)';
+            info.appendChild(title);
+
+            const badge = document.createElement('span');
+            badge.className = 'status-badge';
+            if (rule.enabled) badge.classList.add('success');
+            badge.style.marginLeft = '8px';
+            badge.textContent = rule.enabled ? 'Enabled' : 'Disabled';
+            info.appendChild(badge);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-secondary';
+            deleteBtn.type = 'button';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => deleteRule(rule.id));
+
+            topRow.append(info, deleteBtn);
+
+            const meta = document.createElement('div');
+            meta.style.cssText = 'margin-top:8px;font-size:12px;color:var(--text-light);';
+            const condCount = (rule.conditions && rule.conditions.length) || 0;
+            const actionCount = (rule.actions && rule.actions.length) || 0;
+            meta.textContent = `${condCount} conditions • ${actionCount} actions`;
+
+            wrapper.append(topRow, meta);
+            rulesList.appendChild(wrapper);
+          });
         } else {
           rulesList.innerHTML = '<p style="color: var(--error);">Error loading rules</p>';
         }
@@ -776,6 +806,30 @@ public class SimpleSettingsController implements RequestHandler {
       }
     }
 
+    function bindButton(id, handler) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('click', handler);
+      }
+    }
+
+    document.querySelectorAll('[data-template]').forEach(card => {
+      const template = card.getAttribute('data-template');
+      card.addEventListener('click', () => useTemplate(template));
+    });
+    bindButton('btnAddCondition', () => addCondition());
+    bindButton('btnAddAction', () => addAction());
+    bindButton('btnSaveRule', saveRule);
+    bindButton('btnTestRule', testRule);
+    bindButton('btnShowDebug', showDebug);
+    bindButton('btnRefreshRules', loadRules);
+    bindButton('btnAdvancedBuilder', () => window.location.href = baseUrl() + '/settings');
+    bindButton('btnIftttBuilder', () => window.location.href = baseUrl() + '/ifttt');
+    bindButton('btnCopyManifest', copyManifest);
+
+    addCondition();
+    addAction();
+
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
       // Try to load workspace ID from URL parameters
@@ -791,7 +845,7 @@ public class SimpleSettingsController implements RequestHandler {
 </html>
 """;
 
-        html = String.format(html, applyMode, skipSig, base);
+        html = String.format(html, nonce, nonce, nonce, applyMode, skipSig, envLabel, base, nonce);
         return HttpResponse.ok(html, "text/html; charset=utf-8");
     }
 }

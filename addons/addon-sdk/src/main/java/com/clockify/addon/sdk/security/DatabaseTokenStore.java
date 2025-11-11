@@ -1,5 +1,7 @@
 package com.clockify.addon.sdk.security;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +24,7 @@ import java.util.Optional;
  */
 public class DatabaseTokenStore implements TokenStoreSPI {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseTokenStore.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final String jdbcUrl;
     private final String username;
@@ -50,22 +53,24 @@ public class DatabaseTokenStore implements TokenStoreSPI {
         if (workspaceId == null || workspaceId.isBlank()) throw new IllegalArgumentException("workspaceId required");
         if (token == null || token.isBlank()) throw new IllegalArgumentException("token required");
         long now = System.currentTimeMillis();
-        String upsert = "INSERT INTO addon_tokens (workspace_id, auth_token, created_at, last_accessed_at) " +
-                "VALUES (?, ?, ?, ?) " +
-                "ON CONFLICT (workspace_id) DO UPDATE SET auth_token = EXCLUDED.auth_token, last_accessed_at = EXCLUDED.last_accessed_at";
+        String upsert = "INSERT INTO addon_tokens (workspace_id, auth_token, api_base_url, created_at, last_accessed_at) " +
+                "VALUES (?, ?, ?, ?, ?) " +
+                "ON CONFLICT (workspace_id) DO UPDATE SET auth_token = EXCLUDED.auth_token, api_base_url = EXCLUDED.api_base_url, last_accessed_at = EXCLUDED.last_accessed_at";
+        String apiBaseUrl = extractApiBaseUrl(token);
         // MySQL fallback will ignore ON CONFLICT; users can adapt schema/SQL as needed.
         try (Connection c = getConnection()) {
             try (PreparedStatement ps = c.prepareStatement(upsert)) {
                 ps.setString(1, workspaceId);
                 ps.setString(2, token);
-                ps.setLong(3, now);
+                ps.setString(3, apiBaseUrl);
                 ps.setLong(4, now);
+                ps.setLong(5, now);
                 ps.executeUpdate();
             } catch (SQLException e) {
                 // Fallback to separate insert/update for drivers without ON CONFLICT support
                 logger.debug("ON CONFLICT not supported, falling back to INSERT/UPDATE: {}", e.getMessage());
-                if (!tryUpdate(c, workspaceId, token, now)) {
-                    tryInsert(c, workspaceId, token, now);
+                if (!tryUpdate(c, workspaceId, token, apiBaseUrl, now)) {
+                    tryInsert(c, workspaceId, token, apiBaseUrl, now);
                 }
             }
         } catch (SQLException e) {
@@ -124,12 +129,13 @@ public class DatabaseTokenStore implements TokenStoreSPI {
         }
     }
 
-    private boolean tryUpdate(Connection c, String ws, String token, long now) {
-        String upd = "UPDATE addon_tokens SET auth_token = ?, last_accessed_at = ? WHERE workspace_id = ?";
+    private boolean tryUpdate(Connection c, String ws, String token, String apiBaseUrl, long now) {
+        String upd = "UPDATE addon_tokens SET auth_token = ?, api_base_url = ?, last_accessed_at = ? WHERE workspace_id = ?";
         try (PreparedStatement ps = c.prepareStatement(upd)) {
             ps.setString(1, token);
-            ps.setLong(2, now);
-            ps.setString(3, ws);
+            ps.setString(2, apiBaseUrl);
+            ps.setLong(3, now);
+            ps.setString(4, ws);
             int n = ps.executeUpdate();
             return n > 0;
         } catch (SQLException ex) {
@@ -140,13 +146,14 @@ public class DatabaseTokenStore implements TokenStoreSPI {
         }
     }
 
-    private void tryInsert(Connection c, String ws, String token, long now) throws SQLException {
-        String ins = "INSERT INTO addon_tokens (workspace_id, auth_token, created_at, last_accessed_at) VALUES (?, ?, ?, ?)";
+    private void tryInsert(Connection c, String ws, String token, String apiBaseUrl, long now) throws SQLException {
+        String ins = "INSERT INTO addon_tokens (workspace_id, auth_token, api_base_url, created_at, last_accessed_at) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement ps = c.prepareStatement(ins)) {
             ps.setString(1, ws);
             ps.setString(2, token);
-            ps.setLong(3, now);
+            ps.setString(3, apiBaseUrl);
             ps.setLong(4, now);
+            ps.setLong(5, now);
             ps.executeUpdate();
         }
     }
@@ -174,5 +181,23 @@ public class DatabaseTokenStore implements TokenStoreSPI {
                     e.getMessage());
         }
     }
-}
 
+    private String extractApiBaseUrl(String rawToken) {
+        if (rawToken == null) {
+            return null;
+        }
+        String trimmed = rawToken.trim();
+        if (!trimmed.startsWith("{")) {
+            return null;
+        }
+        try {
+            JsonNode node = OBJECT_MAPPER.readTree(trimmed);
+            JsonNode current = node.get("current");
+            if (current != null && current.hasNonNull("apiBaseUrl")) {
+                return current.get("apiBaseUrl").asText();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+}

@@ -2,11 +2,15 @@ package com.example.rules;
 
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.logging.LoggingContext;
+import com.clockify.addon.sdk.middleware.DiagnosticContextFilter;
+import com.clockify.addon.sdk.security.WebhookSignatureValidator;
+import com.example.rules.api.ErrorResponse;
+import com.example.rules.config.RuntimeFlags;
 import com.example.rules.engine.Action;
 import com.example.rules.engine.Evaluator;
 import com.example.rules.engine.Rule;
 import com.example.rules.engine.TimeEntryContext;
-import com.clockify.addon.sdk.security.WebhookSignatureValidator;
 import com.example.rules.store.RulesStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,13 +56,18 @@ public class WebhookHandlers {
 
         for (String event : events) {
             addon.registerWebhookHandler(event, request -> {
-                try {
+                try (LoggingContext loggingContext = LoggingContext.create()) {
                     JsonNode payload = parseRequestBody(request);
                     String workspaceId = extractWorkspaceId(payload);
+                    if (workspaceId == null || workspaceId.isBlank()) {
+                        return ErrorResponse.of(400, "RULES.MISSING_WORKSPACE", "workspaceId missing in payload", request, false);
+                    }
+                    request.setAttribute(DiagnosticContextFilter.WORKSPACE_ID_ATTR, workspaceId);
+                    loggingContext.workspace(workspaceId);
                     String eventType = payload.has("event") ? payload.get("event").asText() : event;
 
                     // Verify webhook signature (allow opt-out in dev)
-                    boolean skipSig = "true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_SKIP_SIGNATURE_VERIFY", "false"));
+                    boolean skipSig = RuntimeFlags.skipSignatureVerification();
                     if (!skipSig) {
                         WebhookSignatureValidator.VerificationResult verificationResult =
                                 WebhookSignatureValidator.verify(request, workspaceId);
@@ -67,7 +76,7 @@ public class WebhookHandlers {
                             return verificationResult.response();
                         }
                     } else {
-                        logger.info("ADDON_SKIP_SIGNATURE_VERIFY=true — skipping webhook signature verification (DEV ONLY)");
+                        logger.info("Skipping webhook signature verification (dev mode)");
                     }
 
                     logger.info("Webhook event received: {} for workspace {}", eventType, workspaceId);
@@ -76,8 +85,12 @@ public class WebhookHandlers {
                     JsonNode timeEntry = extractTimeEntry(payload);
                     if (timeEntry == null || timeEntry.isMissingNode()) {
                         logger.warn("Time entry not found in webhook payload");
-                        return HttpResponse.error(400, "{\"error\":\"Time entry not found in payload\"}",
-                                "application/json");
+                        return ErrorResponse.of(400, "RULES.MISSING_TIME_ENTRY", "Time entry not found in payload", request, false);
+                    }
+                    String userId = payload.path("userId").asText(null);
+                    if (userId != null && !userId.isBlank()) {
+                        request.setAttribute(DiagnosticContextFilter.USER_ID_ATTR, userId);
+                        loggingContext.user(userId);
                     }
 
                     // Load enabled rules for workspace
@@ -105,9 +118,7 @@ public class WebhookHandlers {
                     }
 
                     // If not enabled to mutate, log and exit (backward-compatible behavior for tests)
-                    boolean applyEnv = "true".equalsIgnoreCase(System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false"));
-                    boolean applyProp = "true".equalsIgnoreCase(System.getProperty("RULES_APPLY_CHANGES", "false"));
-                    if (!(applyEnv || applyProp)) {
+                    if (!RuntimeFlags.applyChangesEnabled()) {
                         logger.info("RULES_APPLY_CHANGES=false — logging actions only");
                         logActions(actionsToApply);
                         return createResponse(eventType, "actions_logged", actionsToApply);
@@ -117,7 +128,7 @@ public class WebhookHandlers {
                     var wkOpt = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
                     if (wkOpt.isEmpty()) {
                         logger.warn("Missing installation token for workspace {} — skipping mutations", workspaceId);
-                        return createResponse(eventType, "missing_token", new ArrayList<>());
+                        return ErrorResponse.of(412, "RULES.MISSING_TOKEN", "Workspace installation token not found", request, false);
                     }
 
                     var wk = wkOpt.get();
@@ -310,8 +321,8 @@ public class WebhookHandlers {
 
                 } catch (Exception e) {
                     logger.error("Error processing webhook", e);
-                    return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}",
-                            "application/json");
+                    return ErrorResponse.of(500, "RULES.UNHANDLED_ERROR",
+                            "Unexpected webhook error", request, true, e.getMessage());
                 }
             });
         }

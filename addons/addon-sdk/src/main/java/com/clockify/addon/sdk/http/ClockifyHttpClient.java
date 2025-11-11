@@ -7,6 +7,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Minimal HTTP client wrapper with sane timeouts and retries for 429/5xx.
@@ -41,10 +42,26 @@ public class ClockifyHttpClient {
         return sendWithRetry(b.build());
     }
 
+    public HttpResponse<String> postJsonWithIdempotency(String path, String addonToken, String jsonBody, Map<String, String> headers) throws Exception {
+        String idempotencyKey = UUID.randomUUID().toString();
+        HttpRequest.Builder b = baseRequest(path, addonToken, headers)
+                .header("Content-Type", "application/json")
+                .header("Idempotency-Key", idempotencyKey)
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody));
+        return sendWithRetry(b.build());
+    }
+
     public HttpResponse<String> putJson(String path, String addonToken, String jsonBody, Map<String, String> headers) throws Exception {
         HttpRequest.Builder b = baseRequest(path, addonToken, headers)
                 .header("Content-Type", "application/json")
                 .PUT(HttpRequest.BodyPublishers.ofString(jsonBody));
+        return sendWithRetry(b.build());
+    }
+
+    public HttpResponse<String> patchJson(String path, String addonToken, String jsonBody, Map<String, String> headers) throws Exception {
+        HttpRequest.Builder b = baseRequest(path, addonToken, headers)
+                .header("Content-Type", "application/json")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(jsonBody));
         return sendWithRetry(b.build());
     }
 
@@ -97,4 +114,3 @@ public class ClockifyHttpClient {
         });
     }
 }
-

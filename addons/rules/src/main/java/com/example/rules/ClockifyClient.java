@@ -1,6 +1,7 @@
 package com.example.rules;
 
 import com.clockify.addon.sdk.http.ClockifyHttpClient;
+import com.example.rules.engine.OpenApiCallConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -24,21 +25,18 @@ public class ClockifyClient {
         this.token = addonToken;
     }
 
-    /**
-     * Generic OpenAPI call helper used by the IFTTT engine.
-     * Method is one of GET, POST, PUT, PATCH, DELETE. Path must start with "/" (e.g., "/v1/workspaces/{id}/…").
-     * Body is JSON string for methods that send a payload; ignored for GET/DELETE.
-     */
-    public void openapiCall(String method, String path, String jsonBody) throws Exception {
-        String m = method != null ? method.trim().toUpperCase(Locale.ROOT) : "";
-        switch (m) {
-            case "GET" -> http.get(path, token, Map.of());
-            case "POST" -> http.postJson(path, token, jsonBody != null ? jsonBody : "{}", Map.of());
-            case "PUT" -> http.putJson(path, token, jsonBody != null ? jsonBody : "{}", Map.of());
-            case "PATCH" -> http.putJson(path, token, jsonBody != null ? jsonBody : "{}", Map.of()); // fallback if PATCH not present
-            case "DELETE" -> http.delete(path, token, Map.of());
-            default -> throw new IllegalArgumentException("Unsupported method: " + method);
+    public HttpResponse<String> openapiCall(OpenApiCallConfig.HttpMethod method, String path, String jsonBody) throws Exception {
+        if (method == null) {
+            throw new IllegalArgumentException("HTTP method is required");
         }
+        String normalizedBody = (jsonBody == null || jsonBody.isBlank()) ? "{}" : jsonBody;
+        return switch (method) {
+            case GET -> http.get(path, token, Map.of());
+            case POST -> http.postJson(path, token, normalizedBody, Map.of());
+            case PUT -> http.putJson(path, token, normalizedBody, Map.of());
+            case PATCH -> http.patchJson(path, token, normalizedBody, Map.of());
+            case DELETE -> http.delete(path, token, Map.of());
+        };
     }
 
     public JsonNode getTags(String workspaceId) throws Exception {

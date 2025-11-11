@@ -3,57 +3,59 @@ package com.clockify.addon.sdk.middleware;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.Base64;
 
-/**
- * Simple security headers filter.
- * - X-Content-Type-Options: nosniff
- * - Referrer-Policy: no-referrer
- * - Strict-Transport-Security: only when the request is secure or forwarded as https
- * - Content-Security-Policy: set frame-ancestors if ADDON_FRAME_ANCESTORS env is present
- */
-public class SecurityHeadersFilter implements Filter {
-    private static final Logger logger = LoggerFactory.getLogger(SecurityHeadersFilter.class);
+public final class SecurityHeadersFilter implements Filter {
+  public static final String CSP_NONCE_ATTR = "clockify.csp.nonce";
+  private static final SecureRandom RNG = new SecureRandom();
 
-    private final String frameAncestors;
+  private static String newNonce() {
+    byte[] b = new byte[16];
+    RNG.nextBytes(b);
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(b);
+  }
 
-    public SecurityHeadersFilter() {
-        this(System.getenv("ADDON_FRAME_ANCESTORS"));
+  @Override
+  public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
+      throws IOException, ServletException {
+    HttpServletRequest request = (HttpServletRequest) req;
+    HttpServletResponse response = (HttpServletResponse) res;
+
+    // Per-request nonce
+    String nonce = newNonce();
+    request.setAttribute(CSP_NONCE_ATTR, nonce);
+
+    // Security headers
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.setHeader("Cache-Control", "no-store");
+    response.setHeader("Permissions-Policy", "browsing-topics=(), geolocation=(), microphone=(), camera=(), payment=()");
+
+    // HSTS only when TLS or terminated upstream
+    if (request.isSecure()
+        || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"))) {
+      response.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     }
 
-    public SecurityHeadersFilter(String frameAncestors) {
-        this.frameAncestors = frameAncestors;
-        if (frameAncestors == null || frameAncestors.isBlank()) {
-            logger.info("SecurityHeadersFilter initialized without frame-ancestors (CSP not set). Use ADDON_FRAME_ANCESTORS to enable.");
-        } else {
-            logger.info("SecurityHeadersFilter will set CSP frame-ancestors: {}", frameAncestors);
-        }
-    }
+    // Embed only self and Clockify
+    String frameAncestors = System.getenv().getOrDefault(
+        "CLOCKIFY_FRAME_ANCESTORS",
+        "'self' https://*.clockify.me https://*.clockify.com https://developer.clockify.me");
 
-    @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        if (response instanceof HttpServletResponse resp && request instanceof HttpServletRequest req) {
-            // Basic security headers
-            resp.setHeader("X-Content-Type-Options", "nosniff");
-            resp.setHeader("Referrer-Policy", "no-referrer");
+    String csp =
+        "default-src 'self'; " +
+        "object-src 'none'; " +
+        "img-src 'self' data:; " +
+        "connect-src 'self' https://api.clockify.me https://developer.clockify.me; " +
+        "base-uri 'self'; form-action 'self'; " +
+        "style-src 'nonce-" + nonce + "' 'self'; " +
+        "script-src 'nonce-" + nonce + "'; " +
+        "frame-ancestors " + frameAncestors + ";";
 
-            // HSTS only if secure (or forwarded as https)
-            boolean secure = req.isSecure();
-            String forwardedProto = req.getHeader("X-Forwarded-Proto");
-            if (secure || (forwardedProto != null && forwardedProto.equalsIgnoreCase("https"))) {
-                resp.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-            }
+    response.setHeader("Content-Security-Policy", csp);
 
-            // Optional CSP frame-ancestors (avoid breaking embedding unless explicitly configured)
-            if (frameAncestors != null && !frameAncestors.isBlank()) {
-                resp.setHeader("Content-Security-Policy", "frame-ancestors " + frameAncestors);
-            }
-        }
-
-        chain.doFilter(request, response);
-    }
+    chain.doFilter(request, response);
+  }
 }
-

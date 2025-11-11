@@ -52,7 +52,7 @@ public final class RuleCache {
      */
     public static List<Rule> getEnabledRules(String workspaceId) {
         if (rulesStore == null) {
-            return rulesStore.getEnabled(workspaceId);
+            return Collections.emptyList();
         }
 
         Long lastRefresh = LAST_REFRESH.get(workspaceId);
@@ -73,7 +73,7 @@ public final class RuleCache {
      */
     public static List<Rule> refreshRules(String workspaceId) {
         if (rulesStore == null) {
-            return rulesStore.getEnabled(workspaceId);
+            return Collections.emptyList();
         }
 
         try {

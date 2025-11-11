@@ -2,10 +2,15 @@ package com.example.rules;
 
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.logging.LoggingContext;
+import com.example.rules.api.ErrorResponse;
 import com.example.rules.store.RulesStoreSPI;
+import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 
@@ -22,6 +27,7 @@ import java.io.BufferedReader;
  * - Clean up any stored data for this workspace
  */
 public class LifecycleHandlers {
+    private static final Logger logger = LoggerFactory.getLogger(LifecycleHandlers.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static RulesStoreSPI rulesStore;
 
@@ -30,40 +36,34 @@ public class LifecycleHandlers {
 
         // Handle INSTALLED event
         addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> {
-            try {
+            try (LoggingContext loggingContext = LoggingContext.create()) {
                 JsonNode payload = parseRequestBody(request);
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
-                String workspaceDisplayId = workspaceId != null ? workspaceId : "unknown";
-                String userId = payload.has("userId") ? payload.get("userId").asText("unknown") : "unknown";
+                String userId = payload.has("userId") ? payload.get("userId").asText(null) : null;
                 String authToken = payload.has("authToken") ? payload.get("authToken").asText(null) : null;
                 String apiUrl = payload.has("apiUrl") ? payload.get("apiUrl").asText(null) : null;
 
-                System.out.println("\n" + "=".repeat(80));
-                System.out.println("LIFECYCLE EVENT: INSTALLED");
-                System.out.println("=".repeat(80));
-                System.out.println("Workspace ID: " + workspaceDisplayId);
-                System.out.println("User ID: " + userId);
-                System.out.println("Auth token provided: " + (authToken != null && !authToken.isEmpty()));
-                System.out.println("API base URL provided: " + (apiUrl != null && !apiUrl.isEmpty()));
-                System.out.println("=".repeat(80));
+                RequestContext.attachWorkspace(request, loggingContext, workspaceId);
+                RequestContext.attachUser(request, loggingContext, userId);
 
-                if (authToken == null || authToken.isEmpty()) {
-                    System.out.println("⚠️  Warning: Missing auth token in INSTALLED payload. This may indicate an incomplete installation or payload structure issue.");
-                    System.out.println("   Expected payload fields: workspaceId, authToken, apiUrl");
-                } else if (workspaceId == null || workspaceId.isEmpty()) {
-                    System.out.println("⚠️  Unable to store auth token because workspaceId is missing.");
-                } else {
-                    com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, apiUrl);
-                    System.out.println("✅ Stored auth token for workspace " + workspaceId);
-                    // Preload workspace cache asynchronously for ID<->name mapping
-                    try {
-                        var wk = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).orElse(null);
-                        if (wk != null) {
-                            com.example.rules.cache.WorkspaceCache.refreshAsync(workspaceId, wk.apiBaseUrl(), wk.token());
-                        }
-                    } catch (Exception ignored) {}
+                logger.info("Lifecycle INSTALLED received for workspace {} (user={})", workspaceId, userId);
+
+                if (workspaceId == null || workspaceId.isBlank()) {
+                    return ErrorResponse.of(400, "RULES.MISSING_WORKSPACE", "workspaceId missing in payload", request, false);
                 }
-                System.out.println();
+                if (authToken == null || authToken.isBlank()) {
+                    logger.warn("Missing auth token in INSTALLED payload for workspace {}", workspaceId);
+                    return ErrorResponse.of(400, "RULES.MISSING_TOKEN", "authToken missing in payload", request, false);
+                }
+
+                com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, apiUrl);
+                logger.info("Stored installation token for workspace {}", workspaceId);
+                try {
+                    var wk = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).orElse(null);
+                    if (wk != null) {
+                        com.example.rules.cache.WorkspaceCache.refreshAsync(workspaceId, wk.apiBaseUrl(), wk.token());
+                    }
+                } catch (Exception ignored) {}
 
                 String responseBody = objectMapper.createObjectNode()
                         .put("status", "installed")
@@ -73,44 +73,33 @@ public class LifecycleHandlers {
                 return HttpResponse.ok(responseBody, "application/json");
 
             } catch (Exception e) {
-                System.err.println("Error handling INSTALLED event: " + e.getMessage());
-                e.printStackTrace();
-                String errorBody = objectMapper.createObjectNode()
-                        .put("message", "Failed to process installation")
-                        .put("details", e.getMessage())
-                        .toString();
-                return HttpResponse.error(500, errorBody, "application/json");
+                logger.error("Error handling INSTALLED event", e);
+                return ErrorResponse.of(500, "RULES.LIFECYCLE_ERROR",
+                        "Lifecycle handler failed", request, true, e.getMessage());
             }
         });
 
         // Handle DELETED event
         addon.registerLifecycleHandler("DELETED", "/lifecycle/deleted", request -> {
-            try {
+            try (LoggingContext loggingContext = LoggingContext.create()) {
                 JsonNode payload = parseRequestBody(request);
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
-                String workspaceDisplayId = workspaceId != null ? workspaceId : "unknown";
+                RequestContext.attachWorkspace(request, loggingContext, workspaceId);
+                logger.info("Lifecycle DELETED received for workspace {}", workspaceId);
 
-                System.out.println("\n" + "=".repeat(80));
-                System.out.println("LIFECYCLE EVENT: DELETED");
-                System.out.println("=".repeat(80));
-                System.out.println("Workspace ID: " + workspaceDisplayId);
-                System.out.println("=".repeat(80));
-
-                if (workspaceId == null || workspaceId.isEmpty()) {
-                    System.out.println("⚠️  Unable to remove auth token because workspaceId is missing.");
-                } else {
-                    boolean removed = com.clockify.addon.sdk.security.TokenStore.delete(workspaceId);
-                    if (removed) {
-                        System.out.println("✅ Removed stored auth token for workspace " + workspaceId);
-                    } else {
-                        System.out.println("ℹ️  No stored auth token found for workspace " + workspaceId);
-                    }
-
-                    // Clean up rules for this workspace
-                    int deletedRules = rulesStore.deleteAll(workspaceId);
-                    System.out.println("ℹ️  Deleted " + deletedRules + " rules for workspace " + workspaceId);
+                if (workspaceId == null || workspaceId.isBlank()) {
+                    return ErrorResponse.of(400, "RULES.MISSING_WORKSPACE", "workspaceId missing in payload", request, false);
                 }
-                System.out.println();
+
+                boolean removed = com.clockify.addon.sdk.security.TokenStore.delete(workspaceId);
+                if (removed) {
+                    logger.info("Removed stored auth token for workspace {}", workspaceId);
+                } else {
+                    logger.info("No stored auth token found for workspace {}", workspaceId);
+                }
+
+                int deletedRules = rulesStore.deleteAll(workspaceId);
+                logger.info("Deleted {} rules for workspace {}", deletedRules, workspaceId);
 
                 String responseBody = objectMapper.createObjectNode()
                         .put("status", "uninstalled")
@@ -120,13 +109,9 @@ public class LifecycleHandlers {
                 return HttpResponse.ok(responseBody, "application/json");
 
             } catch (Exception e) {
-                System.err.println("Error handling DELETED event: " + e.getMessage());
-                e.printStackTrace();
-                String errorBody = objectMapper.createObjectNode()
-                        .put("message", "Failed to process uninstallation")
-                        .put("details", e.getMessage())
-                        .toString();
-                return HttpResponse.error(500, errorBody, "application/json");
+                logger.error("Error handling DELETED event", e);
+                return ErrorResponse.of(500, "RULES.LIFECYCLE_ERROR",
+                        "Lifecycle handler failed", request, true, e.getMessage());
             }
         });
     }

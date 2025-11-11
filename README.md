@@ -11,7 +11,30 @@
 
 A clean, **self-contained** boilerplate for building Clockify add‑ons with **Maven Central dependencies only** — no private repos, no external SDK installs. It ships a lightweight in‑repo SDK (routing, middleware, security), a production‑ready Rules add‑on, and an Auto‑Tag example.
 
-Quick links
+## 🎯 New to the Project? Start Here!
+
+### 🚀 Quick Start (5 Minutes)
+
+```bash
+# One-command setup and run
+./scripts/quick-start.sh
+```
+
+**Or use the advanced script:**
+```bash
+./scripts/setup-and-run.sh --addon rules --clean
+```
+
+Both scripts automatically handle Java 17 configuration and build everything for you!
+
+**📘 [Complete Setup Guide](FROM_ZERO_SETUP.md)** - Full walkthrough from zero to running
+**📖 [Setup Script Guide](docs/SETUP_SCRIPT_GUIDE.md)** - All script options and examples
+
+---
+
+## Quick links
+- **From Zero Setup**: FROM_ZERO_SETUP.md ⭐ (Start here!)
+- **Setup Scripts**: docs/SETUP_SCRIPT_GUIDE.md 🚀 (One-command launch!)
 - Quick Start (Local): docs/QUICK_START_LOCAL.md
 - Zero‑Shot: docs/ZERO_SHOT.md
 - Ngrok Testing: docs/NGROK_TESTING.md
@@ -40,18 +63,28 @@ Table of contents
 - Testing Guide
 - Troubleshooting
 
-## 🚀 New: Production-Ready Improvements
+## 🚀 New: Enterprise Security Hardening & Production-Ready Improvements
 
-This boilerplate now includes **comprehensive production enhancements**:
+This boilerplate now includes **comprehensive enterprise security hardening** and production enhancements:
 
-- ✅ **Security**: Path sanitization, rate limiting, input validation
+### 🔒 Security Hardening Features
+- ✅ **JWT Security**: Algorithm enforcement, strict kid handling, JWKS-based key management
+- ✅ **CSRF Protection**: Token-based validation with constant-time comparison
+- ✅ **Security Headers**: Comprehensive HTTP security headers (CSP, HSTS, XSS protection)
+- ✅ **RFC-7807 Error Handling**: Standardized problem+json error responses
+- ✅ **Request ID Propagation**: Distributed tracing for all requests
+- ✅ **Input Validation**: Comprehensive parameter and payload validation
+- ✅ **Path Sanitization**: URL path validation and sanitization
+- ✅ **Rate Limiting**: IP and workspace-based request throttling
+
+### 🏗️ Production Enhancements
 - ✅ **Persistence**: Database-backed token storage (PostgreSQL/MySQL)
-- ✅ **Reliability**: HTTP timeouts, retries, health checks
+- ✅ **Reliability**: HTTP idempotency, timeouts, retries, health checks
 - ✅ **Observability**: Structured logging, metrics, monitoring
-- ✅ **Testing**: Comprehensive test suite with CI/CD automation
-- ✅ **Documentation**: Complete production deployment guide
+- ✅ **Testing**: 307 tests across 5 layers with CI/CD automation
+- ✅ **Documentation**: Complete production deployment and security guides
 
-**See**: [Production Deployment Guide](docs/PRODUCTION-DEPLOYMENT.md) | [Improvements Summary](docs/IMPROVEMENTS-SUMMARY.md) | [CHANGELOG](CHANGELOG.md)
+**See**: [Security Guide](docs/SECURITY.md) | [Testing Guide](docs/TESTING_GUIDE.md) | [Production Deployment Guide](docs/PRODUCTION-DEPLOYMENT.md) | [CHANGELOG](CHANGELOG.md)
 
 ## Requirements
 
@@ -121,6 +154,16 @@ make dev-rules
 curl http://localhost:8080/rules/health
 ```
 
+> 💡 **Secure settings bootstrap:** Provide `CLOCKIFY_JWT_PUBLIC_KEY` (Clockify Marketplace public key in PEM format) so the settings iframe can verify JWTs server-side. When present, the server injects a trusted bootstrap JSON and the browser never decodes JWTs on its own.
+>
+> 🔐 **Optional claim checks:** Set `CLOCKIFY_JWT_EXPECT_ISS`, `CLOCKIFY_JWT_EXPECT_AUD`, and (optionally) `CLOCKIFY_JWT_LEEWAY_SECONDS` to enforce issuer/audience claims and control clock skew on the JWT bootstrap. For key rotation, provide a JSON map via `CLOCKIFY_JWT_PUBLIC_KEY_MAP='{\"kid-1\":\"-----BEGIN PUBLIC KEY-----...\"}'` and set `CLOCKIFY_JWT_DEFAULT_KID` if a fallback is needed.
+>
+> ```bash
+> # Example: two kid-specific keys with fallback
+> export CLOCKIFY_JWT_PUBLIC_KEY_MAP='{"kid-1":"-----BEGIN PUBLIC KEY-----...","kid-2":"-----BEGIN PUBLIC KEY-----..."}'
+> export CLOCKIFY_JWT_DEFAULT_KID=kid-1
+> ```
+
 ### Use a database-backed token store (recommended)
 
 For production, persist installation tokens. This boilerplate includes docs and a sample schema to implement a `DatabaseTokenStore` in your add-on. The demo module uses an in-memory `TokenStore` by default; wire your own persistent store before going to production.
@@ -142,6 +185,27 @@ make run-auto-tag-assistant-db
 ```
 
 See also: docs/DATABASE_TOKEN_STORE.md and extras/sql/token_store.sql.
+
+> 🔒 **Automatic enabling:** Set `ENABLE_DB_TOKEN_STORE=true` (or run with `ENV=prod` plus `DB_URL`/`DB_USERNAME`/`DB_PASSWORD`) and the Rules add-on will automatically switch to the pooled PostgreSQL token store. No code changes are required—just pass the env vars.
+
+### Security Hardening Quick Start
+
+All security features are enabled by default and validated through comprehensive testing:
+
+```bash
+# Verify security hardening is working
+./scripts/quick-start.sh
+# Run all tests to validate security features
+mvn test
+```
+
+**Security Features Automatically Enabled:**
+- JWT algorithm enforcement and key rotation
+- CSRF protection with constant-time validation
+- RFC-7807 standardized error responses
+- Request ID propagation for distributed tracing
+- Comprehensive security headers (CSP, HSTS, XSS protection)
+- Input validation and path sanitization
 
 ### Optional runtime safeguards
 
@@ -179,11 +243,18 @@ CI generates an aggregate JaCoCo coverage site and uploads it as an artifact. Th
 
 Build status: ![CI](https://github.com/apet97/boileraddon/actions/workflows/build-and-test.yml/badge.svg)
 
-### Testing Guide
+### Testing Infrastructure
+
+**Comprehensive Test Suite**: 307 tests across 5 layers with 100% security hardening validation
 
 See docs/TESTING_GUIDE.md for:
+- **Unit Tests**: Individual component testing with Mockito
+- **Integration Tests**: End-to-end API testing with EmbeddedServer
+- **Security Tests**: JWT verification, CSRF protection, input validation
+- **Smoke Tests**: Health checks and basic functionality validation
+- **CRUD Endpoint Tests**: Full lifecycle testing with security hardening
 - Running single tests and modules
-- Current coverage gates and how they’re scoped
+- Current coverage gates and how they're scoped
 - JSON error body expectations in downstream tests
 - How lifecycle endpoints are dispatched (explicit handler-by-path)
 - Mockito notes for newer JDKs during local development
@@ -266,6 +337,22 @@ java -jar addons/_template-addon/target/_template-addon-0.1.0-jar-with-dependenc
 1. Copy the ngrok HTTPS URL (e.g., `https://abc123.ngrok-free.app`)
 2. Go to Clockify → Admin → Add-ons → Install Custom Add-on
 3. Enter: `https://abc123.ngrok-free.app/auto-tag-assistant/manifest.json`
+
+### Safe branch cleanup helper
+
+Need to prune remote branches after a demo? Use `scripts/git-delete-branches-except-main.sh`. It now:
+
+- Defaults to a **dry run** (lists deletions only)
+- Requires an explicit `--prefix <team/feature>` filter **and** `--yes` before deleting
+- Protects `main`, `develop`, `release/*`, and any branches outside the allowlisted prefix
+
+Example:
+
+```bash
+./scripts/git-delete-branches-except-main.sh --remote origin --prefix feature/jane --yes
+```
+
+Without both flags it prints what would be removed and exits safely.
 
 ## What's Included
 

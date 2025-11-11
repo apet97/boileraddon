@@ -1,5 +1,9 @@
 package com.clockify.addon.sdk.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
@@ -16,6 +20,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * and wire it at your application entry if needed.
  */
 public final class TokenStore {
+    private static final Logger logger = LoggerFactory.getLogger(TokenStore.class);
+    private static final ObjectMapper PERSISTENCE_MAPPER = new ObjectMapper();
+
     private TokenStore() {}
 
     /** Workspace token shape used by demo modules. */
@@ -23,6 +30,7 @@ public final class TokenStore {
 
     private static final Map<String, WorkspaceToken> STORE = new ConcurrentHashMap<>();
     private static final Map<String, WorkspaceToken> ROTATED = new ConcurrentHashMap<>();
+    private static volatile TokenStoreSPI persistentStore;
 
     private static Clock clock = Clock.systemUTC();
 
@@ -38,6 +46,19 @@ public final class TokenStore {
     public static void clear() {
         STORE.clear();
         ROTATED.clear();
+    }
+
+    /**
+     * Configure an optional persistent store. When configured, tokens are serialized to the
+     * backing store (e.g., PostgreSQL) and lazily restored on first access.
+     */
+    public static void configurePersistence(TokenStoreSPI store) {
+        persistentStore = store;
+        if (store != null) {
+            logger.info("TokenStore persistence enabled via {}", store.getClass().getSimpleName());
+        } else {
+            logger.info("TokenStore persistence disabled");
+        }
     }
 
     /** Save workspace token and normalize apiBaseUrl to include /api/vN if missing. */
@@ -67,7 +88,7 @@ public final class TokenStore {
             return Optional.of(previous);
         }
 
-        return Optional.empty();
+        return restoreFromPersistence(workspaceId);
     }
 
     /** Checks whether the provided token is currently valid (current or rotated). */
@@ -88,6 +109,13 @@ public final class TokenStore {
         if (workspaceId == null || workspaceId.isBlank()) return false;
         ROTATED.remove(workspaceId);
         boolean removed = STORE.remove(workspaceId) != null;
+        if (persistentStore != null) {
+            try {
+                persistentStore.remove(workspaceId);
+            } catch (Exception e) {
+                logger.warn("Failed to delete token for {} from persistent store: {}", workspaceId, e.getMessage());
+            }
+        }
         if (removed) {
             AuditLogger.log(AuditLogger.AuditEvent.TOKEN_REMOVED)
                     .workspace(workspaceId)
@@ -133,6 +161,7 @@ public final class TokenStore {
                 .detail("apiBaseUrl", apiBaseUrl)
                 .detail("expiresAt", now + tokenTtlMs())
                 .info();
+        persistState(workspaceId);
     }
 
     private static void saveRecord(String workspaceId, String token, String apiBaseUrl, long now, boolean log) {
@@ -146,6 +175,7 @@ public final class TokenStore {
                     .detail("expiresAt", expiresAt)
                     .info();
         }
+        persistState(workspaceId);
     }
 
     private static long tokenTtlMs() {
@@ -216,5 +246,76 @@ public final class TokenStore {
         if (port > 0 && port != 80 && port != 443) sb.append(":" + port);
         sb.append(path);
         return sb.toString();
+    }
+
+    private static void persistState(String workspaceId) {
+        if (persistentStore == null || workspaceId == null || workspaceId.isBlank()) {
+            return;
+        }
+        try {
+            PersistentState state = new PersistentState(STORE.get(workspaceId), ROTATED.get(workspaceId));
+            String payload = PERSISTENCE_MAPPER.writeValueAsString(state);
+            persistentStore.save(workspaceId, payload);
+        } catch (Exception e) {
+            logger.warn("Failed to persist token for {}: {}", workspaceId, e.getMessage());
+        }
+    }
+
+    private static Optional<WorkspaceToken> restoreFromPersistence(String workspaceId) {
+        if (persistentStore == null || workspaceId == null || workspaceId.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            Optional<String> raw = persistentStore.get(workspaceId);
+            if (raw.isEmpty()) {
+                return Optional.empty();
+            }
+            String serialized = raw.get();
+            if (looksLikeJson(serialized)) {
+                PersistentState state = PERSISTENCE_MAPPER.readValue(serialized, PersistentState.class);
+                if (state.current != null) {
+                    STORE.put(workspaceId, state.current);
+                }
+                if (state.rotated != null) {
+                    ROTATED.put(workspaceId, state.rotated);
+                }
+                WorkspaceToken current = STORE.get(workspaceId);
+                if (current != null && !isExpired(current)) {
+                    return Optional.of(current);
+                }
+                WorkspaceToken rotated = ROTATED.get(workspaceId);
+                if (rotated != null && !isExpired(rotated)) {
+                    return Optional.of(rotated);
+                }
+            } else {
+                // Legacy format: plain token string without metadata
+                WorkspaceToken token = new WorkspaceToken(serialized, normalizeApiBaseUrl(null),
+                        currentTimeMs(), 0, 0);
+                STORE.put(workspaceId, token);
+                return Optional.of(token);
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to restore token for {} from persistent store: {}", workspaceId, e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    private static boolean looksLikeJson(String data) {
+        if (data == null) return false;
+        String trimmed = data.trim();
+        return trimmed.startsWith("{") && trimmed.endsWith("}");
+    }
+
+    private static class PersistentState {
+        public WorkspaceToken current;
+        public WorkspaceToken rotated;
+
+        public PersistentState() {
+        }
+
+        public PersistentState(WorkspaceToken current, WorkspaceToken rotated) {
+            this.current = current;
+            this.rotated = rotated;
+        }
     }
 }

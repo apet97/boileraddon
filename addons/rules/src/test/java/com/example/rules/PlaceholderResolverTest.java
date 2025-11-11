@@ -61,4 +61,34 @@ public class PlaceholderResolverTest {
 
         assertEquals("This has no placeholders", result);
     }
+
+    @Test
+    public void testResolveForPathEncodesSegments() {
+        ObjectNode payload = mapper.createObjectNode();
+        payload.put("workspaceId", "ws 123");
+        payload.put("project", mapper.createObjectNode().put("id", "proj/42"));
+
+        String template = "/workspaces/{{workspaceId}}/projects/{{project.id}}";
+        String resolved = PlaceholderResolver.resolveForPath(template, payload);
+
+        assertEquals("/workspaces/ws+123/projects/proj%2F42", resolved);
+    }
+
+    @Test
+    public void testResolveInJsonHandlesArraysAndBooleans() {
+        ObjectNode payload = mapper.createObjectNode();
+        payload.put("flag", true);
+        payload.put("firstValue", 1);
+        payload.put("secondValue", 2);
+
+        ObjectNode template = mapper.createObjectNode();
+        template.put("enabled", "{{flag}}");
+        template.putArray("ids").add("{{firstValue}}").add("{{secondValue}}");
+
+        ObjectNode resolved = (ObjectNode) PlaceholderResolver.resolveInJson(template, payload);
+
+        assertEquals("true", resolved.get("enabled").asText());
+        assertEquals("1", resolved.get("ids").get(0).asText());
+        assertEquals("2", resolved.get("ids").get(1).asText());
+    }
 }

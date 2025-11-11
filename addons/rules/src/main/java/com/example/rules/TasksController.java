@@ -1,0 +1,503 @@
+package com.example.rules;
+
+import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.RequestHandler;
+import com.clockify.addon.sdk.logging.LoggingContext;
+import com.example.rules.api.ErrorResponse;
+import com.example.rules.cache.WorkspaceCache;
+import com.example.rules.engine.OpenApiCallConfig;
+import com.example.rules.security.PermissionChecker;
+import com.example.rules.web.RequestContext;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.BufferedReader;
+
+/**
+ * CRUD controller for Tasks management.
+ * Provides endpoints for creating, reading, updating, and deleting tasks.
+ */
+public class TasksController {
+
+    private static final Logger logger = LoggerFactory.getLogger(TasksController.class);
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final String MEDIA_JSON = "application/json";
+
+    private final ClockifyClient clockifyClient;
+
+    public TasksController(ClockifyClient clockifyClient) {
+        this.clockifyClient = clockifyClient;
+    }
+
+    private ClockifyClient getWorkspaceClockifyClient(String workspaceId) {
+        // Get the workspace token from TokenStore
+        var tokenOpt = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
+        if (tokenOpt.isEmpty()) {
+            throw new RuntimeException("No installation token found for workspace: " + workspaceId);
+        }
+        var token = tokenOpt.get();
+        return new ClockifyClient(token.apiBaseUrl(), token.token());
+    }
+
+    /**
+     * GET /api/tasks - List all tasks for a workspace and project
+     */
+    public RequestHandler listTasks() {
+        return request -> {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
+                String workspaceId = getWorkspaceId(request);
+                if (workspaceId == null) {
+                    return workspaceRequired(request);
+                }
+                RequestContext.attachWorkspace(request, ctx, workspaceId);
+
+                // Check read permissions
+                if (!PermissionChecker.canReadTasks(workspaceId)) {
+                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
+                        "Insufficient permissions to read tasks", request, false);
+                }
+
+                String projectId = getProjectId(request);
+                if (projectId == null) {
+                    return ErrorResponse.of(400, "TASKS.PROJECT_ID_REQUIRED", "projectId is required", request, false);
+                }
+
+                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                JsonNode tasks = workspaceClient.getTasks(workspaceId, projectId);
+                return HttpResponse.ok(tasks.toString(), MEDIA_JSON);
+
+            } catch (Exception e) {
+                return internalError(request, "TASKS.LIST_FAILED", "Failed to list tasks", e, true);
+            }
+        };
+    }
+
+    /**
+     * POST /api/tasks - Create a new task
+     */
+    public RequestHandler createTask() {
+        return request -> {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
+                String workspaceId = getWorkspaceId(request);
+                if (workspaceId == null) {
+                    return workspaceRequired(request);
+                }
+                RequestContext.attachWorkspace(request, ctx, workspaceId);
+
+                // Check write permissions
+                if (!PermissionChecker.canWriteTasks(workspaceId)) {
+                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
+                        "Insufficient permissions to create tasks", request, false);
+                }
+
+                String projectId = getProjectId(request);
+                if (projectId == null) {
+                    return ErrorResponse.of(400, "TASKS.PROJECT_ID_REQUIRED", "projectId is required", request, false);
+                }
+
+                JsonNode body = parseRequestBody(request);
+
+                // Validate required fields
+                if (!body.has("name") || body.get("name").asText().isBlank()) {
+                    return ErrorResponse.of(400, "TASKS.NAME_REQUIRED", "Task name is required", request, false);
+                }
+
+                // Build task creation payload
+                ObjectNode taskPayload = objectMapper.createObjectNode();
+                taskPayload.set("name", body.get("name"));
+
+                // Optional fields
+                if (body.has("assigneeIds")) {
+                    taskPayload.set("assigneeIds", body.get("assigneeIds"));
+                }
+                if (body.has("estimate")) {
+                    taskPayload.set("estimate", body.get("estimate"));
+                }
+                if (body.has("status")) {
+                    taskPayload.set("status", body.get("status"));
+                }
+
+                // Use openapiCall for POST to /workspaces/{workspaceId}/projects/{projectId}/tasks
+                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                var response = workspaceClient.openapiCall(
+                    OpenApiCallConfig.HttpMethod.POST,
+                    "/workspaces/" + workspaceId + "/projects/" + projectId + "/tasks",
+                    taskPayload.toString()
+                );
+
+                // Refresh workspace cache to reflect new task
+                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
+                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+
+                return HttpResponse.ok(response.body(), MEDIA_JSON);
+
+            } catch (Exception e) {
+                return internalError(request, "TASKS.CREATE_FAILED", "Failed to create task", e, true);
+            }
+        };
+    }
+
+    /**
+     * PUT /api/tasks - Update an existing task
+     */
+    public RequestHandler updateTask() {
+        return request -> {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
+                String workspaceId = getWorkspaceId(request);
+                if (workspaceId == null) {
+                    return workspaceRequired(request);
+                }
+                RequestContext.attachWorkspace(request, ctx, workspaceId);
+
+                // Check write permissions
+                if (!PermissionChecker.canWriteTasks(workspaceId)) {
+                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
+                        "Insufficient permissions to update tasks", request, false);
+                }
+
+                String taskId = extractTaskId(request);
+                if (taskId == null) {
+                    return ErrorResponse.of(400, "TASKS.TASK_ID_REQUIRED", "taskId is required", request, false);
+                }
+
+                JsonNode body = parseRequestBody(request);
+
+                // Build task update payload
+                ObjectNode taskPayload = objectMapper.createObjectNode();
+
+                // Update only provided fields
+                if (body.has("name")) {
+                    taskPayload.set("name", body.get("name"));
+                }
+                if (body.has("assigneeIds")) {
+                    taskPayload.set("assigneeIds", body.get("assigneeIds"));
+                }
+                if (body.has("estimate")) {
+                    taskPayload.set("estimate", body.get("estimate"));
+                }
+                if (body.has("status")) {
+                    taskPayload.set("status", body.get("status"));
+                }
+                if (body.has("archived")) {
+                    taskPayload.set("archived", body.get("archived"));
+                }
+
+                // Use openapiCall for PUT to /workspaces/{workspaceId}/tasks/{taskId}
+                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                var response = workspaceClient.openapiCall(
+                    OpenApiCallConfig.HttpMethod.PUT,
+                    "/workspaces/" + workspaceId + "/tasks/" + taskId,
+                    taskPayload.toString()
+                );
+
+                // Refresh workspace cache to reflect updated task
+                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
+                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+
+                return HttpResponse.ok(response.body(), MEDIA_JSON);
+
+            } catch (Exception e) {
+                return internalError(request, "TASKS.UPDATE_FAILED", "Failed to update task", e, true);
+            }
+        };
+    }
+
+    /**
+     * DELETE /api/tasks - Delete a task by id
+     */
+    public RequestHandler deleteTask() {
+        return request -> {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
+                String workspaceId = getWorkspaceId(request);
+                if (workspaceId == null) {
+                    return workspaceRequired(request);
+                }
+                RequestContext.attachWorkspace(request, ctx, workspaceId);
+
+                // Check write permissions
+                if (!PermissionChecker.canWriteTasks(workspaceId)) {
+                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
+                        "Insufficient permissions to delete tasks", request, false);
+                }
+
+                String taskId = extractTaskId(request);
+                if (taskId == null) {
+                    return ErrorResponse.of(400, "TASKS.TASK_ID_REQUIRED", "taskId is required", request, false);
+                }
+
+                // Use openapiCall for DELETE to /workspaces/{workspaceId}/tasks/{taskId}
+                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                var response = workspaceClient.openapiCall(
+                    OpenApiCallConfig.HttpMethod.DELETE,
+                    "/workspaces/" + workspaceId + "/tasks/" + taskId,
+                    null
+                );
+
+                // Refresh workspace cache to reflect deleted task
+                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
+                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+
+                ObjectNode result = objectMapper.createObjectNode();
+                result.put("deleted", true);
+                result.put("taskId", taskId);
+                return HttpResponse.ok(result.toString(), MEDIA_JSON);
+
+            } catch (Exception e) {
+                return internalError(request, "TASKS.DELETE_FAILED", "Failed to delete task", e, true);
+            }
+        };
+    }
+
+    /**
+     * POST /api/tasks/bulk - Bulk operations on tasks
+     * Supports bulk create, update, and delete operations
+     */
+    public RequestHandler bulkTasks() {
+        return request -> {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
+                String workspaceId = getWorkspaceId(request);
+                if (workspaceId == null) {
+                    return workspaceRequired(request);
+                }
+                RequestContext.attachWorkspace(request, ctx, workspaceId);
+
+                // Check write permissions for bulk operations
+                if (!PermissionChecker.canWriteTasks(workspaceId)) {
+                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
+                        "Insufficient permissions to perform bulk task operations", request, false);
+                }
+
+                JsonNode body = parseRequestBody(request);
+
+                // Validate required fields
+                if (!body.has("operations") || !body.get("operations").isArray()) {
+                    return ErrorResponse.of(400, "TASKS.BULK_OPERATIONS_REQUIRED", "operations array is required", request, false);
+                }
+
+                ObjectNode result = objectMapper.createObjectNode();
+                var operationsArray = objectMapper.createArrayNode();
+
+                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
+
+                // Process each operation
+                for (JsonNode operation : body.get("operations")) {
+                    if (!operation.has("type") || !operation.has("data")) {
+                        continue; // Skip invalid operations
+                    }
+
+                    String type = operation.get("type").asText();
+                    JsonNode data = operation.get("data");
+
+                    ObjectNode operationResult = objectMapper.createObjectNode();
+                    operationResult.put("type", type);
+
+                    try {
+                        switch (type) {
+                            case "create":
+                                // Create task
+                                if (!data.has("name") || data.get("name").asText().isBlank()) {
+                                    operationResult.put("status", "error");
+                                    operationResult.put("error", "Task name is required");
+                                } else {
+                                    String projectId = data.has("projectId") ? data.get("projectId").asText() : null;
+                                    if (projectId == null) {
+                                        operationResult.put("status", "error");
+                                        operationResult.put("error", "projectId is required for task creation");
+                                    } else {
+                                        ObjectNode taskPayload = objectMapper.createObjectNode();
+                                        taskPayload.set("name", data.get("name"));
+
+                                        if (data.has("assigneeIds")) {
+                                            taskPayload.set("assigneeIds", data.get("assigneeIds"));
+                                        }
+                                        if (data.has("estimate")) {
+                                            taskPayload.set("estimate", data.get("estimate"));
+                                        }
+                                        if (data.has("status")) {
+                                            taskPayload.set("status", data.get("status"));
+                                        }
+
+                                        var response = workspaceClient.openapiCall(
+                                            OpenApiCallConfig.HttpMethod.POST,
+                                            "/workspaces/" + workspaceId + "/projects/" + projectId + "/tasks",
+                                            taskPayload.toString()
+                                        );
+
+                                        JsonNode createdTask = objectMapper.readTree(response.body());
+                                        operationResult.put("status", "success");
+                                        operationResult.set("result", createdTask);
+                                    }
+                                }
+                                break;
+
+                            case "update":
+                                // Update task
+                                if (!data.has("id")) {
+                                    operationResult.put("status", "error");
+                                    operationResult.put("error", "Task id is required for update");
+                                } else {
+                                    String taskId = data.get("id").asText();
+                                    ObjectNode taskPayload = objectMapper.createObjectNode();
+
+                                    if (data.has("name")) {
+                                        taskPayload.set("name", data.get("name"));
+                                    }
+                                    if (data.has("assigneeIds")) {
+                                        taskPayload.set("assigneeIds", data.get("assigneeIds"));
+                                    }
+                                    if (data.has("estimate")) {
+                                        taskPayload.set("estimate", data.get("estimate"));
+                                    }
+                                    if (data.has("status")) {
+                                        taskPayload.set("status", data.get("status"));
+                                    }
+                                    if (data.has("archived")) {
+                                        taskPayload.set("archived", data.get("archived"));
+                                    }
+
+                                    var response = workspaceClient.openapiCall(
+                                        OpenApiCallConfig.HttpMethod.PUT,
+                                        "/workspaces/" + workspaceId + "/tasks/" + taskId,
+                                        taskPayload.toString()
+                                    );
+
+                                    JsonNode updatedTask = objectMapper.readTree(response.body());
+                                    operationResult.put("status", "success");
+                                    operationResult.set("result", updatedTask);
+                                }
+                                break;
+
+                            case "delete":
+                                // Delete task
+                                if (!data.has("id")) {
+                                    operationResult.put("status", "error");
+                                    operationResult.put("error", "Task id is required for deletion");
+                                } else {
+                                    String taskId = data.get("id").asText();
+                                    workspaceClient.openapiCall(
+                                        OpenApiCallConfig.HttpMethod.DELETE,
+                                        "/workspaces/" + workspaceId + "/tasks/" + taskId,
+                                        null
+                                    );
+
+                                    operationResult.put("status", "success");
+                                    operationResult.put("taskId", taskId);
+                                }
+                                break;
+
+                            default:
+                                operationResult.put("status", "error");
+                                operationResult.put("error", "Unknown operation type: " + type);
+                                break;
+                        }
+                    } catch (Exception e) {
+                        operationResult.put("status", "error");
+                        operationResult.put("error", e.getMessage());
+                    }
+
+                    operationsArray.add(operationResult);
+                }
+
+                // Refresh workspace cache after bulk operations
+                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
+                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+
+                result.set("operations", operationsArray);
+                return HttpResponse.ok(result.toString(), MEDIA_JSON);
+
+            } catch (Exception e) {
+                return internalError(request, "TASKS.BULK_FAILED", "Failed to process bulk operations", e, true);
+            }
+        };
+    }
+
+    private String getWorkspaceId(HttpServletRequest request) {
+        // Try to get from query parameter
+        String workspaceId = request.getParameter("workspaceId");
+        if (workspaceId != null && !workspaceId.trim().isEmpty()) {
+            return workspaceId.trim();
+        }
+
+        // For demo purposes, allow passing via header
+        String header = request.getHeader("X-Workspace-Id");
+        if (header != null && !header.trim().isEmpty()) {
+            return header.trim();
+        }
+
+        return null;
+    }
+
+    private String getProjectId(HttpServletRequest request) {
+        // Try to get from query parameter
+        String projectId = request.getParameter("projectId");
+        if (projectId != null && !projectId.trim().isEmpty()) {
+            return projectId.trim();
+        }
+
+        // Try JSON body if available
+        Object cachedJson = request.getAttribute("clockify.jsonBody");
+        if (cachedJson instanceof JsonNode json && json.hasNonNull("projectId")) {
+            String id = json.get("projectId").asText("");
+            if (!id.isBlank()) return id;
+        }
+
+        return null;
+    }
+
+    private String extractTaskId(HttpServletRequest request) throws Exception {
+        // Prefer query parameter first
+        String q = request.getParameter("id");
+        if (q != null && !q.trim().isEmpty()) {
+            return q.trim();
+        }
+        // Try JSON body if available
+        Object cachedJson = request.getAttribute("clockify.jsonBody");
+        if (cachedJson instanceof JsonNode json && json.hasNonNull("id")) {
+            String id = json.get("id").asText("");
+            if (!id.isBlank()) return id;
+        }
+        // Fallback for unit tests invoking controller directly with path suffix
+        String path = request.getPathInfo();
+        if (path != null) {
+            String[] segments = path.split("/");
+            if (segments.length >= 4 && "api".equals(segments[1]) && "tasks".equals(segments[2])) {
+                return segments[3];
+            }
+        }
+        return null;
+    }
+
+    private JsonNode parseRequestBody(HttpServletRequest request) throws Exception {
+        Object cachedJson = request.getAttribute("clockify.jsonBody");
+        if (cachedJson instanceof JsonNode) {
+            return (JsonNode) cachedJson;
+        }
+
+        Object cachedBody = request.getAttribute("clockify.rawBody");
+        if (cachedBody instanceof String) {
+            return objectMapper.readTree((String) cachedBody);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = request.getReader()) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+        }
+        return objectMapper.readTree(sb.toString());
+    }
+
+    private HttpResponse workspaceRequired(HttpServletRequest request) {
+        return ErrorResponse.of(400, "TASKS.WORKSPACE_REQUIRED", "workspaceId is required", request, false);
+    }
+
+    private HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {
+        logger.error("{}: {}", code, e.getMessage(), e);
+        return ErrorResponse.of(500, code, message, request, retryable, e.getMessage());
+    }
+}

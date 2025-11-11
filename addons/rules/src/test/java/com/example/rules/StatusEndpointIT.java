@@ -2,6 +2,7 @@ package com.example.rules;
 
 import com.clockify.addon.sdk.*;
 import com.clockify.addon.sdk.health.HealthCheck;
+import com.example.rules.config.RuntimeFlags;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -50,8 +51,8 @@ class StatusEndpointIT {
             try {
                 String qws = request.getParameter("workspaceId");
                 boolean tokenPresent = qws != null && !qws.isBlank() && com.clockify.addon.sdk.security.TokenStore.get(qws).isPresent();
-                boolean apply = "true".equalsIgnoreCase(System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false"));
-                boolean skipSig = "true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_SKIP_SIGNATURE_VERIFY", "false"));
+                boolean apply = RuntimeFlags.applyChangesEnabled();
+                boolean skipSig = RuntimeFlags.skipSignatureVerification();
                 String json = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
                         .put("workspaceId", qws == null ? "" : qws)
                         .put("tokenPresent", tokenPresent)
@@ -76,8 +77,8 @@ class StatusEndpointIT {
 
         com.fasterxml.jackson.databind.JsonNode json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(r.body());
         Assertions.assertTrue(json.get("tokenPresent").asBoolean());
-        Assertions.assertFalse(json.get("applyChanges").asBoolean());
-        Assertions.assertFalse(json.get("skipSignatureVerify").asBoolean());
+        Assertions.assertEquals(RuntimeFlags.applyChangesEnabled(), json.get("applyChanges").asBoolean());
+        Assertions.assertEquals(RuntimeFlags.skipSignatureVerification(), json.get("skipSignatureVerify").asBoolean());
         Assertions.assertEquals(base, json.get("baseUrl").asText());
     }
 

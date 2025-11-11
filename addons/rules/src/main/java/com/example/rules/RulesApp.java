@@ -6,15 +6,25 @@ import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.ConfigValidator;
 import com.clockify.addon.sdk.EmbeddedServer;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.health.DatabaseHealthCheck;
 import com.clockify.addon.sdk.health.HealthCheck;
 import com.clockify.addon.sdk.middleware.CorsFilter;
 import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
+import com.example.rules.config.RuntimeFlags;
+import com.example.rules.api.ErrorResponse;
 import com.example.rules.store.RulesStore;
 import com.example.rules.store.RulesStoreSPI;
 import com.example.rules.store.DatabaseRulesStore;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
+import com.clockify.addon.sdk.security.PooledDatabaseTokenStore;
+import com.example.rules.security.JwtVerifier;
+import com.example.rules.web.RequestContext;
+import com.clockify.addon.sdk.logging.LoggingContext;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Rules Add-on for Clockify
@@ -39,6 +49,8 @@ import com.clockify.addon.sdk.metrics.MetricsHandler;
  * 5. In Clockify Admin > Add-ons, install using manifest URL
  */
 public class RulesApp {
+    private static final Logger logger = LoggerFactory.getLogger(RulesApp.class);
+    private static final String MEDIA_JSON = "application/json";
 
     public static void main(String[] args) throws Exception {
         // Read and validate configuration from environment
@@ -67,7 +79,8 @@ public class RulesApp {
                         "TIME_ENTRY_WRITE",
                         "TAG_READ",
                         "TAG_WRITE",
-                        "PROJECT_READ"
+                        "PROJECT_READ",
+                        "PROJECT_WRITE"
                 })
                 .build();
 
@@ -82,12 +95,24 @@ public class RulesApp {
         RulesStoreSPI rulesStore = selectRulesStore();
         RulesController rulesController = new RulesController(rulesStore);
 
+        // Initialize Clockify client for Projects/Clients/Tasks CRUD operations
+        ClockifyClient clockifyClient = new ClockifyClient(
+            System.getenv().getOrDefault("CLOCKIFY_API_BASE_URL", "https://api.clockify.me/api"),
+            null // Token will be provided per-workspace from TokenStore
+        );
+        ProjectsController projectsController = new ProjectsController(clockifyClient);
+        ClientsController clientsController = new ClientsController(clockifyClient);
+        TasksController tasksController = new TasksController(clockifyClient);
+        TagsController tagsController = new TagsController(clockifyClient);
+
         // Register endpoints
         // GET /rules/manifest.json - Returns runtime manifest (NO $schema field)
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
 
         // GET /rules/settings - Sidebar iframe (register common aliases to avoid 404 on trailing-slash)
-        SettingsController settings = new SettingsController();
+        JwtVerifier jwtVerifier = initializeJwtVerifier();
+
+        SettingsController settings = new SettingsController(jwtVerifier);
         addon.registerCustomEndpoint("/settings", settings);
         addon.registerCustomEndpoint("/settings/", settings);
         // Convenience: serve settings at root as well (direct browsing to /rules)
@@ -113,18 +138,90 @@ public class RulesApp {
             } else if ("DELETE".equals(method)) {
                 return rulesController.deleteRule().handle(request);
             } else {
-                return HttpResponse.error(405, "{\"error\":\"Method not allowed\"}", "application/json");
+                return ErrorResponse.of(405, "RULES.METHOD_NOT_ALLOWED", "Method not allowed", request, false)
+                        .withHeader("Allow", "GET,POST,DELETE");
             }
         });
 
         // POST /rules/api/test — dry-run evaluation (no side effects)
         addon.registerCustomEndpoint("/api/test", rulesController.testRules());
 
+        // Projects CRUD API
+        addon.registerCustomEndpoint("/api/projects", request -> {
+            String method = request.getMethod();
+            if ("GET".equals(method)) {
+                return projectsController.listProjects().handle(request);
+            } else if ("POST".equals(method)) {
+                return projectsController.createProject().handle(request);
+            } else if ("PUT".equals(method)) {
+                return projectsController.updateProject().handle(request);
+            } else if ("DELETE".equals(method)) {
+                return projectsController.deleteProject().handle(request);
+            } else {
+                return ErrorResponse.of(405, "PROJECTS.METHOD_NOT_ALLOWED", "Method not allowed", request, false)
+                        .withHeader("Allow", "GET,POST,PUT,DELETE");
+            }
+        });
+
+        // Clients CRUD API
+        addon.registerCustomEndpoint("/api/clients", request -> {
+            String method = request.getMethod();
+            if ("GET".equals(method)) {
+                return clientsController.listClients().handle(request);
+            } else if ("POST".equals(method)) {
+                return clientsController.createClient().handle(request);
+            } else if ("PUT".equals(method)) {
+                return clientsController.updateClient().handle(request);
+            } else if ("DELETE".equals(method)) {
+                return clientsController.deleteClient().handle(request);
+            } else {
+                return ErrorResponse.of(405, "CLIENTS.METHOD_NOT_ALLOWED", "Method not allowed", request, false)
+                        .withHeader("Allow", "GET,POST,PUT,DELETE");
+            }
+        });
+
+        // Tasks CRUD API
+        addon.registerCustomEndpoint("/api/tasks", request -> {
+            String method = request.getMethod();
+            if ("GET".equals(method)) {
+                return tasksController.listTasks().handle(request);
+            } else if ("POST".equals(method)) {
+                return tasksController.createTask().handle(request);
+            } else if ("PUT".equals(method)) {
+                return tasksController.updateTask().handle(request);
+            } else if ("DELETE".equals(method)) {
+                return tasksController.deleteTask().handle(request);
+            } else {
+                return ErrorResponse.of(405, "TASKS.METHOD_NOT_ALLOWED", "Method not allowed", request, false)
+                        .withHeader("Allow", "GET,POST,PUT,DELETE");
+            }
+        });
+
+        // Tags CRUD API
+        addon.registerCustomEndpoint("/api/tags", request -> {
+            String method = request.getMethod();
+            if ("GET".equals(method)) {
+                return tagsController.listTags().handle(request);
+            } else if ("POST".equals(method)) {
+                return tagsController.createTag().handle(request);
+            } else if ("PUT".equals(method)) {
+                return tagsController.updateTag().handle(request);
+            } else if ("DELETE".equals(method)) {
+                return tagsController.deleteTag().handle(request);
+            } else {
+                return ErrorResponse.of(405, "TAGS.METHOD_NOT_ALLOWED", "Method not allowed", request, false)
+                        .withHeader("Allow", "GET,POST,PUT,DELETE");
+            }
+        });
+
         // Cache endpoints: GET /rules/api/cache?workspaceId=... (summary), POST /rules/api/cache/refresh?workspaceId=...
         addon.registerCustomEndpoint("/api/cache", request -> {
-            try {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
                 String ws = request.getParameter("workspaceId");
-                if (ws == null || ws.isBlank()) return HttpResponse.error(400, "{\"error\":\"workspaceId required\"}", "application/json");
+                if (ws == null || ws.isBlank()) {
+                    return workspaceRequired(request);
+                }
+                RequestContext.attachWorkspace(request, ctx, ws);
                 var snap = com.example.rules.cache.WorkspaceCache.get(ws);
                 String json = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
                         .put("workspaceId", ws)
@@ -134,30 +231,38 @@ public class RulesApp {
                         .put("users", snap.usersById.size())
                         .put("hasTasks", !snap.tasksByProjectNameNorm.isEmpty())
                         .toString();
-                return HttpResponse.ok(json, "application/json");
+                return HttpResponse.ok(json, MEDIA_JSON);
             } catch (Exception e) {
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.CACHE_SUMMARY_FAILED", "Failed to load workspace cache", e, true);
             }
         });
         addon.registerCustomEndpoint("/api/cache/refresh", request -> {
-            try {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
                 String ws = request.getParameter("workspaceId");
-                if (ws == null || ws.isBlank()) return HttpResponse.error(400, "{\"error\":\"workspaceId required\"}", "application/json");
+                if (ws == null || ws.isBlank()) {
+                    return workspaceRequired(request);
+                }
+                RequestContext.attachWorkspace(request, ctx, ws);
                 var wkOpt = com.clockify.addon.sdk.security.TokenStore.get(ws);
-                if (wkOpt.isEmpty()) return HttpResponse.error(404, "{\"error\":\"token not found\"}", "application/json");
+                if (wkOpt.isEmpty()) {
+                    return ErrorResponse.of(404, "RULES.TOKEN_NOT_FOUND", "Workspace installation token not found", request, false);
+                }
                 var wk = wkOpt.get();
                 com.example.rules.cache.WorkspaceCache.refresh(ws, wk.apiBaseUrl(), wk.token());
-                return HttpResponse.ok("{\"status\":\"refreshed\"}", "application/json");
+                return HttpResponse.ok("{\"status\":\"refreshed\"}", MEDIA_JSON);
             } catch (Exception e) {
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.CACHE_REFRESH_FAILED", "Failed to refresh cache", e, true);
             }
         });
 
         // GET /rules/api/cache/data?workspaceId=... — expanded snapshot for autocompletes
         addon.registerCustomEndpoint("/api/cache/data", request -> {
-            try {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
                 String ws = request.getParameter("workspaceId");
-                if (ws == null || ws.isBlank()) return HttpResponse.error(400, "{\"error\":\"workspaceId required\"}", "application/json");
+                if (ws == null || ws.isBlank()) {
+                    return workspaceRequired(request);
+                }
+                RequestContext.attachWorkspace(request, ctx, ws);
                 var snap = com.example.rules.cache.WorkspaceCache.get(ws);
                 var om = new com.fasterxml.jackson.databind.ObjectMapper();
                 var root = om.createObjectNode();
@@ -174,8 +279,6 @@ public class RulesApp {
                 snap.usersById.forEach((id, name) -> { var n = om.createObjectNode(); n.put("id", id); n.put("name", name); usersArr.add(n); });
 
                 var tasksArr = om.createArrayNode();
-                // We only have taskNamesById and tasks grouped by project name norm; include projectName when resolvable
-                // Build map projectNameNorm -> projectName
                 java.util.Map<String, String> projectNameByNorm = new java.util.HashMap<>();
                 snap.projectsById.forEach((id, name) -> projectNameByNorm.put(name == null ? "" : name.trim().toLowerCase(java.util.Locale.ROOT), name));
                 snap.tasksByProjectNameNorm.forEach((projectNorm, tmap) -> {
@@ -194,9 +297,9 @@ public class RulesApp {
                 root.set("clients", clientsArr);
                 root.set("users", usersArr);
                 root.set("tasks", tasksArr);
-                return HttpResponse.ok(root.toString(), "application/json");
+                return HttpResponse.ok(root.toString(), MEDIA_JSON);
             } catch (Exception e) {
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.CACHE_DATA_FAILED", "Failed to load cache data", e, true);
             }
         });
 
@@ -204,9 +307,9 @@ public class RulesApp {
         addon.registerCustomEndpoint("/api/catalog/triggers", request -> {
             try {
                 com.fasterxml.jackson.databind.JsonNode json = com.example.rules.spec.TriggersCatalog.triggersToJson();
-                return HttpResponse.ok(json.toString(), "application/json");
+                return HttpResponse.ok(json.toString(), MEDIA_JSON);
             } catch (Exception e) {
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.TRIGGERS_FAILED", "Failed to load triggers catalog", e, true);
             }
         });
 
@@ -214,9 +317,9 @@ public class RulesApp {
         addon.registerCustomEndpoint("/api/catalog/actions", request -> {
             try {
                 com.fasterxml.jackson.databind.JsonNode json = com.example.rules.spec.OpenAPISpecLoader.endpointsToJson();
-                return HttpResponse.ok(json.toString(), "application/json");
+                return HttpResponse.ok(json.toString(), MEDIA_JSON);
             } catch (Exception e) {
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.ACTIONS_FAILED", "Failed to load actions catalog", e, true);
             }
         });
 
@@ -225,22 +328,23 @@ public class RulesApp {
             try {
                 var stats = com.example.rules.cache.RuleCache.getStats();
                 var json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(stats);
-                return HttpResponse.ok(json, "application/json");
+                return HttpResponse.ok(json, MEDIA_JSON);
             } catch (Exception e) {
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.CACHE_STATS_FAILED", "Failed to load cache stats", e, true);
             }
         });
 
         // GET /rules/status — runtime status (token present, modes)
         addon.registerCustomEndpoint("/status", request -> {
-            try {
+            try (LoggingContext ctx = RequestContext.logging(request)) {
                 String ws = request.getParameter("workspaceId");
-                boolean tokenPresent = false;
                 if (ws != null && !ws.isBlank()) {
-                    tokenPresent = com.clockify.addon.sdk.security.TokenStore.get(ws).isPresent();
+                    RequestContext.attachWorkspace(request, ctx, ws);
                 }
-                boolean apply = "true".equalsIgnoreCase(System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false"));
-                boolean skipSig = "true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_SKIP_SIGNATURE_VERIFY", "false"));
+                boolean tokenPresent = ws != null && !ws.isBlank() &&
+                        com.clockify.addon.sdk.security.TokenStore.get(ws).isPresent();
+                boolean apply = RuntimeFlags.applyChangesEnabled();
+                boolean skipSig = RuntimeFlags.skipSignatureVerification();
                 String json = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
                         .put("workspaceId", ws == null ? "" : ws)
                         .put("tokenPresent", tokenPresent)
@@ -248,9 +352,9 @@ public class RulesApp {
                         .put("skipSignatureVerify", skipSig)
                         .put("baseUrl", baseUrl)
                         .toString();
-                return HttpResponse.ok(json, "application/json");
+                return HttpResponse.ok(json, MEDIA_JSON);
             } catch (Exception e) {
-                return HttpResponse.error(500, "{\"error\":\"" + e.getMessage() + "\"}", "application/json");
+                return internalError(request, "RULES.STATUS_FAILED", "Failed to load status", e, true);
             }
         });
 
@@ -266,11 +370,31 @@ public class RulesApp {
         // Preload local secrets for development
         preloadLocalSecrets();
 
-        // Health check with optional DB probe (via DatabaseRulesStore if configured)
-        HealthCheck health = new HealthCheck("rules", "0.1.0");
         String dbUrl = System.getenv("DB_URL");
         String dbUser = System.getenv().getOrDefault("DB_USER", System.getenv("DB_USERNAME"));
         String dbPassword = System.getenv("DB_PASSWORD");
+
+        PooledDatabaseTokenStore tokenStore = null;
+        String envLabel = RuntimeFlags.environmentLabel();
+        boolean persistentTokens =
+                Boolean.parseBoolean(System.getenv().getOrDefault("ENABLE_DB_TOKEN_STORE",
+                        String.valueOf("prod".equalsIgnoreCase(envLabel))));
+        if (persistentTokens && dbUrl != null && !dbUrl.isBlank()) {
+            try {
+                tokenStore = new PooledDatabaseTokenStore(dbUrl, dbUser, dbPassword);
+                com.clockify.addon.sdk.security.TokenStore.configurePersistence(tokenStore);
+                logger.info("Persistent token store enabled (PostgreSQL)");
+            } catch (Exception e) {
+                logger.error("Failed to initialize persistent token store: {}", e.getMessage());
+                tokenStore = null;
+            }
+        } else {
+            logger.info("Using in-memory token store (ENV={}, DB_URL configured={})",
+                    envLabel, dbUrl != null && !dbUrl.isBlank());
+        }
+
+        // Register health checks
+        HealthCheck health = new HealthCheck("rules", "0.1.0");
         if (dbUrl != null && !dbUrl.isBlank() && dbUser != null && !dbUser.isBlank()) {
             health.addHealthCheckProvider(new HealthCheck.HealthCheckProvider() {
                 @Override public String getName() { return "database"; }
@@ -284,6 +408,9 @@ public class RulesApp {
                     }
                 }
             });
+        }
+        if (tokenStore != null) {
+            health.addHealthCheckProvider(new DatabaseHealthCheck(tokenStore));
         }
         addon.registerCustomEndpoint("/health", health);
         addon.registerCustomEndpoint("/metrics", new MetricsHandler());
@@ -305,9 +432,9 @@ public class RulesApp {
                 double permits = Double.parseDouble(rateLimit.trim());
                 String limitBy = System.getenv().getOrDefault("ADDON_LIMIT_BY", "ip");
                 server.addFilter(new RateLimiter(permits, limitBy));
-                System.out.println("RateLimiter enabled: " + permits + "/sec by " + limitBy);
+                logger.info("Rate limiter enabled: {} req/sec by {}", permits, limitBy);
             } catch (NumberFormatException nfe) {
-                System.err.println("Invalid ADDON_RATE_LIMIT value. Expected number, got: " + rateLimit);
+                logger.warn("Invalid ADDON_RATE_LIMIT value. Expected number, got: {}", rateLimit);
             }
         }
 
@@ -315,48 +442,50 @@ public class RulesApp {
         String cors = System.getenv("ADDON_CORS_ORIGINS");
         if (cors != null && !cors.isBlank()) {
             server.addFilter(new CorsFilter(cors));
-            System.out.println("CORS enabled for origins: " + cors);
+            logger.info("CORS enabled for origins: {}", cors);
         }
 
         // Optional request logging (headers scrubbed): ADDON_REQUEST_LOGGING=true
         if ("true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_REQUEST_LOGGING", "false"))
                 || "1".equals(System.getenv().getOrDefault("ADDON_REQUEST_LOGGING", "0"))) {
             server.addFilter(new RequestLoggingFilter());
-            System.out.println("Request logging enabled (sensitive headers redacted)");
+            logger.info("Request logging enabled (sensitive headers redacted)");
         }
 
-        System.out.println("=".repeat(80));
-        System.out.println("Rules Add-on Starting");
-        System.out.println("=".repeat(80));
-        System.out.println("Base URL: " + baseUrl);
-        System.out.println("Port: " + port);
-        System.out.println("Context Path: " + contextPath);
-        System.out.println("Storage: " + (rulesStore instanceof com.example.rules.store.DatabaseRulesStore ? "Database" : "In-Memory"));
-        System.out.println("Apply Changes: " + System.getenv().getOrDefault("RULES_APPLY_CHANGES", "false"));
-        System.out.println("Skip Signature: " + System.getenv().getOrDefault("ADDON_SKIP_SIGNATURE_VERIFY", "false"));
-        System.out.println();
-        System.out.println("Endpoints:");
-        System.out.println("  Manifest:  " + baseUrl + "/manifest.json");
-        System.out.println("  Settings:  " + baseUrl + "/settings");
-        System.out.println("  Simple UI: " + baseUrl + "/simple");
-        System.out.println("  IFTTT UI:  " + baseUrl + "/ifttt");
-        System.out.println("  Lifecycle: " + baseUrl + "/lifecycle/installed");
-        System.out.println("             " + baseUrl + "/lifecycle/deleted");
-        System.out.println("  Webhook:   " + baseUrl + "/webhook");
-        System.out.println("  Health:    " + baseUrl + "/health");
-        System.out.println("  Rules API: " + baseUrl + "/api/rules");
-        System.out.println("=".repeat(80));
+        String storageMode = (rulesStore instanceof com.example.rules.store.DatabaseRulesStore) ? "Database" : "In-Memory";
+        logger.info(
+                "Rules Add-on starting | baseUrl={} | port={} | contextPath={} | storage={} | env={} | applyChanges={} | skipSignature={}",
+                baseUrl,
+                port,
+                contextPath,
+                storageMode,
+                envLabel,
+                RuntimeFlags.applyChangesEnabled(),
+                RuntimeFlags.skipSignatureVerification());
+        logger.info("Endpoints: manifest={} settings={} simple={} ifttt={} lifecycleInstall={} lifecycleDelete={} webhook={} health={} rulesApi={}",
+                baseUrl + "/manifest.json",
+                baseUrl + "/settings",
+                baseUrl + "/simple",
+                baseUrl + "/ifttt",
+                baseUrl + "/lifecycle/installed",
+                baseUrl + "/lifecycle/deleted",
+                baseUrl + "/webhook",
+                baseUrl + "/health",
+                baseUrl + "/api/rules");
 
         // Add shutdown hook for graceful stop
+        PooledDatabaseTokenStore managedTokenStore = tokenStore;
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                System.out.println("Shutting down Rules Add-on...");
-                // Clean up cache resources
+                logger.info("Shutting down Rules Add-on...");
                 com.example.rules.cache.RuleCache.shutdown();
+                if (managedTokenStore != null) {
+                    managedTokenStore.close();
+                }
                 server.stop();
-                System.out.println("Rules Add-on shutdown complete");
+                logger.info("Rules Add-on shutdown complete");
             } catch (Exception e) {
-                System.err.println("Error during shutdown: " + e.getMessage());
+                logger.error("Error during shutdown", e);
             }
         }));
 
@@ -371,10 +500,44 @@ public class RulesApp {
             try {
                 return DatabaseRulesStore.fromEnvironment();
             } catch (Exception e) {
-                System.err.println("Failed to init DatabaseRulesStore: " + e.getMessage() + "; falling back to in-memory");
+                logger.warn("Failed to init DatabaseRulesStore: {}. Falling back to in-memory store.", e.getMessage());
             }
         }
         return new RulesStore();
+    }
+
+    private static JwtVerifier initializeJwtVerifier() {
+        String pem = System.getenv("CLOCKIFY_JWT_PUBLIC_KEY");
+        String keyMapJson = System.getenv("CLOCKIFY_JWT_PUBLIC_KEY_MAP");
+        if ((pem == null || pem.isBlank()) && (keyMapJson == null || keyMapJson.isBlank())) {
+            logger.debug("CLOCKIFY_JWT_PUBLIC_KEY not set; settings JWT auto-fill disabled");
+            return null;
+        }
+        try {
+            JwtVerifier.Constraints constraints = JwtVerifier.Constraints.fromEnvironment();
+            if (keyMapJson != null && !keyMapJson.isBlank()) {
+                java.util.Map<String, String> pemByKid = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(keyMapJson, new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, String>>() {});
+                String defaultKid = System.getenv("CLOCKIFY_JWT_DEFAULT_KID");
+                JwtVerifier verifier = JwtVerifier.fromPemMap(pemByKid, defaultKid, constraints);
+                logger.info("Verified settings JWTs using {} kid-mapped keys (defaultKid={}, iss={}, aud={}, skew={}s)",
+                        pemByKid.size(),
+                        logValue(defaultKid),
+                        logValue(constraints.expectedIssuer()),
+                        logValue(constraints.expectedAudience()),
+                        constraints.clockSkewSeconds());
+                return verifier;
+            }
+            JwtVerifier verifier = JwtVerifier.fromPem(pem, constraints);
+            logger.info("Verified settings JWTs using configured public key (iss={}, aud={}, skew={}s)",
+                    logValue(constraints.expectedIssuer()),
+                    logValue(constraints.expectedAudience()),
+                    constraints.clockSkewSeconds());
+            return verifier;
+        } catch (Exception e) {
+            logger.error("Failed to initialize JWT verifier: {}", e.getMessage());
+            return null;
+        }
     }
 
     private static void preloadLocalSecrets() {
@@ -387,9 +550,9 @@ public class RulesApp {
         String apiBaseUrl = System.getenv().getOrDefault("CLOCKIFY_API_BASE_URL", "https://api.clockify.me/api");
         try {
             com.clockify.addon.sdk.security.TokenStore.save(workspaceId, installationToken, apiBaseUrl);
-            System.out.println("Preloaded installation token for workspace " + workspaceId);
+            logger.info("Preloaded installation token for workspace {}", workspaceId);
         } catch (Exception e) {
-            System.err.println("Failed to preload local installation token: " + e.getMessage());
+            logger.warn("Failed to preload local installation token: {}", e.getMessage());
         }
     }
 
@@ -405,9 +568,21 @@ public class RulesApp {
                 }
             }
         } catch (java.net.URISyntaxException e) {
-            System.err.println("Warning: Could not parse base URL '" + baseUrl + "', using '/' as context path: "
-                    + e.getMessage());
+            logger.warn("Could not parse base URL '{}', using '/' as context path: {}", baseUrl, e.getMessage());
         }
         return contextPath;
+    }
+
+    private static HttpResponse workspaceRequired(HttpServletRequest request) {
+        return ErrorResponse.of(400, "RULES.WORKSPACE_REQUIRED", "workspaceId is required", request, false);
+    }
+
+    private static HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {
+        logger.error("{}: {}", code, e.getMessage(), e);
+        return ErrorResponse.of(500, code, message, request, retryable, e.getMessage());
+    }
+
+    private static String logValue(String value) {
+        return (value == null || value.isBlank()) ? "n/a" : value;
     }
 }

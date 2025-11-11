@@ -1,9 +1,11 @@
 package com.clockify.addon.sdk;
 
 import com.clockify.addon.sdk.middleware.CriticalEndpointRateLimiter;
+import com.clockify.addon.sdk.middleware.DiagnosticContextFilter;
 import com.clockify.addon.sdk.middleware.CsrfProtectionFilter;
 import com.clockify.addon.sdk.middleware.HttpsEnforcementFilter;
 import com.clockify.addon.sdk.middleware.RequestSizeLimitFilter;
+import com.clockify.addon.sdk.middleware.RequestIdPropagationFilter;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -54,6 +56,18 @@ public class EmbeddedServer {
         server.setHandler(context);
 
         // SECURITY: Apply critical endpoint rate limiter first to fail fast on abusive calls
+        context.addFilter(
+                new FilterHolder(new DiagnosticContextFilter()),
+                "/*",
+                EnumSet.of(DispatcherType.REQUEST));
+        logger.debug("Diagnostic context filter installed");
+
+        context.addFilter(
+                new FilterHolder(new RequestIdPropagationFilter()),
+                "/*",
+                EnumSet.of(DispatcherType.REQUEST));
+        logger.debug("Request id propagation filter installed");
+
         context.addFilter(
                 new FilterHolder(new CriticalEndpointRateLimiter(true)),
                 "/*",
