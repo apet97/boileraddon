@@ -40,7 +40,6 @@ public class DatabaseOperationsBenchmark {
     private DataSource dataSource;
     private DatabaseTokenStore tokenStore;
     private PooledDatabaseTokenStore pooledTokenStore;
-    private DatabaseMetrics databaseMetrics;
 
     private String workspaceId;
     private String token;
@@ -64,20 +63,20 @@ public class DatabaseOperationsBenchmark {
         initializeDatabase();
 
         // Initialize components
-        tokenStore = new DatabaseTokenStore();
-        pooledTokenStore = new PooledDatabaseTokenStore();
-        databaseMetrics = new DatabaseMetrics();
+        tokenStore = new DatabaseTokenStore("jdbc:h2:mem:benchmark;DB_CLOSE_DELAY=-1", "sa", "");
+        pooledTokenStore = new PooledDatabaseTokenStore("jdbc:h2:mem:benchmark;DB_CLOSE_DELAY=-1", "sa", "");
+        // DatabaseMetrics is a utility class with static methods, no instantiation needed
 
         // Setup test data
         workspaceId = "ws-db-bench-001";
         token = "db-bench-token-1234567890abcdef";
 
         // Pre-populate data
-        tokenStore.saveToken(workspaceId, token);
-        pooledTokenStore.saveToken(workspaceId, token);
+        tokenStore.save(workspaceId, token);
+        pooledTokenStore.save(workspaceId, token);
 
         // Register metrics
-        databaseMetrics.registerDataSourceMetrics(dataSource, "benchmark-pool");
+        DatabaseMetrics.registerConnectionPoolGauges("benchmark-pool", (com.zaxxer.hikari.HikariDataSource) dataSource);
     }
 
     @TearDown
@@ -123,7 +122,7 @@ public class DatabaseOperationsBenchmark {
     public void tokenStoreSaveOperation(Blackhole bh) {
         String newWorkspaceId = "ws-save-" + System.currentTimeMillis();
         String newToken = "token-save-" + System.currentTimeMillis();
-        tokenStore.saveToken(newWorkspaceId, newToken);
+        tokenStore.save(newWorkspaceId, newToken);
         bh.consume(newWorkspaceId);
     }
 
@@ -133,7 +132,7 @@ public class DatabaseOperationsBenchmark {
      */
     @Benchmark
     public void tokenStoreValidationValid(Blackhole bh) {
-        boolean result = tokenStore.validateToken(workspaceId, token);
+        boolean result = tokenStore.isValidToken(workspaceId, token);
         bh.consume(result);
     }
 
@@ -143,7 +142,7 @@ public class DatabaseOperationsBenchmark {
      */
     @Benchmark
     public void tokenStoreValidationInvalid(Blackhole bh) {
-        boolean result = tokenStore.validateToken(workspaceId, "invalid-token");
+        boolean result = tokenStore.isValidToken(workspaceId, "invalid-token");
         bh.consume(result);
     }
 
@@ -153,7 +152,7 @@ public class DatabaseOperationsBenchmark {
      */
     @Benchmark
     public void pooledTokenStoreValidation(Blackhole bh) {
-        boolean result = pooledTokenStore.validateToken(workspaceId, token);
+        boolean result = pooledTokenStore.isValidToken(workspaceId, token);
         bh.consume(result);
     }
 
@@ -164,8 +163,8 @@ public class DatabaseOperationsBenchmark {
     @Benchmark
     public void tokenStoreDeleteOperation(Blackhole bh) {
         String tempWorkspaceId = "ws-delete-" + System.currentTimeMillis();
-        tokenStore.saveToken(tempWorkspaceId, "temp-token");
-        tokenStore.deleteToken(tempWorkspaceId);
+        tokenStore.save(tempWorkspaceId, "temp-token");
+        tokenStore.remove(tempWorkspaceId);
         bh.consume(tempWorkspaceId);
     }
 
@@ -179,14 +178,14 @@ public class DatabaseOperationsBenchmark {
         String tempToken = "token-multi-" + System.currentTimeMillis();
 
         // Save token
-        tokenStore.saveToken(tempWorkspaceId, tempToken);
+        tokenStore.save(tempWorkspaceId, tempToken);
 
         // Validate token
-        boolean valid = tokenStore.validateToken(tempWorkspaceId, tempToken);
+        boolean valid = tokenStore.isValidToken(tempWorkspaceId, tempToken);
         bh.consume(valid);
 
         // Delete token
-        tokenStore.deleteToken(tempWorkspaceId);
+        tokenStore.remove(tempWorkspaceId);
 
         bh.consume(tempWorkspaceId);
     }
@@ -235,9 +234,9 @@ public class DatabaseOperationsBenchmark {
             String batchWorkspaceId = "ws-batch-" + i + "-" + System.currentTimeMillis();
             String batchToken = "token-batch-" + i + "-" + System.currentTimeMillis();
 
-            tokenStore.saveToken(batchWorkspaceId, batchToken);
-            boolean valid = tokenStore.validateToken(batchWorkspaceId, batchToken);
-            tokenStore.deleteToken(batchWorkspaceId);
+            tokenStore.save(batchWorkspaceId, batchToken);
+            boolean valid = tokenStore.isValidToken(batchWorkspaceId, batchToken);
+            tokenStore.remove(batchWorkspaceId);
 
             bh.consume(valid);
         }
@@ -289,14 +288,14 @@ public class DatabaseOperationsBenchmark {
                 String tempToken = "token-tx-" + System.currentTimeMillis();
 
                 // Save token
-                tokenStore.saveToken(tempWorkspaceId, tempToken);
+                tokenStore.save(tempWorkspaceId, tempToken);
 
                 // Validate token
-                boolean valid = tokenStore.validateToken(tempWorkspaceId, tempToken);
+                boolean valid = tokenStore.isValidToken(tempWorkspaceId, tempToken);
                 bh.consume(valid);
 
                 // Delete token
-                tokenStore.deleteToken(tempWorkspaceId);
+                tokenStore.remove(tempWorkspaceId);
 
                 connection.commit();
                 bh.consume(tempWorkspaceId);
@@ -340,9 +339,9 @@ public class DatabaseOperationsBenchmark {
             String tempWorkspaceId = "ws-hf-" + i + "-" + System.currentTimeMillis();
             String tempToken = "token-hf-" + i + "-" + System.currentTimeMillis();
 
-            tokenStore.saveToken(tempWorkspaceId, tempToken);
-            boolean valid = tokenStore.validateToken(tempWorkspaceId, tempToken);
-            tokenStore.deleteToken(tempWorkspaceId);
+            tokenStore.save(tempWorkspaceId, tempToken);
+            boolean valid = tokenStore.isValidToken(tempWorkspaceId, tempToken);
+            tokenStore.remove(tempWorkspaceId);
 
             bh.consume(valid);
         }
@@ -356,7 +355,7 @@ public class DatabaseOperationsBenchmark {
     public void databaseErrorHandling(Blackhole bh) {
         try {
             // Attempt to validate token for non-existent workspace
-            boolean result = tokenStore.validateToken("non-existent-workspace", "any-token");
+            boolean result = tokenStore.isValidToken("non-existent-workspace", "any-token");
             bh.consume(result);
         } catch (Exception e) {
             // Expected to handle database errors gracefully

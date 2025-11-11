@@ -33,8 +33,6 @@ public class SecurityOperationsBenchmark {
     private DatabaseTokenStore tokenStore;
     private PooledDatabaseTokenStore pooledTokenStore;
     private RotatingTokenStore rotatingTokenStore;
-    private AuditLogger auditLogger;
-    private PathSanitizer pathSanitizer;
 
     private String validToken;
     private String invalidToken;
@@ -44,22 +42,25 @@ public class SecurityOperationsBenchmark {
 
     @Setup
     public void setup() throws Exception {
-        // Initialize security components
-        tokenStore = new DatabaseTokenStore();
-        pooledTokenStore = new PooledDatabaseTokenStore();
-        rotatingTokenStore = new RotatingTokenStore();
-        auditLogger = new AuditLogger();
-        pathSanitizer = new PathSanitizer();
-
         // Setup test data
         workspaceId = "ws-security-bench-001";
         validToken = "valid-token-1234567890abcdef";
         invalidToken = "invalid-token-xxxxxxxxxxxx";
 
+        // Initialize security components with H2 in-memory database
+        String jdbcUrl = "jdbc:h2:mem:security-benchmark;DB_CLOSE_DELAY=-1";
+        String username = "sa";
+        String password = "";
+
+        tokenStore = new DatabaseTokenStore(jdbcUrl, username, password);
+        pooledTokenStore = new PooledDatabaseTokenStore(jdbcUrl, username, password);
+        rotatingTokenStore = new RotatingTokenStore(tokenStore);
+        // AuditLogger and PathSanitizer are utility classes with static methods
+
         // Pre-populate token stores
-        tokenStore.saveToken(workspaceId, validToken);
-        pooledTokenStore.saveToken(workspaceId, validToken);
-        rotatingTokenStore.saveToken(workspaceId, validToken);
+        tokenStore.save(workspaceId, validToken);
+        pooledTokenStore.save(workspaceId, validToken);
+        rotatingTokenStore.save(workspaceId, validToken);
 
         // Test paths for sanitization
         testPaths = new String[]{
@@ -87,7 +88,7 @@ public class SecurityOperationsBenchmark {
      */
     @Benchmark
     public void databaseTokenStoreValidationValid(Blackhole bh) {
-        boolean result = tokenStore.validateToken(workspaceId, validToken);
+        boolean result = tokenStore.isValidToken(workspaceId, validToken);
         bh.consume(result);
     }
 
@@ -97,7 +98,7 @@ public class SecurityOperationsBenchmark {
      */
     @Benchmark
     public void databaseTokenStoreValidationInvalid(Blackhole bh) {
-        boolean result = tokenStore.validateToken(workspaceId, invalidToken);
+        boolean result = tokenStore.isValidToken(workspaceId, invalidToken);
         bh.consume(result);
     }
 
@@ -107,7 +108,7 @@ public class SecurityOperationsBenchmark {
      */
     @Benchmark
     public void pooledTokenStoreValidation(Blackhole bh) {
-        boolean result = pooledTokenStore.validateToken(workspaceId, validToken);
+        boolean result = pooledTokenStore.isValidToken(workspaceId, validToken);
         bh.consume(result);
     }
 
@@ -117,7 +118,7 @@ public class SecurityOperationsBenchmark {
      */
     @Benchmark
     public void rotatingTokenStoreValidation(Blackhole bh) {
-        boolean result = rotatingTokenStore.validateToken(workspaceId, validToken);
+        boolean result = rotatingTokenStore.isValidToken(workspaceId, validToken);
         bh.consume(result);
     }
 
@@ -129,7 +130,7 @@ public class SecurityOperationsBenchmark {
     public void tokenStoreSaveOperation(Blackhole bh) {
         String newWorkspaceId = "ws-new-" + System.currentTimeMillis();
         String newToken = "token-" + System.currentTimeMillis();
-        tokenStore.saveToken(newWorkspaceId, newToken);
+        tokenStore.save(newWorkspaceId, newToken);
         bh.consume(newWorkspaceId);
     }
 
@@ -140,8 +141,8 @@ public class SecurityOperationsBenchmark {
     @Benchmark
     public void tokenStoreDeleteOperation(Blackhole bh) {
         String tempWorkspaceId = "ws-temp-" + System.currentTimeMillis();
-        tokenStore.saveToken(tempWorkspaceId, "temp-token");
-        tokenStore.deleteToken(tempWorkspaceId);
+        tokenStore.save(tempWorkspaceId, "temp-token");
+        tokenStore.remove(tempWorkspaceId);
         bh.consume(tempWorkspaceId);
     }
 
@@ -152,7 +153,7 @@ public class SecurityOperationsBenchmark {
     @Benchmark
     public void pathSanitizationSafePaths(Blackhole bh) {
         for (String path : testPaths) {
-            String sanitized = pathSanitizer.sanitize(path);
+            String sanitized = PathSanitizer.sanitize(path);
             bh.consume(sanitized);
         }
     }
@@ -164,8 +165,13 @@ public class SecurityOperationsBenchmark {
     @Benchmark
     public void pathSanitizationMaliciousPaths(Blackhole bh) {
         for (String path : maliciousPaths) {
-            String sanitized = pathSanitizer.sanitize(path);
-            bh.consume(sanitized);
+            try {
+                String sanitized = PathSanitizer.sanitize(path);
+                bh.consume(sanitized);
+            } catch (IllegalArgumentException e) {
+                // Expected for malicious paths - consume the exception
+                bh.consume(e);
+            }
         }
     }
 
@@ -175,13 +181,11 @@ public class SecurityOperationsBenchmark {
      */
     @Benchmark
     public void auditLoggingPerformance(Blackhole bh) {
-        auditLogger.logSecurityEvent(
-            "TOKEN_VALIDATION",
-            "INFO",
-            "192.168.1.100",
-            "Token validation successful",
-            "{\"workspaceId\":\"" + workspaceId + "\",\"result\":\"valid\"}"
-        );
+        AuditLogger.log(AuditLogger.AuditEvent.TOKEN_VALIDATION_SUCCESS)
+            .workspace(workspaceId)
+            .clientIp("192.168.1.100")
+            .detail("result", "valid")
+            .info();
         bh.consume(workspaceId);
     }
 
@@ -191,13 +195,13 @@ public class SecurityOperationsBenchmark {
      */
     @Benchmark
     public void auditLoggingComplexData(Blackhole bh) {
-        auditLogger.logSecurityEvent(
-            "RATE_LIMIT_EXCEEDED",
-            "WARN",
-            "203.0.113.5",
-            "Rate limit exceeded for webhook endpoint",
-            "{\"path\":\"/webhook\",\"clientIp\":\"203.0.113.5\",\"limit\":100,\"window\":\"1s\",\"workspaceId\":\"" + workspaceId + "\"}"
-        );
+        AuditLogger.log(AuditLogger.AuditEvent.RATE_LIMIT_EXCEEDED)
+            .workspace(workspaceId)
+            .clientIp("203.0.113.5")
+            .detail("path", "/webhook")
+            .detail("limit", 100)
+            .detail("window", "1s")
+            .warn();
         bh.consume(workspaceId);
     }
 
@@ -208,21 +212,19 @@ public class SecurityOperationsBenchmark {
     @Benchmark
     public void combinedSecurityOperations(Blackhole bh) {
         // Token validation
-        boolean tokenValid = tokenStore.validateToken(workspaceId, validToken);
+        boolean tokenValid = tokenStore.isValidToken(workspaceId, validToken);
         bh.consume(tokenValid);
 
         // Path sanitization
-        String sanitizedPath = pathSanitizer.sanitize("/api/v1/webhook");
+        String sanitizedPath = PathSanitizer.sanitize("/api/v1/webhook");
         bh.consume(sanitizedPath);
 
         // Audit logging
-        auditLogger.logSecurityEvent(
-            "COMBINED_OPERATIONS",
-            "INFO",
-            "192.168.1.100",
-            "Multiple security operations completed",
-            "{\"workspaceId\":\"" + workspaceId + "\",\"operations\":[\"token_validation\",\"path_sanitization\",\"audit_logging\"]}"
-        );
+        AuditLogger.log(AuditLogger.AuditEvent.TOKEN_VALIDATION_SUCCESS)
+            .workspace(workspaceId)
+            .clientIp("192.168.1.100")
+            .detail("operations", "[\"token_validation\",\"path_sanitization\",\"audit_logging\"]")
+            .info();
     }
 
     /**
@@ -232,7 +234,7 @@ public class SecurityOperationsBenchmark {
     @Benchmark
     @Threads(4)
     public void concurrentTokenValidation(Blackhole bh) {
-        boolean result = pooledTokenStore.validateToken(workspaceId, validToken);
+        boolean result = pooledTokenStore.isValidToken(workspaceId, validToken);
         bh.consume(result);
     }
 
@@ -242,7 +244,8 @@ public class SecurityOperationsBenchmark {
      */
     @Benchmark
     public void tokenRotationPerformance(Blackhole bh) {
-        String newToken = rotatingTokenStore.rotateToken(workspaceId);
+        String newToken = "rotated-token-" + System.currentTimeMillis();
+        rotatingTokenStore.rotate(workspaceId, newToken);
         bh.consume(newToken);
     }
 
@@ -253,13 +256,12 @@ public class SecurityOperationsBenchmark {
     @Benchmark
     public void securityEventBatchProcessing(Blackhole bh) {
         for (int i = 0; i < 10; i++) {
-            auditLogger.logSecurityEvent(
-                "BATCH_EVENT_" + i,
-                "INFO",
-                "192.168.1." + (100 + i),
-                "Batch security event " + i,
-                "{\"eventId\":" + i + ",\"timestamp\":\"" + System.currentTimeMillis() + "\"}"
-            );
+            AuditLogger.log(AuditLogger.AuditEvent.TOKEN_VALIDATION_SUCCESS)
+                .workspace(workspaceId)
+                .clientIp("192.168.1." + (100 + i))
+                .detail("eventId", i)
+                .detail("timestamp", System.currentTimeMillis())
+                .info();
         }
         bh.consume(workspaceId);
     }
@@ -284,8 +286,13 @@ public class SecurityOperationsBenchmark {
         };
 
         for (String path : edgeCases) {
-            String sanitized = pathSanitizer.sanitize(path);
-            bh.consume(sanitized);
+            try {
+                String sanitized = PathSanitizer.sanitize(path);
+                bh.consume(sanitized);
+            } catch (IllegalArgumentException e) {
+                // Expected for malicious paths - consume the exception
+                bh.consume(e);
+            }
         }
     }
 
@@ -295,7 +302,7 @@ public class SecurityOperationsBenchmark {
      */
     @Benchmark
     public void tokenValidationNonExistentWorkspace(Blackhole bh) {
-        boolean result = tokenStore.validateToken("non-existent-workspace", validToken);
+        boolean result = tokenStore.isValidToken("non-existent-workspace", validToken);
         bh.consume(result);
     }
 
@@ -308,15 +315,13 @@ public class SecurityOperationsBenchmark {
     public void highFrequencySecurityOperations(Blackhole bh) {
         // Simulate high-frequency security operations
         for (int i = 0; i < 5; i++) {
-            boolean tokenValid = tokenStore.validateToken(workspaceId, validToken);
-            String sanitizedPath = pathSanitizer.sanitize(testPaths[i % testPaths.length]);
-            auditLogger.logSecurityEvent(
-                "HIGH_FREQ_EVENT",
-                "INFO",
-                "192.168.1." + (100 + i),
-                "High frequency security event",
-                "{\"iteration\":" + i + "}"
-            );
+            boolean tokenValid = tokenStore.isValidToken(workspaceId, validToken);
+            String sanitizedPath = PathSanitizer.sanitize(testPaths[i % testPaths.length]);
+            AuditLogger.log(AuditLogger.AuditEvent.TOKEN_VALIDATION_SUCCESS)
+                .workspace(workspaceId)
+                .clientIp("192.168.1." + (100 + i))
+                .detail("iteration", i)
+                .info();
             bh.consume(tokenValid);
             bh.consume(sanitizedPath);
         }

@@ -53,13 +53,13 @@ public class MiddlewarePerformanceBenchmark {
     public void setup() throws Exception {
         // Initialize all middleware filters
         requestLoggingFilter = new RequestLoggingFilter();
-        requestSizeLimitFilter = new RequestSizeLimitFilter(10 * 1024 * 1024); // 10MB
+        requestSizeLimitFilter = new RequestSizeLimitFilter(10L); // 10MB - use long constructor
         httpsEnforcementFilter = new HttpsEnforcementFilter(true);
         csrfProtectionFilter = new CsrfProtectionFilter();
         rateLimiter = new RateLimiter(100.0, "ip"); // 100 requests/sec per IP
         securityHeadersFilter = new SecurityHeadersFilter();
         criticalEndpointRateLimiter = new CriticalEndpointRateLimiter(true);
-        corsFilter = new CorsFilter(new String[]{"https://app.clockify.me"});
+        corsFilter = new CorsFilter("https://app.clockify.me", false); // origin, allowCredentials
         diagnosticContextFilter = new DiagnosticContextFilter();
         requestIdPropagationFilter = new RequestIdPropagationFilter();
 
