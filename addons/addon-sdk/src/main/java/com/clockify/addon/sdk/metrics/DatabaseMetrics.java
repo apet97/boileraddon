@@ -80,16 +80,16 @@ public final class DatabaseMetrics {
     public static void recordOperation(String operation, String entityType, boolean success, long durationMs) {
         Counter.builder("database_operations_total")
                 .description("Total database operations")
-                .tag("operation", operation)
-                .tag("entity_type", entityType)
+                .tag("operation", sanitize(operation))
+                .tag("entity_type", sanitize(entityType))
                 .tag("status", success ? "success" : "failure")
                 .register(REGISTRY)
                 .increment();
 
         Timer.builder("database_operation_duration_ms")
                 .description("Duration of database operations")
-                .tag("operation", operation)
-                .tag("entity_type", entityType)
+                .tag("operation", sanitize(operation))
+                .tag("entity_type", sanitize(entityType))
                 .tag("status", success ? "success" : "failure")
                 .register(REGISTRY)
                 .record(durationMs, TimeUnit.MILLISECONDS);
@@ -101,8 +101,8 @@ public final class DatabaseMetrics {
     public static void recordError(String operation, String entityType, String errorType) {
         Counter.builder("database_errors_total")
                 .description("Database operation errors by type")
-                .tag("operation", operation)
-                .tag("entity_type", entityType)
+                .tag("operation", sanitize(operation))
+                .tag("entity_type", sanitize(entityType))
                 .tag("error_type", sanitize(errorType))
                 .register(REGISTRY)
                 .increment();
@@ -114,24 +114,24 @@ public final class DatabaseMetrics {
     public static void recordQueryMetrics(String queryType, String entityType, long rowCount, long durationMs) {
         Counter.builder("database_queries_total")
                 .description("Database queries executed")
-                .tag("query_type", queryType)
-                .tag("entity_type", entityType)
+                .tag("query_type", sanitize(queryType))
+                .tag("entity_type", sanitize(entityType))
                 .register(REGISTRY)
                 .increment();
 
         if (rowCount >= 0) {
             Counter.builder("database_rows_processed_total")
                     .description("Total rows processed by queries")
-                    .tag("query_type", queryType)
-                    .tag("entity_type", entityType)
+                    .tag("query_type", sanitize(queryType))
+                    .tag("entity_type", sanitize(entityType))
                     .register(REGISTRY)
                     .increment(rowCount);
         }
 
         Timer.builder("database_query_duration_ms")
                 .description("Database query execution duration")
-                .tag("query_type", queryType)
-                .tag("entity_type", entityType)
+                .tag("query_type", sanitize(queryType))
+                .tag("entity_type", sanitize(entityType))
                 .register(REGISTRY)
                 .record(durationMs, TimeUnit.MILLISECONDS);
     }
@@ -143,16 +143,16 @@ public final class DatabaseMetrics {
                                               boolean success, long durationMs) {
         Counter.builder("database_transactions_total")
                 .description("Database transactions")
-                .tag("transaction_type", transactionType)
-                .tag("entity_type", entityType)
+                .tag("transaction_type", sanitize(transactionType))
+                .tag("entity_type", sanitize(entityType))
                 .tag("status", success ? "success" : "failure")
                 .register(REGISTRY)
                 .increment();
 
         Timer.builder("database_transaction_duration_ms")
                 .description("Database transaction duration")
-                .tag("transaction_type", transactionType)
-                .tag("entity_type", entityType)
+                .tag("transaction_type", sanitize(transactionType))
+                .tag("entity_type", sanitize(entityType))
                 .tag("status", success ? "success" : "failure")
                 .register(REGISTRY)
                 .record(durationMs, TimeUnit.MILLISECONDS);

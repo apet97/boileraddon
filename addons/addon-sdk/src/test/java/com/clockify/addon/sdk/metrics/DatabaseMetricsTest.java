@@ -38,22 +38,23 @@ class DatabaseMetricsTest {
     void testRegisterConnectionPoolGauges() {
         String poolName = "test-pool";
 
-        // Create data source only for this test
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
-        config.setUsername("sa");
-        config.setPassword("");
-        config.setMaximumPoolSize(5);
-        config.setMinimumIdle(1);
+        // Create a mock HikariDataSource instead of real database connection
+        HikariDataSource mockDataSource = mock(HikariDataSource.class);
+        com.zaxxer.hikari.HikariPoolMXBean mockPoolMXBean = mock(com.zaxxer.hikari.HikariPoolMXBean.class);
 
-        try (HikariDataSource testDataSource = new HikariDataSource(config)) {
-            // Should not throw exception
-            DatabaseMetrics.registerConnectionPoolGauges(poolName, testDataSource);
+        // Setup mock behavior
+        when(mockDataSource.getHikariPoolMXBean()).thenReturn(mockPoolMXBean);
+        when(mockPoolMXBean.getActiveConnections()).thenReturn(2);
+        when(mockPoolMXBean.getIdleConnections()).thenReturn(3);
+        when(mockPoolMXBean.getTotalConnections()).thenReturn(5);
+        when(mockPoolMXBean.getThreadsAwaitingConnection()).thenReturn(0);
 
-            // Verify that metrics are registered (we can't easily verify the actual metrics)
-            // But we can verify the method completes without errors
-            assertNotNull(testDataSource);
-        }
+        // Should not throw exception
+        DatabaseMetrics.registerConnectionPoolGauges(poolName, mockDataSource);
+
+        // Verify that metrics are registered (we can't easily verify the actual metrics)
+        // But we can verify the method completes without errors
+        assertNotNull(mockDataSource);
     }
 
     @Test
