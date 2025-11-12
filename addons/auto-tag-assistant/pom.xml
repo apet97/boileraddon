@@ -68,6 +68,12 @@
       <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Nimbus JOSE for test utilities (SignatureTestUtil) -->
+    <dependency>
+      <groupId>com.nimbusds</groupId>
+      <artifactId>nimbus-jose-jwt</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

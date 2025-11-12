@@ -5,6 +5,7 @@ import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
 import com.clockify.addon.sdk.security.WebhookSignatureValidator;
+import com.clockify.addon.sdk.testutil.SignatureTestUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -71,6 +72,8 @@ class WebhookHandlersTest {
             server.stop(0);
         }
         com.clockify.addon.sdk.security.TokenStore.clear();
+        System.clearProperty("CLOCKIFY_JWT_PUBLIC_KEY");
+        System.clearProperty("CLOCKIFY_JWT_EXPECTED_ISS");
     }
 
     @Test
@@ -159,8 +162,17 @@ class WebhookHandlersTest {
         project.put("name", "Omega Project");
 
         TestWebhookRequest request = new TestWebhookRequest("POST", payload);
-        request.setHeader(WebhookSignatureValidator.SIGNATURE_HEADER,
-            WebhookSignatureValidator.computeSignature("token-value", payload.toString()));
+        // Use canonical JWT header for webhook signature
+        var key = SignatureTestUtil.RsaFixture.generate("kid-webhook");
+        System.setProperty("CLOCKIFY_JWT_PUBLIC_KEY", key.pemPublic);
+        System.setProperty("CLOCKIFY_JWT_EXPECTED_ISS", "clockify");
+        String jwt = SignatureTestUtil.rs256Jwt(
+                key,
+                new SignatureTestUtil.Builder()
+                        .sub("auto-tag-assistant")
+                        .workspaceId(workspaceId)
+        );
+        request.setHeader("Clockify-Signature", jwt);
         HttpResponse response = handler.handle(request);
 
         assertEquals(200, response.getStatusCode());
