@@ -298,10 +298,11 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>dependency-check-maven</artifactId>
-                        <version>10.0.3</version>
+                        <version>12.1.9</version>
                         <configuration>
                             <failBuildOnCVSS>${dependency.check.cvss.threshold}</failBuildOnCVSS>
                             <junitFailOnCVSS>${dependency.check.cvss.threshold}</junitFailOnCVSS>
+                            <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
                             <formats>
                                 <format>HTML</format>
                                 <format>JSON</format>
