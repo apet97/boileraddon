@@ -3,6 +3,8 @@ package com.example.rules;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
 import com.clockify.addon.sdk.middleware.DiagnosticContextFilter;
+import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
+import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
 import com.example.rules.config.RuntimeFlags;
 import com.example.rules.security.JwtVerifier;
 import com.example.rules.web.Nonce;
@@ -40,7 +42,14 @@ public class SettingsController implements RequestHandler {
                 : (RuntimeFlags.isDevEnvironment() ? "OFF" : "LOCKED");
         String envLabel = RuntimeFlags.environmentLabel();
         String base = System.getenv().getOrDefault("ADDON_BASE_URL", "");
-        String nonce = Nonce.create();
+
+        // CRITICAL: Use the same nonce that SecurityHeadersFilter puts in CSP header
+        // to avoid browser rejecting all scripts/styles due to nonce mismatch
+        String nonce = (String) request.getAttribute(SecurityHeadersFilter.CSP_NONCE_ATTR);
+        if (nonce == null) {
+            // Fallback for tests that don't run SecurityHeadersFilter
+            nonce = Nonce.create();
+        }
         SettingsBootstrap bootstrap = resolveBootstrap(request);
         String safeBootstrapJson = escapeForScript(serializeBootstrap(bootstrap));
         String html = """
@@ -68,20 +77,25 @@ public class SettingsController implements RequestHandler {
     .error { color:#b00020 }
     .ok { color:#1b5e20 }
     code { background:#f3f3f3; padding:2px 6px; border-radius:3px; }
+    /* Inline style replacements for CSP compliance */
+    .ifttt-banner { background:#e3f2fd; border-left:4px solid #1976d2; }
+    .ifttt-banner-text { font-size:14px; font-weight:500; }
+    .status-section { border-left:4px solid #1976d2; }
+    .min-w-260 { min-width:260px; }
   </style>
 </head>
 <body>
   <h1>Rules Automation</h1>
 
-  <div class=\"section\" style=\"background:#e3f2fd; border-left:4px solid #1976d2\">
+  <div class=\"section ifttt-banner\">
     <div class=\"row\">
-      <span style=\"font-size:14px; font-weight:500\">⚡ Try the new IFTTT Builder!</span>
+      <span class=\"ifttt-banner-text\">⚡ Try the new IFTTT Builder!</span>
       <button class=\"secondary\" type=\"button\" id=\"btnIfttt\">Open IFTTT Builder →</button>
     </div>
     <p class=\"muted\">Build powerful automations with any Clockify webhook as a trigger and custom API actions</p>
   </div>
 
-  <div class=\"section\" style=\"border-left:4px solid #1976d2\">
+  <div class=\"section status-section\">
     <div class=\"row\">
       <span class=\"pill\">Mode: %s</span>
       <span class=\"pill\">Signature bypass: %s</span>
@@ -114,12 +128,12 @@ public class SettingsController implements RequestHandler {
     <h2>Create / Update Rule</h2>
     <div class=\"row\">
       <label>Workspace ID</label>
-      <input id=\"wsid\" type=\"text\" placeholder=\"workspaceId\" style=\"min-width:260px\" />
+      <input id=\"wsid\" type=\"text\" placeholder=\"workspaceId\" class=\"min-w-260\" />
       <span class=\"muted\">Required for API calls</span>
     </div>
     <div class=\"row\">
       <label>Name</label>
-      <input id=\"ruleName\" type=\"text\" placeholder=\"Rule name\" style=\"min-width:260px\" />
+      <input id=\"ruleName\" type=\"text\" placeholder=\"Rule name\" class=\"min-w-260\" />
       <label><input id=\"ruleEnabled\" type=\"checkbox\" checked /> Enabled</label>
       <label>Combinator</label>
       <select id=\"ruleComb\">
@@ -153,7 +167,7 @@ public class SettingsController implements RequestHandler {
     <h2>Quick Test (Dry‑run)</h2>
     <div class=\"row\">
       <label>Description</label>
-      <input id=\"testDesc\" type=\"text\" placeholder=\"e.g., Client meeting\" style=\"min-width:260px\" />
+      <input id=\"testDesc\" type=\"text\" placeholder=\"e.g., Client meeting\" class=\"min-w-260\" />
       <label>Project ID</label>
       <input id=\"testPid\" type=\"text\" placeholder=\"optional\" />
       <button class=\"secondary\" type=\"button\" id=\"btnDryRun\">Run</button>
@@ -478,28 +492,38 @@ public class SettingsController implements RequestHandler {
         String requestId = Objects.toString(
                 request.getAttribute(DiagnosticContextFilter.REQUEST_ID_ATTR),
                 Nonce.create());
-        String workspaceId = "";
-        String userId = "";
+
+        // Priority 1: WorkspaceContextFilter attributes (set by filter from auth_token JWT)
+        String workspaceId = (String) request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR);
+        String userId = (String) request.getAttribute(WorkspaceContextFilter.USER_ID_ATTR);
         String userEmail = "";
 
-        String rawJwt = request.getParameter("jwt");
-        if (jwtVerifier != null && rawJwt != null && !rawJwt.isBlank()) {
-            try {
-                JwtVerifier.DecodedJwt decoded = jwtVerifier.verify(rawJwt);
-                JsonNode payload = decoded.payload();
-                workspaceId = payload.path("workspaceId").asText("");
-                userId = payload.path("userId").asText("");
-                userEmail = payload.path("userEmail").asText("");
-                if (!workspaceId.isBlank()) {
-                    request.setAttribute(DiagnosticContextFilter.WORKSPACE_ID_ATTR, workspaceId);
+        // Priority 2: Fallback to legacy jwt parameter (deprecated but kept for compatibility)
+        if ((workspaceId == null || workspaceId.isBlank()) && jwtVerifier != null) {
+            String rawJwt = request.getParameter("jwt");
+            if (rawJwt != null && !rawJwt.isBlank()) {
+                try {
+                    JwtVerifier.DecodedJwt decoded = jwtVerifier.verify(rawJwt);
+                    JsonNode payload = decoded.payload();
+                    workspaceId = payload.path("workspaceId").asText("");
+                    userId = payload.path("userId").asText("");
+                    userEmail = payload.path("userEmail").asText("");
+                    if (!workspaceId.isBlank()) {
+                        request.setAttribute(DiagnosticContextFilter.WORKSPACE_ID_ATTR, workspaceId);
+                    }
+                    if (!userId.isBlank()) {
+                        request.setAttribute(DiagnosticContextFilter.USER_ID_ATTR, userId);
+                    }
+                } catch (JwtVerifier.JwtVerificationException e) {
+                    logger.warn("Settings JWT rejected: {}", e.getMessage());
                 }
-                if (!userId.isBlank()) {
-                    request.setAttribute(DiagnosticContextFilter.USER_ID_ATTR, userId);
-                }
-            } catch (JwtVerifier.JwtVerificationException e) {
-                logger.warn("Settings JWT rejected: {}", e.getMessage());
             }
         }
+
+        // Normalize to empty string if null
+        workspaceId = workspaceId != null ? workspaceId : "";
+        userId = userId != null ? userId : "";
+
         return new SettingsBootstrap(workspaceId, userId, userEmail, requestId);
     }
 
