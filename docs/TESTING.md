@@ -307,25 +307,60 @@ mvn test -Dtest=WebhookEventContractTest#timeEntryCreatedEvent_hasRequiredFields
 
 ## Targeted Test Commands
 
+### Important: Module-Scoped Testing
+
+**⚠️ Common Pitfall**: When using `-Dtest` patterns with `-am` (also-make), Maven runs tests in ALL reactor modules, causing "No tests matching pattern" errors in modules that don't contain the test.
+
+**✅ Solution**: Use `-pl` WITHOUT `-am` for targeted tests, or use `-Dsurefire.failIfNoSpecifiedTests=false`:
+
+```bash
+# ❌ WRONG: Will fail if addon-sdk doesn't have JwtVerifierTest
+mvn -pl addons/rules -am -Dtest='*JwtVerifier*' test
+
+# ✅ CORRECT: Test only the rules module
+mvn -pl addons/rules -Dtest='*JwtVerifier*' test
+
+# ✅ ALTERNATIVE: Allow missing tests (less preferred)
+mvn -pl addons/rules -am -Dtest='*JwtVerifier*' -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
 ### Security Component Tests
 
 Run specific security-related tests with quoted patterns to avoid shell expansion:
 
 ```bash
-# JWT Verifier tests (rules module)
+# JWT Verifier tests (rules module only, no -am)
 mvn -q -pl addons/rules -Dtest='*JwtVerifier*' test
 
-# Security Headers Filter tests (SDK)
-mvn -q -pl addons/addon-sdk -am -Dtest='*SecurityHeadersFilter*' test
+# Security Headers Filter tests (SDK module only, no -am)
+mvn -q -pl addons/addon-sdk -Dtest='*SecurityHeadersFilter*' test
 
 # Error Response tests (rules module)
 mvn -q -pl addons/rules -Dtest='*Error*' test
 
-# CRUD Controller tests
+# CRUD Controller tests (comma-separated pattern)
 mvn -q -pl addons/rules -Dtest='*Projects*,*Clients*,*Tasks*,*Tags*' test
 
-# Smoke tests
+# Smoke tests (integration tests ending with IT)
 mvn -q -pl addons/rules -Dtest='CrudEndpointsSmokeIT' test
+
+# All integration tests (IT suffix)
+mvn -q -pl addons/rules -Dtest='*IT' test
+```
+
+### Module-Level Test Commands
+
+Run all tests for a specific module:
+
+```bash
+# Rules addon tests (builds dependencies first)
+mvn -pl addons/rules -am test
+
+# SDK tests only
+mvn -pl addons/addon-sdk test
+
+# Both modules
+mvn -pl addons/addon-sdk,addons/rules test
 ```
 
 ### JWT Verifier Configuration for Local Testing
