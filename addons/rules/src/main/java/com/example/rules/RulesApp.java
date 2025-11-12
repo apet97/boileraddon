@@ -12,6 +12,7 @@ import com.clockify.addon.sdk.middleware.CorsFilter;
 import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
+import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
 import com.example.rules.config.RuntimeFlags;
 import com.example.rules.api.ErrorResponse;
 import com.example.rules.store.RulesStore;
@@ -421,6 +422,21 @@ public class RulesApp {
         // Start embedded Jetty server with middleware
         AddonServlet servlet = new AddonServlet(addon);
         EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+
+        // Add workspace context filter to extract workspace/user from settings JWT
+        // This must run before SecurityHeadersFilter to ensure request attributes are available
+        if (jwtVerifier != null) {
+            server.addFilter(new WorkspaceContextFilter(jwt -> {
+                try {
+                    JwtVerifier.DecodedJwt decoded = jwtVerifier.verify(jwt);
+                    return decoded != null ? decoded.payload() : null;
+                } catch (Exception e) {
+                    logger.debug("JWT verification failed in WorkspaceContextFilter: {}", e.getMessage());
+                    return null;
+                }
+            }));
+            logger.info("WorkspaceContextFilter registered with JWT verification");
+        }
 
         // Always add basic security headers; configure frame-ancestors via ADDON_FRAME_ANCESTORS
         server.addFilter(new SecurityHeadersFilter());
