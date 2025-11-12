@@ -21,6 +21,14 @@
       <artifactId>addon-sdk</artifactId>
       <version>0.1.0</version>
     </dependency>
+    <!-- SDK test utilities (JWT/JWKS helpers) -->
+    <dependency>
+      <groupId>com.clockify.boilerplate</groupId>
+      <artifactId>addon-sdk</artifactId>
+      <version>0.1.0</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>

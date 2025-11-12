@@ -41,8 +41,10 @@ public final class SecurityHeadersFilter implements Filter {
 
     // Embed only self and Clockify
     String frameAncestors = System.getenv().getOrDefault(
-        "CLOCKIFY_FRAME_ANCESTORS",
-        "'self' https://*.clockify.me https://*.clockify.com https://developer.clockify.me");
+        "ADDON_FRAME_ANCESTORS",
+        System.getenv().getOrDefault(
+            "CLOCKIFY_FRAME_ANCESTORS",
+            "'self' https://*.clockify.me https://*.clockify.com https://developer.clockify.me"));
 
     String csp =
         "upgrade-insecure-requests; " +

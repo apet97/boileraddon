@@ -87,7 +87,7 @@ public class WebhookHandlers {
                     boolean skipSig = RuntimeFlags.skipSignatureVerification();
                     if (!skipSig) {
                         WebhookSignatureValidator.VerificationResult verificationResult =
-                                WebhookSignatureValidator.verify(request, workspaceId);
+                                WebhookSignatureValidator.verify(request, workspaceId, addon.getManifest().getKey());
                         if (!verificationResult.isValid()) {
                             logger.warn("Webhook signature verification failed for workspace {}", workspaceId);
                             return verificationResult.response();

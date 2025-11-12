@@ -8,6 +8,7 @@ import com.example.rules.store.RulesStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import com.clockify.addon.sdk.testutil.SignatureTestUtil;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -29,6 +30,10 @@ class LifecycleHandlersIntegrationTest {
 
     @Test
     void installedAndDeletedRoundTripStoresAndRemovesToken() throws Exception {
+        // Configure JWT public key for lifecycle signature verification
+        var key = SignatureTestUtil.RsaFixture.generate("kid-lc");
+        System.setProperty("CLOCKIFY_JWT_PUBLIC_KEY", key.pemPublic);
+        System.setProperty("CLOCKIFY_JWT_EXPECTED_ISS", "clockify");
         int port = findFreePort();
         String baseUrl = "http://localhost:" + port + "/rules";
 
@@ -57,7 +62,11 @@ class LifecycleHandlersIntegrationTest {
                     .put("authToken", "tkn")
                     .put("apiUrl", "https://api.clockify.me/api/v1")
                     .toString();
-            HttpURLConnection c1 = post(baseUrl + "/lifecycle/installed", payload);
+            String jwtInstall = SignatureTestUtil.rs256Jwt(
+                    key,
+                    new SignatureTestUtil.Builder().sub("rules").workspaceId("ws-lc")
+            );
+            HttpURLConnection c1 = post(baseUrl + "/lifecycle/installed", payload, jwtInstall);
             assertEquals(200, c1.getResponseCode());
             String body1 = readBody(c1);
             JsonNode j1 = OM.readTree(body1);
@@ -66,7 +75,11 @@ class LifecycleHandlersIntegrationTest {
 
             // Delete
             String delPayload = OM.createObjectNode().put("workspaceId", "ws-lc").toString();
-            HttpURLConnection c2 = post(baseUrl + "/lifecycle/deleted", delPayload);
+            String jwtDelete = SignatureTestUtil.rs256Jwt(
+                    key,
+                    new SignatureTestUtil.Builder().sub("rules").workspaceId("ws-lc")
+            );
+            HttpURLConnection c2 = post(baseUrl + "/lifecycle/deleted", delPayload, jwtDelete);
             assertEquals(200, c2.getResponseCode());
             String body2 = readBody(c2);
             JsonNode j2 = OM.readTree(body2);
@@ -76,6 +89,8 @@ class LifecycleHandlersIntegrationTest {
             server.stop();
             f.cancel(true);
             exec.shutdownNow();
+            System.clearProperty("CLOCKIFY_JWT_PUBLIC_KEY");
+            System.clearProperty("CLOCKIFY_JWT_EXPECTED_ISS");
         }
     }
 
@@ -92,10 +107,11 @@ class LifecycleHandlersIntegrationTest {
         throw new IllegalStateException("Server did not start");
     }
 
-    private static HttpURLConnection post(String url, String body) throws Exception {
+    private static HttpURLConnection post(String url, String body, String jwt) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setRequestMethod("POST");
         c.setRequestProperty("Content-Type", "application/json");
+        if (jwt != null && !jwt.isBlank()) c.setRequestProperty("Clockify-Signature", jwt);
         c.setDoOutput(true);
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         c.setRequestProperty("Content-Length", Integer.toString(bytes.length));
@@ -111,4 +127,3 @@ class LifecycleHandlersIntegrationTest {
         }
     }
 }
-

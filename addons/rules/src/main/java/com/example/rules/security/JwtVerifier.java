@@ -58,17 +58,28 @@ public final class JwtVerifier {
     private final Constraints constraints;
     private final String defaultKid;
     private final Clock clock;
+    private final String expectedSubject;
 
     private JwtVerifier(PublicKey defaultKey,
                        Map<String, PublicKey> kidKeys,
                        Constraints constraints,
                        String defaultKid,
                        Clock clock) {
+        this(defaultKey, kidKeys, constraints, defaultKid, clock, null);
+    }
+
+    private JwtVerifier(PublicKey defaultKey,
+                        Map<String, PublicKey> kidKeys,
+                        Constraints constraints,
+                        String defaultKid,
+                        Clock clock,
+                        String expectedSubject) {
         this.defaultKey = defaultKey;
         this.kidKeys = kidKeys == null ? Map.of() : Collections.unmodifiableMap(new HashMap<>(kidKeys));
         this.constraints = constraints == null ? Constraints.defaults() : constraints;
         this.defaultKid = defaultKid == null ? null : defaultKid.trim();
         this.clock = clock == null ? Clock.systemUTC() : clock;
+        this.expectedSubject = normalize(expectedSubject);
     }
 
     public static JwtVerifier fromPem(String pem) throws Exception {
@@ -77,6 +88,10 @@ public final class JwtVerifier {
 
     public static JwtVerifier fromPem(String pem, Constraints constraints) throws Exception {
         return new JwtVerifier(parsePem(pem), Map.of(), constraints, null, Clock.systemUTC());
+    }
+
+    public static JwtVerifier fromPem(String pem, Constraints constraints, String expectedSubject) throws Exception {
+        return new JwtVerifier(parsePem(pem), Map.of(), constraints, null, Clock.systemUTC(), expectedSubject);
     }
 
     public static JwtVerifier fromPemMap(Map<String, String> pemByKid,
@@ -91,6 +106,21 @@ public final class JwtVerifier {
         }
         PublicKey fallback = defaultKid == null ? null : resolved.get(defaultKid);
         return new JwtVerifier(fallback, resolved, constraints, defaultKid, Clock.systemUTC());
+    }
+
+    public static JwtVerifier fromPemMap(Map<String, String> pemByKid,
+                                         String defaultKid,
+                                         Constraints constraints,
+                                         String expectedSubject) throws Exception {
+        if (pemByKid == null || pemByKid.isEmpty()) {
+            throw new IllegalArgumentException("pemByKid must contain at least one entry");
+        }
+        Map<String, PublicKey> resolved = new HashMap<>();
+        for (Map.Entry<String, String> entry : pemByKid.entrySet()) {
+            resolved.put(entry.getKey(), parsePem(entry.getValue()));
+        }
+        PublicKey fallback = defaultKid == null ? null : resolved.get(defaultKid);
+        return new JwtVerifier(fallback, resolved, constraints, defaultKid, Clock.systemUTC(), expectedSubject);
     }
 
     static JwtVerifier forTesting(PublicKey defaultKey, Constraints constraints, Clock clock) {
@@ -115,6 +145,15 @@ public final class JwtVerifier {
         // Use the first key as default if no default kid is specified
         String firstKid = allKeys.keySet().iterator().next();
         return new JwtVerifier(allKeys.get(firstKid), allKeys, constraints, firstKid, Clock.systemUTC());
+    }
+
+    public static JwtVerifier fromKeySource(JwksKeySource keySource, Constraints constraints, String expectedSubject) throws Exception {
+        Map<String, PublicKey> allKeys = keySource.getAllKeys();
+        if (allKeys.isEmpty()) {
+            throw new IllegalArgumentException("Key source returned no keys");
+        }
+        String firstKid = allKeys.keySet().iterator().next();
+        return new JwtVerifier(allKeys.get(firstKid), allKeys, constraints, firstKid, Clock.systemUTC(), expectedSubject);
     }
 
     public DecodedJwt verify(String token) throws JwtVerificationException {
@@ -208,6 +247,13 @@ public final class JwtVerifier {
         if (constraints.expectedAudience() != null) {
             if (!audMatches(payload.get("aud"), constraints.expectedAudience())) {
                 throw new JwtVerificationException("Unexpected audience");
+            }
+        }
+
+        if (expectedSubject != null) {
+            String sub = normalize(payload.path("sub").asText(null));
+            if (!Objects.equals(expectedSubject, sub)) {
+                throw new JwtVerificationException("Unexpected subject");
             }
         }
     }

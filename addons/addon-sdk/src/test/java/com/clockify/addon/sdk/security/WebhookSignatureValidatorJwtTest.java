@@ -17,6 +17,7 @@ import static org.mockito.Mockito.*;
  * Tests JWT signature validation path in WebhookSignatureValidator.
  * Covers the Developer JWT flow (Clockify-Signature header).
  */
+@org.junit.jupiter.api.extension.ExtendWith(com.clockify.addon.sdk.testutil.DevCompatExtension.class)
 class WebhookSignatureValidatorJwtTest {
 
     private static final String WORKSPACE_ID = "ws123";
@@ -27,6 +28,10 @@ class WebhookSignatureValidatorJwtTest {
         // Clear any existing tokens
         TokenStore.clear();
         System.setProperty("ADDON_ACCEPT_JWT_SIGNATURE", "true");
+        System.setProperty("ENV", "dev");
+        System.setProperty("ADDON_AUTH_COMPAT", "HMAC");
+        // Also set expected issuer for strict checks
+        System.setProperty("CLOCKIFY_JWT_EXPECTED_ISS", "clockify");
         // Store a test token for the workspace
         TokenStore.save(WORKSPACE_ID, TOKEN, "https://api.clockify.me");
     }
@@ -35,6 +40,9 @@ class WebhookSignatureValidatorJwtTest {
     void tearDown() {
         TokenStore.clear();
         System.clearProperty("ADDON_ACCEPT_JWT_SIGNATURE");
+        System.clearProperty("ENV");
+        System.clearProperty("ADDON_AUTH_COMPAT");
+        System.clearProperty("CLOCKIFY_JWT_EXPECTED_ISS");
     }
 
     @Test

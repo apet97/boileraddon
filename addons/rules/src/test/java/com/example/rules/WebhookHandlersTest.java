@@ -41,12 +41,18 @@ class WebhookHandlersTest {
         // Clear token store
         com.clockify.addon.sdk.security.TokenStore.clear();
         System.setProperty("ADDON_ACCEPT_JWT_SIGNATURE", "true");
+        System.setProperty("ADDON_AUTH_COMPAT", "HMAC");
+        System.setProperty("ENV", "dev");
     }
 
     @AfterEach
     void tearDown() {
         com.clockify.addon.sdk.security.TokenStore.clear();
         System.clearProperty("ADDON_ACCEPT_JWT_SIGNATURE");
+        System.clearProperty("ADDON_AUTH_COMPAT");
+        System.clearProperty("ENV");
+        System.clearProperty("CLOCKIFY_JWT_PUBLIC_KEY");
+        System.clearProperty("CLOCKIFY_JWT_EXPECT_ISS");
     }
 
     @Test
@@ -287,11 +293,35 @@ class WebhookHandlersTest {
             }
             """;
 
-        // Craft a minimal JWT with base64url payload containing the workspaceId; signature ignored by validator
-        String headerJson = "{\"alg\":\"none\",\"typ\":\"JWT\"}";
-        String payloadJson = "{\"workspaceId\":\"" + workspaceId + "\"}";
+        // Create an RSA keypair and sign a JWT per the guide
+        java.security.KeyPairGenerator kpg = java.security.KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        java.security.KeyPair kp = kpg.generateKeyPair();
+        java.security.interfaces.RSAPublicKey pub = (java.security.interfaces.RSAPublicKey) kp.getPublic();
+        java.security.interfaces.RSAPrivateKey priv = (java.security.interfaces.RSAPrivateKey) kp.getPrivate();
+
+        String headerJson = "{\\\"alg\\\":\\\"RS256\\\",\\\"typ\\\":\\\"JWT\\\"}";
+        long exp = java.time.Instant.now().plusSeconds(300).getEpochSecond();
+        String payloadJson = "{" +
+                "\\\"iss\\\":\\\"clockify\\\"," +
+                "\\\"type\\\":\\\"addon\\\"," +
+                "\\\"sub\\\":\\\"rules\\\"," +
+                "\\\"workspaceId\\\":\\\"" + workspaceId + "\\\"," +
+                "\\\"exp\\\":" + exp +
+                "}";
         java.util.Base64.Encoder urlEnc = java.util.Base64.getUrlEncoder().withoutPadding();
-        String jwt = urlEnc.encodeToString(headerJson.getBytes()) + "." + urlEnc.encodeToString(payloadJson.getBytes()) + ".x";
+        String headerB64 = urlEnc.encodeToString(headerJson.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String payloadB64 = urlEnc.encodeToString(payloadJson.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String signingInput = headerB64 + "." + payloadB64;
+        java.security.Signature sig = java.security.Signature.getInstance("SHA256withRSA");
+        sig.initSign(priv);
+        sig.update(signingInput.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        String signatureB64 = urlEnc.encodeToString(sig.sign());
+        String jwt = signingInput + "." + signatureB64;
+
+        // Configure validator with public key
+        System.setProperty("CLOCKIFY_JWT_PUBLIC_KEY", toPem(pub));
+        System.setProperty("CLOCKIFY_JWT_EXPECTED_ISS", "clockify");
 
         // Mock request with JWT header instead of HMAC header
         when(request.getHeader("clockify-webhook-signature")).thenReturn(null);
@@ -326,5 +356,11 @@ class WebhookHandlersTest {
         assertEquals(200, response.getStatusCode());
         JsonNode out = mapper.readTree(response.getBody());
         assertTrue(out.has("status"));
+    }
+
+    private static String toPem(java.security.interfaces.RSAPublicKey publicKey) {
+        byte[] der = publicKey.getEncoded();
+        String b64 = java.util.Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(der);
+        return "-----BEGIN PUBLIC KEY-----\n" + b64 + "\n-----END PUBLIC KEY-----";
     }
 }

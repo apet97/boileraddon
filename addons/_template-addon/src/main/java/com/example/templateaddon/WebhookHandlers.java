@@ -15,14 +15,14 @@ public class WebhookHandlers {
     public static void register(ClockifyAddon addon) {
         String[] events = {"TIME_ENTRY_CREATED","TIME_ENTRY_UPDATED","NEW_TIMER_STARTED","TIMER_STOPPED"};
         for (String e: events) {
-            addon.registerWebhookHandler(e, WebhookHandlers::handle);
+            addon.registerWebhookHandler(e, req -> handle(addon, req));
         }
     }
 
-    private static HttpResponse handle(HttpServletRequest req) throws Exception {
+    private static HttpResponse handle(ClockifyAddon addon, HttpServletRequest req) throws Exception {
         JsonNode payload = parse(req);
         String ws = payload.has("workspaceId")?payload.get("workspaceId").asText(null):null;
-        var sig = WebhookSignatureValidator.verify(req, ws);
+        var sig = WebhookSignatureValidator.verify(req, ws, addon.getManifest().getKey());
         if (!sig.isValid()) return sig.response();
         // Implement your business logic here
         // Example: Process time entry data from payload
@@ -38,4 +38,3 @@ public class WebhookHandlers {
         StringBuilder sb=new StringBuilder(); try(BufferedReader br=r.getReader()){String line;while((line=br.readLine())!=null)sb.append(line);}return om.readTree(sb.toString());
     }
 }
-

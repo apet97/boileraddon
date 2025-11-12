@@ -100,7 +100,7 @@ public class DynamicWebhookHandlers {
 
                 if (!RuntimeFlags.skipSignatureVerification()) {
                     WebhookSignatureValidator.VerificationResult verificationResult =
-                            WebhookSignatureValidator.verify(request, workspaceId);
+                            WebhookSignatureValidator.verify(request, workspaceId, addon.getManifest().getKey());
                     if (!verificationResult.isValid()) {
                         logger.warn("Webhook signature verification failed for workspace {}", workspaceId);
                         return respondWithMetrics(sample, eventType, "invalid_signature", verificationResult.response());

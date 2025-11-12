@@ -37,6 +37,12 @@ public class LifecycleHandlers {
 
         // Handle INSTALLED event
         addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> {
+            // Verify lifecycle signature (JWT) before processing
+            com.clockify.addon.sdk.security.WebhookSignatureValidator.VerificationResult sig =
+                    com.clockify.addon.sdk.security.WebhookSignatureValidator.verifyLifecycle(request, addon.getManifest().getKey());
+            if (!sig.isValid()) {
+                return sig.response();
+            }
             try (LoggingContext loggingContext = LoggingContext.create()) {
                 JsonNode payload = parseRequestBody(request);
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
@@ -87,6 +93,11 @@ public class LifecycleHandlers {
 
         // Handle DELETED event
         addon.registerLifecycleHandler("DELETED", "/lifecycle/deleted", request -> {
+            com.clockify.addon.sdk.security.WebhookSignatureValidator.VerificationResult sig =
+                    com.clockify.addon.sdk.security.WebhookSignatureValidator.verifyLifecycle(request, addon.getManifest().getKey());
+            if (!sig.isValid()) {
+                return sig.response();
+            }
             try (LoggingContext loggingContext = LoggingContext.create()) {
                 JsonNode payload = parseRequestBody(request);
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;

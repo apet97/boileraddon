@@ -26,17 +26,17 @@ public class WebhookHandlers {
         settings = store;
         String[] events = {"TIMER_STOPPED", "TIME_ENTRY_UPDATED"};
         for (String e : events) {
-            addon.registerWebhookHandler(e, WebhookHandlers::handle);
+            addon.registerWebhookHandler(e, req -> handle(addon, req));
         }
     }
 
-    private static HttpResponse handle(HttpServletRequest req) throws Exception {
+    private static HttpResponse handle(ClockifyAddon addon, HttpServletRequest req) throws Exception {
         JsonNode body = parse(req);
         String ws = text(body, "workspaceId");
         String event = text(body, "event");
         if (ws == null) return HttpResponse.error(400, "{\"error\":\"workspaceId missing\"}", "application/json");
 
-        var sig = WebhookSignatureValidator.verify(req, ws);
+        var sig = WebhookSignatureValidator.verify(req, ws, addon.getManifest().getKey());
         if (!sig.isValid()) return sig.response();
 
         JsonNode te = body.has("timeEntry") ? body.get("timeEntry") : body;

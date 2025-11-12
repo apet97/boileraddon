@@ -74,14 +74,19 @@ public class RulesApp {
                 .name("Rules")
                 .description("Declarative automations for Clockify: if conditions then actions")
                 .baseUrl(baseUrl)
-                .minimalSubscriptionPlan("FREE")
+                .minimalSubscriptionPlan("PRO")
                 .scopes(new String[]{
                         "TIME_ENTRY_READ",
                         "TIME_ENTRY_WRITE",
                         "TAG_READ",
                         "TAG_WRITE",
                         "PROJECT_READ",
-                        "PROJECT_WRITE"
+                        "PROJECT_WRITE",
+                        "CLIENT_READ",
+                        "CLIENT_WRITE",
+                        "TASK_READ",
+                        "TASK_WRITE",
+                        "WORKSPACE_READ"
                 })
                 .build();
 
@@ -531,11 +536,13 @@ public class RulesApp {
         }
         try {
             JwtVerifier.Constraints constraints = JwtVerifier.Constraints.fromEnvironment();
+            // Enforce sub == manifest key for UI/settings JWTs
+            String expectedSubject = "rules";
             if (keyMapJson != null && !keyMapJson.isBlank()) {
                 java.util.Map<String, String> pemByKid = new com.fasterxml.jackson.databind.ObjectMapper()
                         .readValue(keyMapJson, new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, String>>() {});
                 String defaultKid = System.getenv("CLOCKIFY_JWT_DEFAULT_KID");
-                JwtVerifier verifier = JwtVerifier.fromPemMap(pemByKid, defaultKid, constraints);
+                JwtVerifier verifier = JwtVerifier.fromPemMap(pemByKid, defaultKid, constraints, expectedSubject);
                 logger.info("Verified settings JWTs using {} kid-mapped keys (defaultKid={}, iss={}, aud={}, skew={}s)",
                         pemByKid.size(),
                         logValue(defaultKid),
@@ -544,7 +551,7 @@ public class RulesApp {
                         constraints.clockSkewSeconds());
                 return verifier;
             }
-            JwtVerifier verifier = JwtVerifier.fromPem(pem, constraints);
+            JwtVerifier verifier = JwtVerifier.fromPem(pem, constraints, expectedSubject);
             logger.info("Verified settings JWTs using configured public key (iss={}, aud={}, skew={}s)",
                     logValue(constraints.expectedIssuer()),
                     logValue(constraints.expectedAudience()),

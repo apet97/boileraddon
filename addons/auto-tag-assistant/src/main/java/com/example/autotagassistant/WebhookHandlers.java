@@ -61,7 +61,7 @@ public class WebhookHandlers {
                     String eventType = payload.has("event") ? payload.get("event").asText() : event;
 
                     WebhookSignatureValidator.VerificationResult verificationResult = WebhookSignatureValidator.verify(request,
-                        workspaceId);
+                        workspaceId, addon.getManifest().getKey());
                     if (!verificationResult.isValid()) {
                         return verificationResult.response();
                     }

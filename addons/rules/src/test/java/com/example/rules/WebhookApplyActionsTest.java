@@ -4,6 +4,7 @@ import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.security.WebhookSignatureValidator;
+import com.clockify.addon.sdk.testutil.SignatureTestUtil;
 import com.example.rules.engine.Action;
 import com.example.rules.engine.Condition;
 import com.example.rules.engine.Rule;
@@ -52,6 +53,8 @@ class WebhookApplyActionsTest {
         System.clearProperty("RULES_APPLY_CHANGES");
         com.clockify.addon.sdk.security.TokenStore.clear();
         WebhookHandlers.setClientFactory(null); // reset
+        System.clearProperty("CLOCKIFY_JWT_PUBLIC_KEY");
+        System.clearProperty("CLOCKIFY_JWT_EXPECTED_ISS");
     }
 
     @Test
@@ -82,7 +85,11 @@ class WebhookApplyActionsTest {
             """;
 
         // Prepare request with signature and body
-        setupWebhookRequest(payload, authToken);
+        // Configure JWT public key and expected issuer
+        var key = SignatureTestUtil.RsaFixture.generate("kid-apply");
+        System.setProperty("CLOCKIFY_JWT_PUBLIC_KEY", key.pemPublic);
+        System.setProperty("CLOCKIFY_JWT_EXPECTED_ISS", "clockify");
+        setupWebhookRequestJwt(payload, key, workspaceId);
 
         // Fake ClockifyClient to avoid network and assert calls
         ClockifyClient fake = Mockito.mock(ClockifyClient.class);
@@ -130,9 +137,12 @@ class WebhookApplyActionsTest {
         verify(fake, times(1)).updateTimeEntry(eq(workspaceId), eq("e1"), any(ObjectNode.class));
     }
 
-    private void setupWebhookRequest(String payload, String token) throws Exception {
-        String signature = WebhookSignatureValidator.computeSignature(token, payload);
-        when(request.getHeader("clockify-webhook-signature")).thenReturn(signature);
+    private void setupWebhookRequestJwt(String payload, SignatureTestUtil.RsaFixture key, String workspaceId) throws Exception {
+        String jwt = SignatureTestUtil.rs256Jwt(
+                key,
+                new SignatureTestUtil.Builder().sub("rules").workspaceId(workspaceId)
+        );
+        when(request.getHeader("Clockify-Signature")).thenReturn(jwt);
         when(request.getAttribute("clockify.rawBody")).thenReturn(payload);
         JsonNode node = mapper.readTree(payload);
         when(request.getAttribute("clockify.jsonBody")).thenReturn(node);

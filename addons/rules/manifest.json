@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.3",
-  "key": "rules-engine",
+  "key": "rules",
   "name": "Rules Engine",
   "description": "Powerful IFTTT-style automation engine for Clockify that enables custom rules, webhook triggers, and API actions",
   "baseUrl": "http://localhost:8080/rules",
