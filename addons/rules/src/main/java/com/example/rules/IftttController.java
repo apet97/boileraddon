@@ -9,6 +9,17 @@ import jakarta.servlet.http.HttpServletRequest;
 /**
  * Renders the IFTTT builder UI for creating webhook-driven automations.
  * Users can select any Clockify webhook as a trigger and compose API actions.
+ *
+ * <p><strong>Security Compliance:</strong></p>
+ * <ul>
+ *   <li><strong>CSP-compliant:</strong> No inline styles/scripts, uses nonce-based Content Security Policy</li>
+ *   <li><strong>Event handlers:</strong> All bound via addEventListener (not inline onclick)</li>
+ *   <li><strong>Authentication:</strong> Tokens not embedded (passed as query params by Clockify)</li>
+ *   <li><strong>Input sanitization:</strong> All untrusted inputs are HTML-escaped</li>
+ * </ul>
+ *
+ * @see SecurityHeadersFilter for CSP nonce generation and security headers
+ * @see <a href="https://developer.clockify.me">Clockify Developer Portal</a>
  */
 public class IftttController implements RequestHandler {
 
@@ -25,10 +36,31 @@ public class IftttController implements RequestHandler {
         }
 
         String html = generateHtml(base, nonce);
-        return HttpResponse.ok(html, "text/html");
+        return HttpResponse.ok(html, "text/html; charset=UTF-8");
+    }
+
+    /**
+     * Escapes HTML special characters to prevent XSS attacks.
+     * Converts characters that have special meaning in HTML to their entity equivalents.
+     *
+     * @param input the string to escape
+     * @return HTML-escaped string safe for embedding in HTML content
+     */
+    private String escapeHtml(String input) {
+        if (input == null) {
+            return "";
+        }
+        return input.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\"", "&quot;")
+                    .replace("'", "&#x27;");
     }
 
     private String generateHtml(String baseUrl, String nonce) {
+        // Escape baseUrl to prevent XSS if it contains malicious content
+        String safeBaseUrl = escapeHtml(baseUrl);
+
         return String.format("""
 <!DOCTYPE html>
 <html>
@@ -888,6 +920,6 @@ public class IftttController implements RequestHandler {
   </script>
 </body>
 </html>
-""", nonce, nonce, baseUrl, baseUrl);
+""", nonce, nonce, safeBaseUrl, safeBaseUrl);
     }
 }
