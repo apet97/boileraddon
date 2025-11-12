@@ -2,6 +2,8 @@ package com.example.rules;
 
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
+import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
+import com.example.rules.web.Nonce;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -13,11 +15,20 @@ public class IftttController implements RequestHandler {
     @Override
     public HttpResponse handle(HttpServletRequest request) {
         String base = System.getenv().getOrDefault("ADDON_BASE_URL", "");
-        String html = generateHtml(base);
+
+        // CRITICAL: Use the same nonce that SecurityHeadersFilter puts in CSP header
+        // to avoid browser rejecting all scripts/styles due to nonce mismatch
+        String nonce = (String) request.getAttribute(SecurityHeadersFilter.CSP_NONCE_ATTR);
+        if (nonce == null) {
+            // Fallback for tests that don't run SecurityHeadersFilter
+            nonce = Nonce.create();
+        }
+
+        String html = generateHtml(base, nonce);
         return HttpResponse.ok(html, "text/html");
     }
 
-    private String generateHtml(String baseUrl) {
+    private String generateHtml(String baseUrl, String nonce) {
         return String.format("""
 <!DOCTYPE html>
 <html>
@@ -25,7 +36,7 @@ public class IftttController implements RequestHandler {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IFTTT Builder - Rules</title>
-  <style>
+  <style nonce="%s">
     * { box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -236,7 +247,7 @@ public class IftttController implements RequestHandler {
       <p class="muted">Create powerful automations: when any Clockify webhook fires, execute custom API actions</p>
       <div class="row">
         <span class="pill">Base: %s</span>
-        <button class="secondary small" onclick="window.location.href=baseUrl+'/settings'">← Back to Settings</button>
+        <button class="secondary small" id="btnBack">← Back to Settings</button>
       </div>
     </div>
 
@@ -248,7 +259,7 @@ public class IftttController implements RequestHandler {
         <div class="hint">Required for API calls and cache loading</div>
       </div>
       <div class="row">
-        <button class="secondary" onclick="loadCache()">Load Workspace Data</button>
+        <button class="secondary" id="btnLoadCache">Load Workspace Data</button>
         <span id="cacheStatus" class="muted"></span>
       </div>
     </div>
@@ -259,7 +270,7 @@ public class IftttController implements RequestHandler {
         <div class="card">
           <h2>📥 If This (Trigger)</h2>
           <div class="search-box">
-            <input id="triggerSearch" type="text" placeholder="Search webhook events..." onkeyup="filterTriggers()" />
+            <input id="triggerSearch" type="text" placeholder="Search webhook events..." />
             <div class="filter-chips" id="triggerCategories"></div>
           </div>
           <div class="trigger-list" id="triggerList">
@@ -272,7 +283,7 @@ public class IftttController implements RequestHandler {
           <div id="selectedTriggerInfo"></div>
           <h3 style="margin-top:16px">Filter Conditions (Optional)</h3>
           <div id="triggerConditions"></div>
-          <button class="secondary small" onclick="addCondition()">+ Add Condition</button>
+          <button class="secondary small" id="btnAddCondition">+ Add Condition</button>
         </div>
       </div>
 
@@ -281,7 +292,7 @@ public class IftttController implements RequestHandler {
         <div class="card">
           <h2>📤 Then That (Actions)</h2>
           <div id="actionsList"></div>
-          <button class="secondary" onclick="addAction()">+ Add Action</button>
+          <button class="secondary" id="btnAddAction">+ Add Action</button>
         </div>
 
         <div class="card">
@@ -303,9 +314,9 @@ public class IftttController implements RequestHandler {
         </div>
       </div>
       <div class="row">
-        <button onclick="saveRule()">💾 Save Rule</button>
-        <button class="secondary" onclick="testRule()">🧪 Dry Run (Time Entry events only)</button>
-        <button class="secondary" onclick="clearForm()">🔄 Clear Form</button>
+        <button id="btnSaveRule">💾 Save Rule</button>
+        <button class="secondary" id="btnTestRule">🧪 Dry Run (Time Entry events only)</button>
+        <button class="secondary" id="btnClearForm">🔄 Clear Form</button>
         <span id="saveStatus" class="muted"></span>
       </div>
     </div>
@@ -316,7 +327,7 @@ public class IftttController implements RequestHandler {
     </div>
   </div>
 
-  <script>
+  <script nonce="%s">
     const baseUrl = '%s';
     let triggers = [];
     let actions = [];
@@ -329,6 +340,18 @@ public class IftttController implements RequestHandler {
     document.addEventListener('DOMContentLoaded', () => {
       loadTriggers();
       loadActions();
+
+      // Bind event listeners (CSP-compliant, no inline handlers)
+      document.getElementById('btnBack').addEventListener('click', () => {
+        window.location.href = baseUrl + '/settings';
+      });
+      document.getElementById('btnLoadCache').addEventListener('click', loadCache);
+      document.getElementById('triggerSearch').addEventListener('input', filterTriggers);
+      document.getElementById('btnAddCondition').addEventListener('click', addCondition);
+      document.getElementById('btnAddAction').addEventListener('click', addAction);
+      document.getElementById('btnSaveRule').addEventListener('click', saveRule);
+      document.getElementById('btnTestRule').addEventListener('click', testRule);
+      document.getElementById('btnClearForm').addEventListener('click', clearForm);
     });
 
     function loadTriggers() {
@@ -459,16 +482,28 @@ public class IftttController implements RequestHandler {
       div.id = condId;
       div.innerHTML = `
         <div class="row">
-          <select onchange="updatePreview()">
+          <select>
             <option value="jsonPathContains">Field Contains</option>
             <option value="jsonPathEquals">Field Equals</option>
           </select>
-          <input type="text" placeholder="Field path (e.g., description, project.name)" style="flex:1" onkeyup="updatePreview()" />
-          <input type="text" placeholder="Value" style="flex:1" onkeyup="updatePreview()" />
-          <button class="danger small" onclick="document.getElementById('${condId}').remove();updatePreview()">×</button>
+          <input type="text" placeholder="Field path (e.g., description, project.name)" class="cond-field-path" />
+          <input type="text" placeholder="Value" class="cond-value" />
+          <button class="danger small cond-remove">×</button>
         </div>
       `;
       container.appendChild(div);
+
+      // Bind event listeners (CSP-compliant)
+      const select = div.querySelector('select');
+      const inputs = div.querySelectorAll('input');
+      const removeBtn = div.querySelector('.cond-remove');
+
+      select.addEventListener('change', updatePreview);
+      inputs.forEach(input => input.addEventListener('input', updatePreview));
+      removeBtn.addEventListener('click', () => {
+        div.remove();
+        updatePreview();
+      });
     }
 
     function addAction() {
@@ -481,11 +516,11 @@ public class IftttController implements RequestHandler {
       section.innerHTML = `
         <div class="action-header">
           <h3>Action #${actionCounter}</h3>
-          <button class="danger small" onclick="removeAction('${actionId}')">Remove</button>
+          <button class="danger small action-remove">Remove</button>
         </div>
         <div class="field-group">
           <label>API Endpoint</label>
-          <button class="secondary small" onclick="showEndpointPicker('${actionId}')">Select Endpoint</button>
+          <button class="secondary small action-pick-endpoint">Select Endpoint</button>
           <div id="${actionId}-endpoint" class="muted" style="margin-top:4px">No endpoint selected</div>
         </div>
         <div id="${actionId}-params" class="hidden"></div>
@@ -496,6 +531,10 @@ public class IftttController implements RequestHandler {
         </div>
       `;
       container.appendChild(section);
+
+      // Bind event listeners (CSP-compliant)
+      section.querySelector('.action-remove').addEventListener('click', () => removeAction(actionId));
+      section.querySelector('.action-pick-endpoint').addEventListener('click', () => showEndpointPicker(actionId));
 
       actions.push({ id: actionId, endpoint: null, params: {}, body: {} });
     }
@@ -512,10 +551,13 @@ public class IftttController implements RequestHandler {
 
       const content = document.createElement('div');
       content.style.cssText = 'background:white;padding:20px;border-radius:8px;max-width:800px;max-height:80%%;overflow:auto;';
-      content.innerHTML = '<h3>Select API Endpoint</h3><div id="endpointCatalog"></div><button class="secondary" onclick="this.closest(\\'div[style*=fixed]\\').remove()">Close</button>';
+      content.innerHTML = '<h3>Select API Endpoint</h3><div id="endpointCatalog"></div><button class="secondary modal-close">Close</button>';
 
       modal.appendChild(content);
       document.body.appendChild(modal);
+
+      // Bind close button (CSP-compliant)
+      content.querySelector('.modal-close').addEventListener('click', () => modal.remove());
 
       renderEndpointCatalog('endpointCatalog', actionId, () => modal.remove());
     }
@@ -579,11 +621,16 @@ public class IftttController implements RequestHandler {
           field.innerHTML = `
             <label>${param.name} ${param.required ? '<span style="color:red">*</span>' : ''}</label>
             <input type="text" placeholder="${param.description || param.type}"
-                   data-param="${param.name}" data-in="${param.in}"
-                   onkeyup="updateActionParam('${actionId}', '${param.name}', '${param.in}', this.value)" />
+                   data-param="${param.name}" data-in="${param.in}" class="action-param-input" />
             <div class="hint">${param.in}: ${param.type}</div>
           `;
           paramsDiv.appendChild(field);
+
+          // Bind event listener (CSP-compliant)
+          const input = field.querySelector('.action-param-input');
+          input.addEventListener('input', (e) => {
+            updateActionParam(actionId, param.name, param.in, e.target.value);
+          });
         });
       }
 
@@ -600,11 +647,17 @@ public class IftttController implements RequestHandler {
           fieldDiv.innerHTML = `
             <label>${field.name} ${field.required ? '<span style="color:red">*</span>' : ''}</label>
             <input type="text" placeholder="${field.description || field.type}"
-                   data-field="${field.name}"
-                   onkeyup="updateActionBody('${actionId}', '${field.name}', this.value)" />
+                   class="action-body-input"
+                   data-field="${field.name}" />
             <div class="hint">${field.type}</div>
           `;
           bodyDiv.appendChild(fieldDiv);
+
+          // Bind event listener (CSP-compliant)
+          const input = fieldDiv.querySelector('.action-body-input');
+          input.addEventListener('input', (e) => {
+            updateActionBody(actionId, field.name, e.target.value);
+          });
         });
       }
 
@@ -805,6 +858,6 @@ public class IftttController implements RequestHandler {
   </script>
 </body>
 </html>
-""", baseUrl, baseUrl);
+""", nonce, nonce, baseUrl, baseUrl);
     }
 }
