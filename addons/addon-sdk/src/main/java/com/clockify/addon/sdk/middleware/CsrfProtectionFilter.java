@@ -75,6 +75,14 @@ public class CsrfProtectionFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
+        // TEST-ONLY: Allow disabling CSRF protection via system property for embedded integration tests
+        // This should NEVER be used in production environments
+        if (Boolean.getBoolean("clockify.csrf.disabled")) {
+            logger.debug("CSRF protection bypassed via test-only system property");
+            chain.doFilter(request, response);
+            return;
+        }
+
         logger.debug("CSRF filter processing request");
 
         if (!(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse)) {
