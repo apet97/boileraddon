@@ -12,8 +12,10 @@ import com.example.rules.store.DatabaseRulesStore;
 import com.example.rules.store.InMemoryRulesStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -45,6 +47,28 @@ class CrudEndpointsSmokeIT {
     private String workspaceId;
     private HttpClient client;
     private ObjectMapper mapper;
+
+    private static String previousCsrfDisabledValue;
+
+    @BeforeAll
+    static void enableTestCsrfBypass() {
+        // Save previous value to restore later
+        previousCsrfDisabledValue = System.getProperty("clockify.csrf.disabled");
+        // Enable CSRF bypass for all tests in this class
+        System.setProperty("clockify.csrf.disabled", "true");
+        logger.info("CSRF protection bypassed for integration tests");
+    }
+
+    @AfterAll
+    static void restoreCsrfBypass() {
+        // Restore previous value or clear if it wasn't set
+        if (previousCsrfDisabledValue == null) {
+            System.clearProperty("clockify.csrf.disabled");
+        } else {
+            System.setProperty("clockify.csrf.disabled", previousCsrfDisabledValue);
+        }
+        logger.info("CSRF protection state restored");
+    }
 
     @BeforeEach
     void setUp() throws Exception {
