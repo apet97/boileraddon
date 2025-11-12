@@ -32,7 +32,7 @@ public class ClockifyClient {
         String normalizedBody = (jsonBody == null || jsonBody.isBlank()) ? "{}" : jsonBody;
         return switch (method) {
             case GET -> http.get(path, token, Map.of());
-            case POST -> http.postJson(path, token, normalizedBody, Map.of());
+            case POST -> http.postJsonWithIdempotency(path, token, normalizedBody, Map.of());
             case PUT -> http.putJson(path, token, normalizedBody, Map.of());
             case PATCH -> http.patchJson(path, token, normalizedBody, Map.of());
             case DELETE -> http.delete(path, token, Map.of());
@@ -47,7 +47,7 @@ public class ClockifyClient {
 
     public JsonNode createTag(String workspaceId, String tagName) throws Exception {
         ObjectNode body = om.createObjectNode().put("name", tagName);
-        HttpResponse<String> resp = http.postJson("/workspaces/" + workspaceId + "/tags", token, body.toString(), Map.of());
+        HttpResponse<String> resp = http.postJsonWithIdempotency("/workspaces/" + workspaceId + "/tags", token, body.toString(), Map.of());
         ensure2xx(resp, 201);
         return om.readTree(resp.body());
     }
