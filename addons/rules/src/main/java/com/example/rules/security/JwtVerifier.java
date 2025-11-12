@@ -23,6 +23,32 @@ import java.util.Set;
 
 /**
  * JWT verifier for Clockify marketplace tokens (RS256).
+ *
+ * <p><strong>Architecture Note:</strong> This verifier is implemented at the addon level rather than
+ * in the shared SDK to allow each addon to customize its JWT verification requirements independently.
+ * Different addons may have different:
+ * <ul>
+ *   <li>Trust domains and expected issuers/audiences</li>
+ *   <li>Key management strategies (JWKS, static keys, rotation schedules)</li>
+ *   <li>Security policies (algorithm restrictions, TTL limits, clock skew tolerance)</li>
+ * </ul>
+ *
+ * <p>If all addons in your deployment share identical JWT verification requirements, consider
+ * moving this to the SDK for reusability. Otherwise, maintain addon-specific implementations.
+ *
+ * <p><strong>Security Features:</strong>
+ * <ul>
+ *   <li><strong>Strict kid handling:</strong> When JWT header includes "kid", that specific key
+ *       is used with no fallback to default keys (prevents key confusion attacks)</li>
+ *   <li><strong>Algorithm intersection:</strong> Enforces intersection of configured algorithms
+ *       with safe built-in set (RS256, ES256) to prevent algorithm substitution</li>
+ *   <li><strong>Temporal validation:</strong> Enforces iat/nbf/exp with configurable clock skew
+ *       and maximum TTL (24h default) to limit token lifetime</li>
+ *   <li><strong>Audience any-of:</strong> Supports both string and array audience claims with
+ *       any-of semantics per RFC 7519</li>
+ * </ul>
+ *
+ * @see Constraints#fromEnvironment() for environment-based configuration
  */
 public final class JwtVerifier {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

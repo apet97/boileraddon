@@ -25,6 +25,44 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules java -jar addons/rules/target/r
 
 Developer signatures: webhooks include an HMAC header `clockify-webhook-signature` (and case variants). In Developer workspaces, Clockify may send a JWT header `Clockify-Signature`; the SDK accepts it by default. Toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
 
+## Security: JWT Verification
+
+This addon implements JWT verification at the **addon level** rather than in the shared SDK. This architectural decision allows each addon to:
+
+- **Customize verification constraints** (issuer, audience, allowed algorithms, clock skew) based on its specific security requirements
+- **Manage keys independently** using addon-specific JWKS endpoints or environment-configured key maps
+- **Evolve security policies** without requiring SDK updates across all addons
+
+### Key Features
+
+The `JwtVerifier` class (`src/main/java/com/example/rules/security/JwtVerifier.java`) provides:
+
+1. **Strict kid handling**: When a JWT header includes `kid`, only that specific key is used—no fallback to default keys
+2. **Algorithm intersection**: Enforces intersection of configured algorithms with a safe built-in set (`RS256`, `ES256`)
+3. **Temporal validation**: Enforces `iat`, `nbf`, `exp` with configurable clock skew (default 60s) and max TTL (24h)
+4. **Audience any-of matching**: Supports both string and array audience claims with any-of semantics
+5. **JWKS integration**: Optional `JwksKeySource` for dynamic key rotation
+6. **Environment configuration**: Configure via `CLOCKIFY_JWT_PUBLIC_KEY_MAP`, `CLOCKIFY_JWT_DEFAULT_KID`, `CLOCKIFY_JWT_EXPECT_AUD`, `CLOCKIFY_JWT_LEEWAY_SECONDS`
+
+### Configuration Examples
+
+**Single public key** (simple case):
+```bash
+export CLOCKIFY_JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+```
+
+**Multiple keys with rotation** (production):
+```bash
+export CLOCKIFY_JWT_PUBLIC_KEY_MAP='{"key-2024":"-----BEGIN PUBLIC KEY-----\n...","key-2025":"-----BEGIN PUBLIC KEY-----\n..."}'
+export CLOCKIFY_JWT_DEFAULT_KID=key-2024
+export CLOCKIFY_JWT_EXPECT_AUD=rules
+export CLOCKIFY_JWT_LEEWAY_SECONDS=60
+```
+
+**When to use SDK-level vs Addon-level JWT verification**:
+- **Addon-level** (current pattern): When addons have different trust domains, key management, or security policies
+- **SDK-level** (future consideration): When all addons share identical JWT verification requirements and key infrastructure
+
 ### Workspace Cache (ID ↔ Name)
 
 Rules preloads workspace entities after install so rules and UI can map names to IDs:
