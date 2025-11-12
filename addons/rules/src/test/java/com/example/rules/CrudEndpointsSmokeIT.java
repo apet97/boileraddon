@@ -467,4 +467,38 @@ class CrudEndpointsSmokeIT {
                 })
                 .orElse(null);
     }
+
+    @Test
+    void allCrudEndpointsAccessible() throws Exception {
+        // Verify that all CRUD endpoints (Projects, Clients, Tasks, Tags) are registered and accessible
+        String[] endpoints = {
+            "/rules/api/projects?workspaceId=test-workspace",
+            "/rules/api/clients?workspaceId=test-workspace",
+            "/rules/api/tasks?workspaceId=test-workspace&projectId=test-project",
+            "/rules/api/tags?workspaceId=test-workspace"
+        };
+
+        HttpClient client = HttpClient.newHttpClient();
+
+        for (String path : endpoints) {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:" + port + path))
+                    .header("Authorization", "Bearer fake-token-for-testing")
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(req, HttpResponse.BodyHandlers.ofString());
+
+            // Expect either 200 (success), 401 (auth required), or 403 (permission denied)
+            // The important thing is the endpoint exists and responds
+            Assertions.assertTrue(
+                response.statusCode() == 200 || response.statusCode() == 401 || response.statusCode() == 403,
+                "Endpoint " + path + " should be accessible, got status: " + response.statusCode()
+            );
+
+            // Verify security headers are present
+            Assertions.assertTrue(response.headers().firstValue("X-Content-Type-Options").isPresent(),
+                    "Endpoint " + path + " should have security headers");
+        }
+    }
 }
