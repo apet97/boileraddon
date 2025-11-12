@@ -2,6 +2,8 @@ package com.example.rules;
 
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.middleware.DiagnosticContextFilter;
+import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
+import com.clockify.addon.sdk.security.TokenStore;
 import com.example.rules.security.JwtVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +21,8 @@ class SettingsControllerTest {
     void resolveBootstrapWithoutJwt() {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getAttribute(DiagnosticContextFilter.REQUEST_ID_ATTR)).thenReturn("req-123");
+        when(request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR)).thenReturn(null);
+        when(request.getAttribute(WorkspaceContextFilter.USER_ID_ATTR)).thenReturn(null);
         when(request.getParameter("jwt")).thenReturn(null);
 
         SettingsController.SettingsBootstrap bootstrap = controller.resolveBootstrap(request);
@@ -27,6 +31,21 @@ class SettingsControllerTest {
         assertEquals("", bootstrap.userId());
         assertEquals("", bootstrap.userEmail());
         assertEquals("req-123", bootstrap.requestId());
+    }
+
+    @Test
+    void resolveBootstrapFromWorkspaceContextFilter() {
+        // Simulate WorkspaceContextFilter having set attributes from auth_token JWT
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(DiagnosticContextFilter.REQUEST_ID_ATTR)).thenReturn("req-456");
+        when(request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR)).thenReturn("ws789");
+        when(request.getAttribute(WorkspaceContextFilter.USER_ID_ATTR)).thenReturn("user999");
+
+        SettingsController.SettingsBootstrap bootstrap = controller.resolveBootstrap(request);
+
+        assertEquals("ws789", bootstrap.workspaceId());
+        assertEquals("user999", bootstrap.userId());
+        assertEquals("req-456", bootstrap.requestId());
     }
 
     @Test
