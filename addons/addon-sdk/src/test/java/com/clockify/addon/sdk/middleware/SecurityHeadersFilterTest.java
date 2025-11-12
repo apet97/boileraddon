@@ -35,6 +35,36 @@ class SecurityHeadersFilterTest {
     }
 
     @Test
+    void setsCspWithNonce() throws Exception {
+        SecurityHeadersFilter filter = new SecurityHeadersFilter();
+
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        HttpServletResponse resp = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, resp, chain);
+
+        // Capture the nonce stored in request attribute
+        ArgumentCaptor<String> nonceCaptor = ArgumentCaptor.forClass(String.class);
+        verify(req).setAttribute(eq(SecurityHeadersFilter.CSP_NONCE_ATTR), nonceCaptor.capture());
+        String nonce = nonceCaptor.getValue();
+        assertNotNull(nonce, "Nonce should be generated");
+        assertFalse(nonce.isEmpty(), "Nonce should not be empty");
+
+        // Capture the CSP header
+        ArgumentCaptor<String> cspCaptor = ArgumentCaptor.forClass(String.class);
+        verify(resp).setHeader(eq("Content-Security-Policy"), cspCaptor.capture());
+        String csp = cspCaptor.getValue();
+
+        // Verify nonce is used in script-src and style-src
+        assertTrue(csp.contains("script-src 'nonce-" + nonce + "'"), "CSP should include nonce in script-src");
+        assertTrue(csp.contains("style-src 'nonce-" + nonce + "'"), "CSP should include nonce in style-src");
+        assertTrue(csp.contains("frame-ancestors"), "CSP should include frame-ancestors");
+
+        verify(chain).doFilter(any(ServletRequest.class), any(ServletResponse.class));
+    }
+
+    @Test
     void setsHstsWhenForwardedHttps() throws Exception {
         SecurityHeadersFilter filter = new SecurityHeadersFilter();
 
@@ -81,8 +111,18 @@ class SecurityHeadersFilterTest {
 
         filter.doFilter(req, resp, chain);
 
-        // Should set comprehensive Permissions-Policy header
-        verify(resp).setHeader(eq("Permissions-Policy"), anyString());
+        // Capture the actual Permissions-Policy header value
+        ArgumentCaptor<String> ppCaptor = ArgumentCaptor.forClass(String.class);
+        verify(resp).setHeader(eq("Permissions-Policy"), ppCaptor.capture());
+
+        // Verify all required policies are present
+        String ppValue = ppCaptor.getValue();
+        assertTrue(ppValue.contains("browsing-topics=()"), "Should block browsing-topics");
+        assertTrue(ppValue.contains("geolocation=()"), "Should block geolocation");
+        assertTrue(ppValue.contains("microphone=()"), "Should block microphone");
+        assertTrue(ppValue.contains("camera=()"), "Should block camera");
+        assertTrue(ppValue.contains("payment=()"), "Should block payment");
+
         verify(chain).doFilter(any(ServletRequest.class), any(ServletResponse.class));
     }
 
