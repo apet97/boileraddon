@@ -29,6 +29,5 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: 'maven'
-      - name: Full verify with coverage
-        run: mvn -B clean verify
-
+      - name: Full verify with coverage (skip OWASP in PR CI)
+        run: mvn -B clean verify -Ddependency-check.skip=true
