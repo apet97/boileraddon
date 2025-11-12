@@ -7,6 +7,7 @@ import com.example.rules.engine.Action;
 import com.example.rules.engine.Condition;
 import com.example.rules.engine.Rule;
 import com.clockify.addon.sdk.security.WebhookSignatureValidator;
+import com.clockify.addon.sdk.testutil.SignatureTestUtil;
 import com.example.rules.store.RulesStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -75,7 +76,7 @@ class WebhookHandlersTest {
             }
             """;
 
-        setupWebhookRequest(payload, authToken);
+        setupWebhookRequestJwt(payload, workspaceId);
 
         ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
                 .key("rules")
@@ -125,7 +126,7 @@ class WebhookHandlersTest {
             }
             """;
 
-        setupWebhookRequest(payload, authToken);
+        setupWebhookRequestJwt(payload, workspaceId);
 
         ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
                 .key("rules")
@@ -217,7 +218,7 @@ class WebhookHandlersTest {
             }
             """;
 
-        setupWebhookRequest(payload, authToken);
+        setupWebhookRequestJwt(payload, workspaceId);
 
         ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
                 .key("rules")
@@ -273,6 +274,40 @@ class WebhookHandlersTest {
             }
         };
 
+        when(request.getInputStream()).thenReturn(inputStream);
+        when(request.getReader()).thenReturn(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(bytes))));
+    }
+
+    private void setupWebhookRequestJwt(String payload, String workspaceId) throws Exception {
+        // Generate a temporary RSA keypair for signing a JWT used by the validator
+        var key = SignatureTestUtil.RsaFixture.generate("kid-webhook");
+        // Configure validator with the public key and expected issuer
+        System.setProperty("CLOCKIFY_JWT_PUBLIC_KEY", key.pemPublic);
+        System.setProperty("CLOCKIFY_JWT_EXPECTED_ISS", "clockify");
+
+        String jwt = SignatureTestUtil.rs256Jwt(
+                key,
+                new SignatureTestUtil.Builder()
+                        .sub("rules")
+                        .workspaceId(workspaceId)
+        );
+
+        // Canonical header path
+        when(request.getHeader("Clockify-Signature")).thenReturn(jwt);
+        when(request.getHeader("clockify-webhook-signature")).thenReturn(null);
+        when(request.getAttribute("clockify.rawBody")).thenReturn(payload);
+
+        JsonNode jsonNode = mapper.readTree(payload);
+        when(request.getAttribute("clockify.jsonBody")).thenReturn(jsonNode);
+
+        byte[] bytes = payload.getBytes();
+        ServletInputStream inputStream = new ServletInputStream() {
+            private final ByteArrayInputStream bis = new ByteArrayInputStream(bytes);
+            @Override public int read() { return bis.read(); }
+            @Override public boolean isFinished() { return bis.available() == 0; }
+            @Override public boolean isReady() { return true; }
+            @Override public void setReadListener(jakarta.servlet.ReadListener readListener) { }
+        };
         when(request.getInputStream()).thenReturn(inputStream);
         when(request.getReader()).thenReturn(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(bytes))));
     }
