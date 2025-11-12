@@ -2,6 +2,10 @@
 
 This project provides a Clockify add-on boilerplate. Use these practices when building real add-ons.
 
+**📚 For comprehensive security implementation details, configuration examples, and feature documentation, see [docs/SECURITY.md](docs/SECURITY.md).**
+
+## Quick Reference
+
 - Secrets and config
   - Store secrets in environment variables or a secret manager. Never commit secrets.
   - Provide `.env.example` only with placeholders.

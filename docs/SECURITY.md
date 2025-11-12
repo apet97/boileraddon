@@ -1,12 +1,14 @@
 # Security Configuration Guide
 
 **Version**: 3.0.0
-**Last Updated**: November 11, 2025
+**Last Updated**: November 12, 2025
 **Status**: Production-Ready
 
 > **Security Implementation Complete**: All 12 core security features and 12 advanced security enhancements have been successfully implemented and tested. The boilerplate now provides enterprise-grade security hardening for Clockify addon development.
 
 This guide covers all security features, configuration options, and best practices for the Clockify Addon boilerplate.
+
+**📋 For high-level security guidelines and policy, see [../SECURITY.md](../SECURITY.md).**
 
 ---
 
