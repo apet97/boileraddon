@@ -48,26 +48,19 @@ class CrudEndpointsSmokeIT {
     private HttpClient client;
     private ObjectMapper mapper;
 
-    private static String previousCsrfDisabledValue;
-
     @BeforeAll
-    static void enableTestCsrfBypass() {
-        // Save previous value to restore later
-        previousCsrfDisabledValue = System.getProperty("clockify.csrf.disabled");
-        // Enable CSRF bypass for all tests in this class
-        System.setProperty("clockify.csrf.disabled", "true");
-        logger.info("CSRF protection bypassed for integration tests");
+    static void disableCsrfForIntegrationTests() {
+        // Use static flag instead of system property to avoid timing issues
+        // The static flag is checked in CsrfProtectionFilter.doFilter() before system property
+        com.clockify.addon.sdk.middleware.CsrfProtectionFilter.testModeDisabled = true;
+        logger.info("CSRF protection disabled for CrudEndpointsSmokeIT tests");
     }
 
     @AfterAll
-    static void restoreCsrfBypass() {
-        // Restore previous value or clear if it wasn't set
-        if (previousCsrfDisabledValue == null) {
-            System.clearProperty("clockify.csrf.disabled");
-        } else {
-            System.setProperty("clockify.csrf.disabled", previousCsrfDisabledValue);
-        }
-        logger.info("CSRF protection state restored");
+    static void restoreCsrfProtection() {
+        // Restore CSRF protection after tests complete
+        com.clockify.addon.sdk.middleware.CsrfProtectionFilter.testModeDisabled = false;
+        logger.info("CSRF protection restored");
     }
 
     @BeforeEach

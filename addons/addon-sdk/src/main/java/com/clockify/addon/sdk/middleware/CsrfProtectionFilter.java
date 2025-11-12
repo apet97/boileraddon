@@ -46,6 +46,15 @@ public class CsrfProtectionFilter implements Filter {
     private static final int TOKEN_LENGTH = 32;  // 256 bits
     private static final boolean COOKIE_ATTRIBUTE_SUPPORTED = cookieAttributeSupported();
 
+    /**
+     * TEST-ONLY: Public static flag for integration tests to bypass CSRF validation.
+     * Allows tests to bypass CSRF validation without timing issues from system properties.
+     * This is volatile to ensure visibility across threads in embedded server tests.
+     * MUST be false in production (default value).
+     * Only set this to true in test @BeforeAll and reset to false in @AfterAll.
+     */
+    public static volatile boolean testModeDisabled = false;
+
     private final SecureRandom random = new SecureRandom();
     private final String sameSiteAttribute;
 
@@ -75,10 +84,11 @@ public class CsrfProtectionFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
-        // TEST-ONLY: Allow disabling CSRF protection via system property for embedded integration tests
-        // This should NEVER be used in production environments
-        if (Boolean.getBoolean("clockify.csrf.disabled")) {
-            logger.debug("CSRF protection bypassed via test-only system property");
+        // TEST-ONLY: Allow disabling CSRF protection for integration tests
+        // Static flag is checked first to avoid timing issues with system properties
+        // This should NEVER be enabled in production environments
+        if (testModeDisabled || Boolean.getBoolean("clockify.csrf.disabled")) {
+            logger.debug("CSRF protection bypassed for testing");
             chain.doFilter(request, response);
             return;
         }
