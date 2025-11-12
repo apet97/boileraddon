@@ -44,8 +44,37 @@ public class PathSanitizer {
             throw new IllegalArgumentException("Path contains null bytes");
         }
 
+        // Check for control characters in the middle and end of the path BEFORE trim
+        // This ensures control characters like \u0001, \u0007, \u001F are rejected even when not at the very beginning
+        // We allow specific whitespace control characters (\t, \n, \r, \f, \u000B) at the beginning to be handled by trim()
+        for (int i = 0; i < path.length(); i++) {
+            char ch = path.charAt(i);
+            // Only check characters that are not at the very beginning
+            // This allows trim() to handle whitespace control characters at the start, but rejects them elsewhere
+            if (i > 0 && ch <= 0x1F) {
+                // Check if this is a whitespace control character that should be allowed at beginning
+                boolean isWhitespaceControlChar = (ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' || ch == '\u000B');
+                // If it's a whitespace control character at the beginning, allow it to be handled by trim()
+                // Otherwise, reject it
+                if (!isWhitespaceControlChar) {
+                    logger.warn("Path contains control characters (<=0x1F): {}", path);
+                    throw new IllegalArgumentException("Path contains control characters");
+                }
+            }
+        }
+
         // Now trim and continue normalization/validation
         String sanitized = path.trim();
+
+        // Final check for any remaining control characters after trim
+        // This catches any control characters that weren't at the edges
+        for (int i = 0; i < sanitized.length(); i++) {
+            char ch = sanitized.charAt(i);
+            if (ch <= 0x1F) {
+                logger.warn("Path contains control characters after trim (<=0x1F): {}", path);
+                throw new IllegalArgumentException("Path contains control characters");
+            }
+        }
 
         // Detect common null-byte representations again after trim
         boolean hasNullChar = sanitized.indexOf('\u0000') >= 0;
@@ -64,15 +93,6 @@ public class PathSanitizer {
             logger.warn("Path contains null byte or encoding (nullChar?={}, \\0?={}, %00?={}, \\u0000?={}): {}",
                     hasNullChar, hasBackslashZero, hasPercent00, hasUnicodeLiteralNull, path);
             throw new IllegalArgumentException("Path contains null bytes");
-        }
-
-        // Disallow ASCII control characters (0x00-0x1F) for safety
-        for (int i = 0; i < sanitized.length(); i++) {
-            char ch = sanitized.charAt(i);
-            if (ch <= 0x1F) {
-                logger.warn("Path contains control characters (<=0x1F): {}", path);
-                throw new IllegalArgumentException("Path contains control characters");
-            }
         }
 
         // Check for path traversal attempts
@@ -96,10 +116,15 @@ public class PathSanitizer {
             sanitized = sanitized.substring(0, sanitized.length() - 1);
         }
 
-        // Validate characters (allow alphanumeric, -, _, /, ., and common URL chars)
-        if (!sanitized.matches("^[/a-zA-Z0-9._~:?#\\[\\]@!$&'()*+,;=-]*$")) {
-            logger.warn("Path contains invalid characters: {}", path);
-            throw new IllegalArgumentException("Path contains invalid characters");
+        // Validate characters - allow most Unicode characters, but explicitly reject dangerous ones
+        // We'll check for specific dangerous characters rather than using a restrictive regex
+        for (int i = 0; i < sanitized.length(); i++) {
+            char ch = sanitized.charAt(i);
+            // Reject specific dangerous characters
+            if (ch == '<' || ch == '>' || ch == '\"' || ch == '\\' || ch == '`' || ch == '{' || ch == '}' || ch == '|' || ch == '^') {
+                logger.warn("Path contains dangerous character '{}': {}", ch, path);
+                throw new IllegalArgumentException("Path contains dangerous characters");
+            }
         }
 
         return sanitized;
@@ -113,11 +138,16 @@ public class PathSanitizer {
      * @return Normalized path
      */
     public static String normalize(String path) {
-        if (path == null || path.trim().isEmpty()) {
+        if (path == null) {
             return "/";
         }
 
-        String normalized = path.trim();
+        // Check if path is empty or contains only whitespace
+        if (path.isEmpty() || path.trim().isEmpty()) {
+            return "/";
+        }
+
+        String normalized = path;
 
         // Remove duplicate slashes
         while (normalized.contains("//")) {

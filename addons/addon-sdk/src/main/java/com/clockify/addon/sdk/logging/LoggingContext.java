@@ -17,6 +17,7 @@ import java.util.List;
  */
 public final class LoggingContext implements AutoCloseable {
     private final List<String> keys = new ArrayList<>();
+    private boolean closed = false;
 
     private LoggingContext() {
     }
@@ -49,6 +50,10 @@ public final class LoggingContext implements AutoCloseable {
     }
 
     private LoggingContext put(String key, String value) {
+        if (closed) {
+            // Ignore operations on closed context
+            return this;
+        }
         if (value != null && !value.isBlank()) {
             MDC.put(key, value);
             keys.add(key);
@@ -58,8 +63,11 @@ public final class LoggingContext implements AutoCloseable {
 
     @Override
     public void close() {
-        for (String key : keys) {
-            MDC.remove(key);
+        if (!closed) {
+            for (String key : keys) {
+                MDC.remove(key);
+            }
+            closed = true;
         }
     }
 }

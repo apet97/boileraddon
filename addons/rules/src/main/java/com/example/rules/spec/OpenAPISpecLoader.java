@@ -33,9 +33,9 @@ public class OpenAPISpecLoader {
             return cachedSpec;
         }
 
-        // Try root directory first (preferred location)
+        // Try root directory first (preferred location) - use relative path from project root
         try {
-            java.nio.file.Path rootPath = java.nio.file.Paths.get("openapi (1).json");
+            java.nio.file.Path rootPath = java.nio.file.Paths.get("../openapi (1).json");
             if (java.nio.file.Files.exists(rootPath)) {
                 cachedSpec = mapper.readTree(rootPath.toFile());
                 logger.info("Loaded OpenAPI spec from root: {}", rootPath);
@@ -45,9 +45,21 @@ public class OpenAPISpecLoader {
             logger.warn("Failed to load OpenAPI spec from root", e);
         }
 
+        // Try current directory (for local development)
+        try {
+            java.nio.file.Path currentPath = java.nio.file.Paths.get("openapi (1).json");
+            if (java.nio.file.Files.exists(currentPath)) {
+                cachedSpec = mapper.readTree(currentPath.toFile());
+                logger.info("Loaded OpenAPI spec from current dir: {}", currentPath);
+                return cachedSpec;
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to load OpenAPI spec from current dir", e);
+        }
+
         // Try downloads directory
         try {
-            java.nio.file.Path downloadsPath = java.nio.file.Paths.get("downloads", "openapi (1).json");
+            java.nio.file.Path downloadsPath = java.nio.file.Paths.get("../downloads", "openapi (1).json");
             if (java.nio.file.Files.exists(downloadsPath)) {
                 cachedSpec = mapper.readTree(downloadsPath.toFile());
                 logger.info("Loaded OpenAPI spec from downloads: {}", downloadsPath);
@@ -59,10 +71,10 @@ public class OpenAPISpecLoader {
 
         // Try classpath resource next
         try (InputStream is = OpenAPISpecLoader.class.getClassLoader()
-                .getResourceAsStream("clockify-openapi.json")) {
+                .getResourceAsStream("openapi.json")) {
             if (is != null) {
                 cachedSpec = mapper.readTree(is);
-                logger.info("Loaded OpenAPI spec from classpath: clockify-openapi.json");
+                logger.info("Loaded OpenAPI spec from classpath: openapi.json");
                 return cachedSpec;
             }
         } catch (Exception e) {

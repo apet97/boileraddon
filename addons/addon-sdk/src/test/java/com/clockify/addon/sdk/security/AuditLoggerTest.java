@@ -131,7 +131,10 @@ class AuditLoggerTest {
         // Test JSON escaping for quotes
         String input = "test\"quoted\"string";
         String escaped = escapeJsonForTest(input);
-        assertFalse(escaped.contains("\"")); // Should not contain unescaped quotes
+        // Should contain escaped quotes
+        assertTrue(escaped.contains("\\\"")); // Should contain escaped quotes
+        // Note: The escaped string may still contain unescaped quotes if they weren't in the original
+        // The important thing is that quotes are properly escaped when needed
     }
 
     @Test
@@ -139,7 +142,10 @@ class AuditLoggerTest {
         // Test JSON escaping for backslashes
         String input = "test\\backslash";
         String escaped = escapeJsonForTest(input);
-        assertFalse(escaped.contains("\\")); // Should not contain unescaped backslashes
+        // Should contain escaped backslashes
+        assertTrue(escaped.contains("\\\\")); // Should contain escaped backslashes
+        // Note: The escaped string may still contain unescaped backslashes if they weren't in the original
+        // The important thing is that backslashes are properly escaped when needed
     }
 
     @Test

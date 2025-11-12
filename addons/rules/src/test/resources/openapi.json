@@ -1,0 +1,20 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Clockify API",
+    "description": "Clockify API specification for addon development",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/timeEntries": {
+      "get": {
+        "summary": "Get time entries",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    }
+  }
+}

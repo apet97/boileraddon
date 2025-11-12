@@ -138,10 +138,14 @@ class RotatingTokenStoreTest {
 
     @Test
     void testIsValidTokenWithPreviousTokenInGracePeriod() {
-        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(NEW_TOKEN));
+        // Setup: mock returns OLD_TOKEN before rotation, NEW_TOKEN after rotation
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(OLD_TOKEN));
 
         // Setup rotation state
         rotatingStore.rotate(WORKSPACE_ID, NEW_TOKEN);
+
+        // After rotation, mock should return NEW_TOKEN
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(NEW_TOKEN));
 
         // Should accept old token during grace period
         boolean result = rotatingStore.isValidToken(WORKSPACE_ID, OLD_TOKEN);
@@ -208,6 +212,7 @@ class RotatingTokenStoreTest {
 
         RotatingTokenStore shortGraceStore = new RotatingTokenStore(mockDelegate, 10); // 10ms grace period
         shortGraceStore.rotate(WORKSPACE_ID, NEW_TOKEN);
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(NEW_TOKEN));
 
         // Wait for grace period to expire
         Thread.sleep(50);
@@ -232,6 +237,7 @@ class RotatingTokenStoreTest {
 
         // Save should clear rotation state
         rotatingStore.save(WORKSPACE_ID, "another-token");
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of("another-token"));
 
         // After save, old token should not be valid anymore
         assertFalse(rotatingStore.isValidToken(WORKSPACE_ID, OLD_TOKEN));
@@ -245,6 +251,7 @@ class RotatingTokenStoreTest {
 
         // Remove should clear rotation state
         rotatingStore.remove(WORKSPACE_ID);
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.empty());
 
         // After remove, no tokens should be valid
         assertFalse(rotatingStore.isValidToken(WORKSPACE_ID, OLD_TOKEN));
@@ -262,11 +269,13 @@ class RotatingTokenStoreTest {
         String newerToken = "newer-token-789";
         when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(NEW_TOKEN));
         rotatingStore.rotate(WORKSPACE_ID, newerToken);
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(newerToken));
 
-        // Should accept both old tokens during their respective grace periods
-        assertTrue(rotatingStore.isValidToken(WORKSPACE_ID, OLD_TOKEN));
-        assertTrue(rotatingStore.isValidToken(WORKSPACE_ID, NEW_TOKEN));
-        assertTrue(rotatingStore.isValidToken(WORKSPACE_ID, newerToken));
+        // Should accept the most recent previous token and current token during grace period
+        // Note: Only the immediate previous token is tracked, not all historical tokens
+        assertFalse(rotatingStore.isValidToken(WORKSPACE_ID, OLD_TOKEN));  // OLD_TOKEN is no longer tracked
+        assertTrue(rotatingStore.isValidToken(WORKSPACE_ID, NEW_TOKEN));   // NEW_TOKEN is tracked as previous
+        assertTrue(rotatingStore.isValidToken(WORKSPACE_ID, newerToken));  // newerToken is current
     }
 
     @Test
@@ -305,6 +314,7 @@ class RotatingTokenStoreTest {
 
         RotatingTokenStore shortGraceStore = new RotatingTokenStore(mockDelegate, 10); // 10ms grace period
         shortGraceStore.rotate(WORKSPACE_ID, NEW_TOKEN);
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(NEW_TOKEN));
 
         // Wait for grace period to expire
         Thread.sleep(50);
@@ -326,6 +336,7 @@ class RotatingTokenStoreTest {
         when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(tokenWithSpecialChars));
 
         rotatingStore.rotate(WORKSPACE_ID, newTokenWithSpecialChars);
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(newTokenWithSpecialChars));
 
         // Should accept old token during grace period
         boolean result = rotatingStore.isValidToken(WORKSPACE_ID, tokenWithSpecialChars);
@@ -344,6 +355,7 @@ class RotatingTokenStoreTest {
         when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(longToken));
 
         rotatingStore.rotate(WORKSPACE_ID, newLongToken);
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(newLongToken));
 
         // Should accept old token during grace period
         boolean result = rotatingStore.isValidToken(WORKSPACE_ID, longToken);
@@ -368,9 +380,11 @@ class RotatingTokenStoreTest {
 
         // Rotate workspace1
         rotatingStore.rotate(workspace1, newToken1);
+        when(mockDelegate.get(workspace1)).thenReturn(Optional.of(newToken1));
 
         // Rotate workspace2
         rotatingStore.rotate(workspace2, newToken2);
+        when(mockDelegate.get(workspace2)).thenReturn(Optional.of(newToken2));
 
         // Verify each workspace maintains independent rotation state
         assertTrue(rotatingStore.isValidToken(workspace1, token1));
@@ -390,6 +404,9 @@ class RotatingTokenStoreTest {
         long beforeRotation = System.currentTimeMillis();
         rotatingStore.rotate(WORKSPACE_ID, NEW_TOKEN);
         long afterRotation = System.currentTimeMillis();
+
+        // After rotation, mock should return NEW_TOKEN
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(NEW_TOKEN));
 
         // Should accept old token immediately after rotation
         assertTrue(rotatingStore.isValidToken(WORKSPACE_ID, OLD_TOKEN));

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -36,20 +37,47 @@ public class TriggersCatalog {
         List<WebhookTrigger> triggers = new ArrayList<>();
 
         try {
-            Path webhookPath = Paths.get("Clockify_Webhook_JSON_Samples.md");
-            if (!Files.exists(webhookPath)) {
-                // Fallback to downloads/Clockify_Webhook_JSON_Samples.md
-                Path dl = Paths.get("downloads", "Clockify_Webhook_JSON_Samples.md");
-                if (Files.exists(dl)) {
-                    webhookPath = dl;
-                } else {
-                    logger.warn("Webhook samples file not found at {} or {}", Paths.get("Clockify_Webhook_JSON_Samples.md"), dl);
-                    cachedTriggers = triggers;
-                    return triggers;
+            String content = null;
+
+            // Try classpath resource first (for CI environment)
+            try (InputStream is = TriggersCatalog.class.getClassLoader()
+                    .getResourceAsStream("Clockify_Webhook_JSON_Samples.md")) {
+                if (is != null) {
+                    content = new String(is.readAllBytes());
+                    logger.info("Loaded webhook samples from classpath: Clockify_Webhook_JSON_Samples.md");
                 }
+            } catch (Exception e) {
+                logger.warn("Failed to load webhook samples from classpath", e);
             }
 
-            String content = Files.readString(webhookPath);
+            // If classpath loading failed, try filesystem paths
+            if (content == null) {
+                // Try root directory first (preferred location) - use relative path from project root
+                Path webhookPath = Paths.get("../Clockify_Webhook_JSON_Samples.md");
+                if (!Files.exists(webhookPath)) {
+                    // Try current directory (for local development)
+                    webhookPath = Paths.get("Clockify_Webhook_JSON_Samples.md");
+                    if (!Files.exists(webhookPath)) {
+                        // Try downloads directory
+                        Path dl = Paths.get("../downloads", "Clockify_Webhook_JSON_Samples.md");
+                        if (Files.exists(dl)) {
+                            webhookPath = dl;
+                        } else {
+                            // Fallback to current directory downloads
+                            dl = Paths.get("downloads", "Clockify_Webhook_JSON_Samples.md");
+                            if (Files.exists(dl)) {
+                                webhookPath = dl;
+                            } else {
+                                logger.warn("Webhook samples file not found in any expected location");
+                                cachedTriggers = triggers;
+                                return triggers;
+                            }
+                        }
+                    }
+                }
+                content = Files.readString(webhookPath);
+                logger.info("Loaded webhook samples from filesystem: {}", webhookPath);
+            }
 
             // Pattern to extract webhook event names (markdown headers like ## EVENT_NAME)
             Pattern headerPattern = Pattern.compile("^## ([A-Z_]+)$", Pattern.MULTILINE);
