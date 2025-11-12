@@ -201,6 +201,7 @@ public class IftttController implements RequestHandler {
       font-size: 11px;
     }
     .placeholder-chip:hover { background: #ffe082; }
+    .placeholder-chip.copied { background: #81c784; }
 
     .console {
       background: #1e1e1e;
@@ -237,7 +238,37 @@ public class IftttController implements RequestHandler {
     }
     .filter-chip.active { background: #1976d2; color: white; border-color: #1976d2; }
 
+    /* Utility classes for CSP compliance */
     .hidden { display: none; }
+    .flex-1 { flex: 1; }
+    .align-end { align-items: flex-end; }
+    .conditions-heading { margin-top: 16px; }
+    .endpoint-summary { color: #666; }
+    .required-star { color: red; }
+    .trigger-event-code { font-size: 11px; color: #999; margin-top: 4px; }
+    .trigger-description { margin: 8px 0; font-size: 12px; }
+    .trigger-meta { font-size: 12px; color: #666; }
+    .endpoint-label-margin { margin-top: 4px; }
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 800px;
+      max-height: 80%%;
+      overflow: auto;
+    }
   </style>
 </head>
 <body>
@@ -278,10 +309,10 @@ public class IftttController implements RequestHandler {
           </div>
         </div>
 
-        <div class="card" id="selectedTriggerCard" style="display:none">
+        <div class="card hidden" id="selectedTriggerCard">
           <h3>Selected Trigger</h3>
           <div id="selectedTriggerInfo"></div>
-          <h3 style="margin-top:16px">Filter Conditions (Optional)</h3>
+          <h3 class="conditions-heading">Filter Conditions (Optional)</h3>
           <div id="triggerConditions"></div>
           <button class="secondary small" id="btnAddCondition">+ Add Condition</button>
         </div>
@@ -305,11 +336,11 @@ public class IftttController implements RequestHandler {
     <div class="card">
       <h2>Save & Test</h2>
       <div class="row">
-        <div class="field-group" style="flex:1">
+        <div class="field-group flex-1">
           <label>Rule Name</label>
           <input id="ruleName" type="text" placeholder="My IFTTT Automation" />
         </div>
-        <div class="row" style="align-items:flex-end">
+        <div class="row align-end">
           <label><input id="ruleEnabled" type="checkbox" checked /> Enabled</label>
         </div>
       </div>
@@ -321,7 +352,7 @@ public class IftttController implements RequestHandler {
       </div>
     </div>
 
-    <div class="card" id="consoleCard" style="display:none">
+    <div class="card hidden" id="consoleCard">
       <h3>Console Output</h3>
       <div class="console" id="console"></div>
     </div>
@@ -447,7 +478,7 @@ public class IftttController implements RequestHandler {
         item.innerHTML = `
           <h4>${trigger.name} <span class="pill">${trigger.category}</span></h4>
           <p>${trigger.description}</p>
-          <div style="font-size:11px; color:#999; margin-top:4px">Event: <code>${trigger.event}</code></div>
+          <div class="trigger-event-code">Event: <code>${trigger.event}</code></div>
         `;
         item.onclick = () => selectTrigger(trigger);
         container.appendChild(item);
@@ -460,12 +491,12 @@ public class IftttController implements RequestHandler {
 
       const card = document.getElementById('selectedTriggerCard');
       const info = document.getElementById('selectedTriggerInfo');
-      card.style.display = 'block';
+      card.classList.remove('hidden');
 
       info.innerHTML = `
         <div class="pill success">${trigger.name}</div>
-        <p style="margin:8px 0; font-size:12px">${trigger.description}</p>
-        <div style="font-size:12px; color:#666">
+        <p class="trigger-description">${trigger.description}</p>
+        <div class="trigger-meta">
           <strong>Sample fields:</strong> ${trigger.sampleFields.join(', ')}
         </div>
       `;
@@ -521,7 +552,7 @@ public class IftttController implements RequestHandler {
         <div class="field-group">
           <label>API Endpoint</label>
           <button class="secondary small action-pick-endpoint">Select Endpoint</button>
-          <div id="${actionId}-endpoint" class="muted" style="margin-top:4px">No endpoint selected</div>
+          <div id="${actionId}-endpoint" class="muted endpoint-label-margin">No endpoint selected</div>
         </div>
         <div id="${actionId}-params" class="hidden"></div>
         <div id="${actionId}-body" class="hidden"></div>
@@ -547,10 +578,10 @@ public class IftttController implements RequestHandler {
 
     function showEndpointPicker(actionId) {
       const modal = document.createElement('div');
-      modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;';
+      modal.className = 'modal-overlay';
 
       const content = document.createElement('div');
-      content.style.cssText = 'background:white;padding:20px;border-radius:8px;max-width:800px;max-height:80%%;overflow:auto;';
+      content.className = 'modal-content';
       content.innerHTML = '<h3>Select API Endpoint</h3><div id="endpointCatalog"></div><button class="secondary modal-close">Close</button>';
 
       modal.appendChild(content);
@@ -574,18 +605,17 @@ public class IftttController implements RequestHandler {
         header.textContent = `${tagGroup.tag} (${tagGroup.endpoints.length})`;
         header.onclick = () => {
           const list = group.querySelector('.endpoint-list');
-          list.style.display = list.style.display === 'none' ? 'block' : 'none';
+          list.classList.toggle('hidden');
         };
         group.appendChild(header);
 
         const list = document.createElement('div');
-        list.className = 'endpoint-list';
-        list.style.display = 'none';
+        list.className = 'endpoint-list hidden';
 
         tagGroup.endpoints.forEach(ep => {
           const option = document.createElement('div');
           option.className = 'endpoint-option';
-          option.innerHTML = `<strong>${ep.method}</strong> ${ep.path}<br><span style="color:#666">${ep.summary}</span>`;
+          option.innerHTML = `<strong>${ep.method}</strong> ${ep.path}<br><span class="endpoint-summary">${ep.summary}</span>`;
           option.onclick = () => {
             selectEndpoint(actionId, ep);
             onSelect();
@@ -607,7 +637,7 @@ public class IftttController implements RequestHandler {
       action.body = {};
 
       document.getElementById(actionId + '-endpoint').innerHTML =
-        `<strong>${endpoint.method}</strong> ${endpoint.path}<br><span style="color:#666">${endpoint.summary}</span>`;
+        `<strong>${endpoint.method}</strong> ${endpoint.path}<br><span class="endpoint-summary">${endpoint.summary}</span>`;
 
       // Render parameter inputs
       if (endpoint.parameters && endpoint.parameters.length > 0) {
@@ -619,7 +649,7 @@ public class IftttController implements RequestHandler {
           const field = document.createElement('div');
           field.className = 'field-group';
           field.innerHTML = `
-            <label>${param.name} ${param.required ? '<span style="color:red">*</span>' : ''}</label>
+            <label>${param.name} ${param.required ? '<span class="required-star">*</span>' : ''}</label>
             <input type="text" placeholder="${param.description || param.type}"
                    data-param="${param.name}" data-in="${param.in}" class="action-param-input" />
             <div class="hint">${param.in}: ${param.type}</div>
@@ -645,7 +675,7 @@ public class IftttController implements RequestHandler {
           const fieldDiv = document.createElement('div');
           fieldDiv.className = 'field-group';
           fieldDiv.innerHTML = `
-            <label>${field.name} ${field.required ? '<span style="color:red">*</span>' : ''}</label>
+            <label>${field.name} ${field.required ? '<span class="required-star">*</span>' : ''}</label>
             <input type="text" placeholder="${field.description || field.type}"
                    class="action-body-input"
                    data-field="${field.name}" />
@@ -675,8 +705,8 @@ public class IftttController implements RequestHandler {
           chip.onclick = () => {
             // Copy to clipboard or show hint
             navigator.clipboard?.writeText('{{' + field + '}}');
-            chip.style.background = '#81c784';
-            setTimeout(() => chip.style.background = '', 500);
+            chip.classList.add('copied');
+            setTimeout(() => chip.classList.remove('copied'), 500);
           };
           chipsDiv.appendChild(chip);
         });
@@ -837,7 +867,7 @@ public class IftttController implements RequestHandler {
         selectedTrigger = null;
         actions = [];
         actionCounter = 0;
-        document.getElementById('selectedTriggerCard').style.display = 'none';
+        document.getElementById('selectedTriggerCard').classList.add('hidden');
         document.getElementById('actionsList').innerHTML = '';
         document.getElementById('ruleName').value = '';
         renderTriggers();
@@ -848,7 +878,7 @@ public class IftttController implements RequestHandler {
     function log(message, type = 'info') {
       const consoleCard = document.getElementById('consoleCard');
       const consoleDiv = document.getElementById('console');
-      consoleCard.style.display = 'block';
+      consoleCard.classList.remove('hidden');
 
       const timestamp = new Date().toLocaleTimeString();
       const className = type === 'error' ? 'error' : (type === 'success' ? 'success' : '');
