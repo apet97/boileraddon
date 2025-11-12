@@ -65,12 +65,14 @@ class SettingsControllerTest {
     @Test
     void serializeBootstrapProducesJsonString() {
         SettingsController.SettingsBootstrap bootstrap =
-                new SettingsController.SettingsBootstrap("ws", "user", "user@example.com", "req-1");
+                new SettingsController.SettingsBootstrap("ws", "user", "user@example.com", "req-1", "light", "en");
 
         String json = controller.serializeBootstrap(bootstrap);
 
         assertTrue(json.contains("\"workspaceId\":\"ws\""));
         assertTrue(json.contains("\"userEmail\":\"user@example.com\""));
+        assertTrue(json.contains("\"theme\":\"light\""));
+        assertTrue(json.contains("\"language\":\"en\""));
     }
 
     @Test

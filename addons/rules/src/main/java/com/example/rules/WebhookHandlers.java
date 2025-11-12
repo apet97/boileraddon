@@ -23,15 +23,32 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Handles Clockify webhook events for time entries.
  * Evaluates rules and applies actions when time entries are created or updated.
+ *
+ * <p><strong>Async Processing:</strong> Complex rule sets (>5 actions) are processed
+ * asynchronously to prevent webhook timeouts per Clockify addon guide (lines 1790-1793).</p>
  */
 public class WebhookHandlers {
 
     private static final Logger logger = LoggerFactory.getLogger(WebhookHandlers.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final int ASYNC_ACTION_THRESHOLD = 5;
+
+    // ExecutorService for async webhook processing (prevents timeout on complex rules)
+    private static final ExecutorService executorService = Executors.newFixedThreadPool(
+        Math.max(2, Runtime.getRuntime().availableProcessors()),
+        r -> {
+            Thread t = new Thread(r);
+            t.setName("webhook-processor-" + t.getId());
+            t.setDaemon(true);
+            return t;
+        }
+    );
 
     private static com.example.rules.store.RulesStoreSPI rulesStore;
     private static Evaluator evaluator;
@@ -122,6 +139,25 @@ public class WebhookHandlers {
                         logger.info("RULES_APPLY_CHANGES=false — logging actions only");
                         logActions(actionsToApply);
                         return createResponse(eventType, "actions_logged", actionsToApply);
+                    }
+
+                    // Schedule async processing for complex rule sets to prevent timeout
+                    // (Clockify addon guide recommendation: lines 1790-1793)
+                    if (actionsToApply.size() > ASYNC_ACTION_THRESHOLD) {
+                        logger.info("Scheduling async processing for {} actions (threshold: {})",
+                            actionsToApply.size(), ASYNC_ACTION_THRESHOLD);
+                        String finalWorkspaceId = workspaceId;
+                        JsonNode finalTimeEntry = timeEntry;
+                        String finalEventType = eventType;
+                        executorService.submit(() -> {
+                            try (LoggingContext asyncContext = LoggingContext.create()) {
+                                asyncContext.workspace(finalWorkspaceId);
+                                applyActionsAsync(finalWorkspaceId, finalTimeEntry, actionsToApply, finalEventType);
+                            } catch (Exception e) {
+                                logger.error("Async action processing failed for workspace {}", finalWorkspaceId, e);
+                            }
+                        });
+                        return createResponse(eventType, "scheduled", actionsToApply);
                     }
 
                     // Apply actions idempotently using SDK HTTP client
@@ -402,5 +438,208 @@ public class WebhookHandlers {
             }
         }
         return objectMapper.readTree(sb.toString());
+    }
+
+    /**
+     * Applies actions asynchronously to prevent webhook timeout on complex rule sets.
+     * This method is called when action count exceeds ASYNC_ACTION_THRESHOLD.
+     *
+     * @param workspaceId The workspace ID
+     * @param timeEntry The time entry JSON
+     * @param actions The actions to apply
+     * @param eventType The webhook event type for logging
+     */
+    private static void applyActionsAsync(String workspaceId, JsonNode timeEntry,
+                                          List<Action> actions, String eventType) {
+        try {
+            logger.info("Starting async action processing for workspace {} (event: {}, actions: {})",
+                workspaceId, eventType, actions.size());
+
+            var wkOpt = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
+            if (wkOpt.isEmpty()) {
+                logger.warn("Missing installation token for workspace {} — cannot apply actions", workspaceId);
+                return;
+            }
+
+            var wk = wkOpt.get();
+            ClockifyClient api = clientFactory.create(wk.apiBaseUrl(), wk.token());
+
+            // Read existing entry and tags once, then apply changes in-memory and PUT once if needed
+            ObjectNode entry = api.getTimeEntry(workspaceId, timeEntry.path("id").asText());
+            JsonNode tagsArray = api.getTags(workspaceId);
+            java.util.Map<String, String> tagsByNorm = ClockifyClient.mapTagsByNormalizedName(tagsArray);
+            var snap = com.example.rules.cache.WorkspaceCache.get(workspaceId);
+
+            boolean changed = false;
+            ObjectNode patch = objectMapper.createObjectNode();
+            var patchTagIds = objectMapper.createArrayNode();
+            boolean patchHasTags = false;
+            String pendingProjectId = null;
+
+            for (Action action : actions) {
+                String type = action.getType();
+                java.util.Map<String, String> args = action.getArgs();
+                if (type == null) continue;
+
+                switch (type) {
+                    case "add_tag": {
+                        String tagName = args != null ? args.getOrDefault("tag", args.get("name")) : null;
+                        if (tagName == null || tagName.isBlank()) break;
+                        String tagId = tagsByNorm.get(tagName.trim().toLowerCase(java.util.Locale.ROOT));
+                        if (tagId != null) {
+                            patchHasTags = true;
+                            ArrayNode current = (ArrayNode) entry.path("tagIds");
+                            boolean exists = false;
+                            for (JsonNode n : current) {
+                                String id = n.asText();
+                                if (!patchTagIds.toString().contains(id)) patchTagIds.add(id);
+                                if (id.equals(tagId)) exists = true;
+                            }
+                            if (!exists) {
+                                patchTagIds.add(tagId);
+                                changed = true;
+                            }
+                        }
+                        break;
+                    }
+                    case "remove_tag": {
+                        String tagName = args != null ? args.getOrDefault("tag", args.get("name")) : null;
+                        if (tagName == null || tagName.isBlank()) break;
+                        String tagId = tagsByNorm.get(tagName.trim().toLowerCase(java.util.Locale.ROOT));
+                        if (tagId != null) {
+                            patchHasTags = true;
+                            ArrayNode current = (ArrayNode) entry.path("tagIds");
+                            for (JsonNode n : current) {
+                                String id = n.asText();
+                                if (!id.equals(tagId)) patchTagIds.add(id);
+                            }
+                            changed = true;
+                        }
+                        break;
+                    }
+                    case "set_description": {
+                        String desc = args != null ? args.get("description") : null;
+                        if (desc != null) {
+                            String currentDesc = entry.path("description").asText("");
+                            if (!desc.equals(currentDesc)) {
+                                patch.put("description", desc);
+                                changed = true;
+                            }
+                        }
+                        break;
+                    }
+                    case "set_billable": {
+                        String val = args != null ? args.get("billable") : null;
+                        if (val != null) {
+                            boolean billable = val.equalsIgnoreCase("true");
+                            boolean current = entry.path("billable").asBoolean(false);
+                            if (billable != current) {
+                                patch.put("billable", billable);
+                                changed = true;
+                            }
+                        }
+                        break;
+                    }
+                    case "set_project_by_id": {
+                        String projectId = args != null ? args.get("projectId") : null;
+                        if (projectId != null && !projectId.isBlank()) {
+                            String current = entry.path("projectId").asText("");
+                            if (!projectId.equals(current)) {
+                                patch.put("projectId", projectId);
+                                pendingProjectId = projectId;
+                                changed = true;
+                            }
+                        }
+                        break;
+                    }
+                    case "set_project_by_name": {
+                        String projectName = args != null ? args.get("project") : null;
+                        if (projectName != null && !projectName.isBlank()) {
+                            String pnorm = projectName.trim().toLowerCase(java.util.Locale.ROOT);
+                            String projectId = snap.projectsByNameNorm.get(pnorm);
+                            if (projectId != null) {
+                                String current = entry.path("projectId").asText("");
+                                if (!projectId.equals(current)) {
+                                    patch.put("projectId", projectId);
+                                    pendingProjectId = projectId;
+                                    changed = true;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    case "set_task_by_id": {
+                        String taskId = args != null ? args.get("taskId") : null;
+                        if (taskId != null && !taskId.isBlank()) {
+                            String current = entry.path("taskId").asText("");
+                            if (!taskId.equals(current)) {
+                                patch.put("taskId", taskId);
+                                changed = true;
+                            }
+                        }
+                        break;
+                    }
+                    case "set_task_by_name": {
+                        String tname = args != null ? args.get("task") : null;
+                        if (tname != null && !tname.isBlank()) {
+                            String taskId = null;
+                            String projectName = null;
+                            if (pendingProjectId != null) {
+                                projectName = snap.projectsById.getOrDefault(pendingProjectId, null);
+                            }
+                            if (projectName == null || projectName.isBlank()) {
+                                var projNode = entry.path("project");
+                                if (projNode.has("name") && projNode.get("name").isTextual()) {
+                                    projectName = projNode.get("name").asText("");
+                                }
+                            }
+                            if (projectName != null && !projectName.isBlank()) {
+                                String pnorm = projectName.trim().toLowerCase(java.util.Locale.ROOT);
+                                var tmap = snap.tasksByProjectNameNorm.get(pnorm);
+                                if (tmap != null) {
+                                    taskId = tmap.get(tname.trim().toLowerCase(java.util.Locale.ROOT));
+                                }
+                            }
+                            if (taskId == null) {
+                                String tnorm = tname.trim().toLowerCase(java.util.Locale.ROOT);
+                                for (var e : snap.tasksByProjectNameNorm.entrySet()) {
+                                    var id = e.getValue().get(tnorm);
+                                    if (id != null) {
+                                        taskId = id;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (taskId != null) {
+                                String current = entry.path("taskId").asText("");
+                                if (!taskId.equals(current)) {
+                                    patch.put("taskId", taskId);
+                                    changed = true;
+                                }
+                            }
+                        }
+                        break;
+                    }
+                    default:
+                        // Unknown action type — skip
+                        break;
+                }
+            }
+
+            if (patchHasTags) {
+                patch.set("tagIds", patchTagIds);
+            }
+
+            if (changed) {
+                api.updateTimeEntry(workspaceId, timeEntry.path("id").asText(), patch);
+                logger.info("Async action processing completed successfully for workspace {} ({} changes applied)",
+                    workspaceId, actions.size());
+            } else {
+                logger.info("Async action processing completed with no changes for workspace {}", workspaceId);
+            }
+
+        } catch (Exception e) {
+            logger.error("Async action processing failed for workspace {}", workspaceId, e);
+        }
     }
 }

@@ -8,6 +8,7 @@ import com.example.rules.store.RulesStoreSPI;
 import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,11 @@ public class LifecycleHandlers {
                 RequestContext.attachUser(request, loggingContext, userId);
 
                 logger.info("Lifecycle INSTALLED received for workspace {} (user={})", workspaceId, userId);
+
+                // SECURITY: Redact sensitive fields before logging payload for debugging
+                if (logger.isDebugEnabled()) {
+                    logger.debug("INSTALLED payload (sanitized): {}", redactSensitiveFields(payload));
+                }
 
                 if (workspaceId == null || workspaceId.isBlank()) {
                     return ErrorResponse.of(400, "RULES.MISSING_WORKSPACE", "workspaceId missing in payload", request, false);
@@ -135,5 +141,38 @@ public class LifecycleHandlers {
             }
         }
         return objectMapper.readTree(sb.toString());
+    }
+
+    /**
+     * Redacts sensitive fields from lifecycle payloads to prevent token leakage in logs.
+     *
+     * SECURITY NOTE: Installation tokens have full workspace access and never expire.
+     * Per Clockify addon guide (line 1749): "The installation token should never be logged."
+     *
+     * @param payload The original lifecycle event payload
+     * @return A sanitized copy with sensitive fields redacted
+     */
+    private static JsonNode redactSensitiveFields(JsonNode payload) {
+        if (payload == null || !payload.isObject()) {
+            return payload;
+        }
+
+        ObjectNode sanitized = ((ObjectNode) payload).deepCopy();
+
+        // Redact installation token (critical security requirement)
+        if (sanitized.has("authToken")) {
+            sanitized.put("authToken", "[REDACTED]");
+        }
+
+        // Redact webhook tokens if present
+        if (sanitized.has("webhooks") && sanitized.get("webhooks").isArray()) {
+            for (JsonNode webhook : sanitized.get("webhooks")) {
+                if (webhook.isObject() && webhook.has("authToken")) {
+                    ((ObjectNode) webhook).put("authToken", "[REDACTED]");
+                }
+            }
+        }
+
+        return sanitized;
     }
 }

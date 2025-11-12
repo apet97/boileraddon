@@ -45,6 +45,7 @@ public final class SecurityHeadersFilter implements Filter {
         "'self' https://*.clockify.me https://*.clockify.com https://developer.clockify.me");
 
     String csp =
+        "upgrade-insecure-requests; " +
         "default-src 'self'; " +
         "object-src 'none'; " +
         "img-src 'self' data:; " +

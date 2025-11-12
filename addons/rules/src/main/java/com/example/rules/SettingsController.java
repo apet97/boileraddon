@@ -82,6 +82,24 @@ public class SettingsController implements RequestHandler {
     .ifttt-banner-text { font-size:14px; font-weight:500; }
     .status-section { border-left:4px solid #1976d2; }
     .min-w-260 { min-width:260px; }
+
+    /* Dark theme support (Clockify addon guide requirement, lines 1798-1806) */
+    body.dark-theme { background:#1e1e1e; color:#e0e0e0; }
+    body.dark-theme h1 { color:#e0e0e0; }
+    body.dark-theme h2 { color:#cccccc; }
+    body.dark-theme .section { background:#2d2d2d; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+    body.dark-theme label { color:#cccccc; }
+    body.dark-theme input[type=text], body.dark-theme select { background:#1e1e1e; color:#e0e0e0; border-color:#555; }
+    body.dark-theme input[readonly] { background:#333; }
+    body.dark-theme button { background:#0d47a1; border-color:#0d47a1; }
+    body.dark-theme button.secondary { background:#444; color:#e0e0e0; border-color:#666; }
+    body.dark-theme .pill { background:#1a237e; color:#90caf9; }
+    body.dark-theme .muted { color:#999; }
+    body.dark-theme .error { color:#ef5350; }
+    body.dark-theme .ok { color:#66bb6a; }
+    body.dark-theme code { background:#333; color:#e0e0e0; }
+    body.dark-theme .ifttt-banner { background:#1a237e; border-left-color:#1976d2; }
+    body.dark-theme .status-section { border-left-color:#1976d2; }
   </style>
 </head>
 <body>
@@ -215,8 +233,15 @@ public class SettingsController implements RequestHandler {
       workspaceId: RULES_BOOTSTRAP.workspaceId || '',
       userId: RULES_BOOTSTRAP.userId || '',
       userEmail: RULES_BOOTSTRAP.userEmail || '',
-      requestId: RULES_BOOTSTRAP.requestId || ''
+      requestId: RULES_BOOTSTRAP.requestId || '',
+      theme: RULES_BOOTSTRAP.theme || 'light',
+      language: RULES_BOOTSTRAP.language || 'en'
     };
+
+    // Apply theme from user preferences (Clockify addon guide requirement)
+    if (BOOTSTRAP.theme && BOOTSTRAP.theme.toLowerCase() === 'dark') {
+      document.body.classList.add('dark-theme');
+    }
     const COND_TYPES = [
       'descriptionContains','descriptionEquals','hasTag','projectIdEquals','projectNameContains','clientIdEquals','clientNameContains','isBillable'
     ];
@@ -497,6 +522,8 @@ public class SettingsController implements RequestHandler {
         String workspaceId = (String) request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR);
         String userId = (String) request.getAttribute(WorkspaceContextFilter.USER_ID_ATTR);
         String userEmail = "";
+        String theme = "light"; // Default theme
+        String language = "en"; // Default language
 
         // Priority 2: Fallback to legacy jwt parameter (deprecated but kept for compatibility)
         if ((workspaceId == null || workspaceId.isBlank()) && jwtVerifier != null) {
@@ -508,6 +535,8 @@ public class SettingsController implements RequestHandler {
                     workspaceId = payload.path("workspaceId").asText("");
                     userId = payload.path("userId").asText("");
                     userEmail = payload.path("userEmail").asText("");
+                    theme = payload.path("theme").asText("light").toLowerCase();
+                    language = payload.path("language").asText("en").toLowerCase();
                     if (!workspaceId.isBlank()) {
                         request.setAttribute(DiagnosticContextFilter.WORKSPACE_ID_ATTR, workspaceId);
                     }
@@ -524,7 +553,7 @@ public class SettingsController implements RequestHandler {
         workspaceId = workspaceId != null ? workspaceId : "";
         userId = userId != null ? userId : "";
 
-        return new SettingsBootstrap(workspaceId, userId, userEmail, requestId);
+        return new SettingsBootstrap(workspaceId, userId, userEmail, requestId, theme, language);
     }
 
     String serializeBootstrap(SettingsBootstrap bootstrap) {
@@ -532,7 +561,7 @@ public class SettingsController implements RequestHandler {
             return OBJECT_MAPPER.writeValueAsString(bootstrap);
         } catch (JsonProcessingException e) {
             logger.warn("Failed to serialize bootstrap payload: {}", e.getMessage());
-            return "{\"workspaceId\":\"\",\"userId\":\"\",\"userEmail\":\"\",\"requestId\":\"\"}";
+            return "{\"workspaceId\":\"\",\"userId\":\"\",\"userEmail\":\"\",\"requestId\":\"\",\"theme\":\"light\",\"language\":\"en\"}";
         }
     }
 
@@ -540,6 +569,6 @@ public class SettingsController implements RequestHandler {
         return json.replace("</", "<\\/");
     }
 
-    record SettingsBootstrap(String workspaceId, String userId, String userEmail, String requestId) {}
+    record SettingsBootstrap(String workspaceId, String userId, String userEmail, String requestId, String theme, String language) {}
 
 }
