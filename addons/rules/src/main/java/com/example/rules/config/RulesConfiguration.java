@@ -34,6 +34,8 @@ public record RulesConfiguration(
     private static final String DEFAULT_BASE_URL = "http://localhost:8080/rules";
     private static final String DEFAULT_API_BASE = "https://api.clockify.me/api";
     private static final long DEFAULT_DEDUP_SECONDS = 600L;
+    private static final long MIN_DEDUP_SECONDS = 60L;
+    private static final long MAX_DEDUP_SECONDS = TimeUnit.HOURS.toSeconds(24);
 
     public RulesConfiguration {
         if (addonKey == null || addonKey.isBlank()) {
@@ -46,17 +48,26 @@ public record RulesConfiguration(
             throw new IllegalArgumentException("ENV must be provided");
         }
         if (!"dev".equalsIgnoreCase(environment) && jwtBootstrap.isEmpty()) {
-            throw new IllegalStateException("""
+            String message = """
                     CLOCKIFY_JWT_* configuration is required when ENV=%s. \
-                    Provide CLOCKIFY_JWT_JWKS_URI, CLOCKIFY_JWT_PUBLIC_KEY_MAP, or CLOCKIFY_JWT_PUBLIC_KEY.
-                    """.formatted(environment));
+                    Provide CLOCKIFY_JWT_JWKS_URI, CLOCKIFY_JWT_PUBLIC_KEY_MAP, or CLOCKIFY_JWT_PUBLIC_KEY. \
+                    See addons/rules/README.md#jwt-bootstrap for setup details.
+                    """.formatted(environment);
+            logger.error(message);
+            throw new IllegalStateException(message);
         }
         if (persistentTokenStoreEnabled && sharedDatabase.isEmpty()) {
             throw new IllegalStateException("ENABLE_DB_TOKEN_STORE=true requires DB_URL/DB_USER/DB_PASSWORD to be configured");
         }
-        long minDedupMillis = TimeUnit.MINUTES.toMillis(1);
+        long minDedupMillis = TimeUnit.SECONDS.toMillis(MIN_DEDUP_SECONDS);
         if (webhookDeduplicationTtlMillis < minDedupMillis) {
-            throw new IllegalArgumentException("RULES_WEBHOOK_DEDUP_SECONDS must be at least 60 seconds");
+            throw new IllegalArgumentException("RULES_WEBHOOK_DEDUP_SECONDS must be at least %d seconds"
+                    .formatted(MIN_DEDUP_SECONDS));
+        }
+        long maxDedupMillis = TimeUnit.SECONDS.toMillis(MAX_DEDUP_SECONDS);
+        if (webhookDeduplicationTtlMillis > maxDedupMillis) {
+            throw new IllegalArgumentException("RULES_WEBHOOK_DEDUP_SECONDS must be at most %d seconds"
+                    .formatted(MAX_DEDUP_SECONDS));
         }
     }
 
@@ -98,7 +109,7 @@ public record RulesConfiguration(
         boolean requestLogging = isTruthy(env.get("ADDON_REQUEST_LOGGING"));
 
         long dedupSeconds = parseLong(env.get("RULES_WEBHOOK_DEDUP_SECONDS"), DEFAULT_DEDUP_SECONDS);
-        long dedupMillis = Math.max(60L, dedupSeconds) * 1000L;
+        long dedupMillis = TimeUnit.SECONDS.toMillis(dedupSeconds);
 
         String envLabel = normalizeEnv(env.get("ENV"));
         boolean persistentTokenStore = resolvePersistenceFlag(env.get("ENABLE_DB_TOKEN_STORE"), envLabel);
@@ -125,6 +136,12 @@ public record RulesConfiguration(
     public record DatabaseSettings(String url, String username, String password) {}
     public record RateLimitConfig(double permitsPerSecond, String limitBy) {}
     public record CorsConfig(String originsCsv, boolean allowCredentials) {}
+    public enum JwtKeySource {
+        JWKS_URI,
+        KEY_MAP,
+        PUBLIC_KEY
+    }
+
     public record JwtBootstrapConfig(
             Optional<String> publicKeyPem,
             Optional<String> keyMapJson,
@@ -132,7 +149,8 @@ public record RulesConfiguration(
             Optional<String> defaultKid,
             Optional<String> expectedIssuer,
             Optional<String> expectedAudience,
-            long leewaySeconds
+            long leewaySeconds,
+            JwtKeySource source
     ) {}
     public record LocalDevSecrets(String workspaceId, String installationToken) {}
 
@@ -188,6 +206,26 @@ public record RulesConfiguration(
         if (pem == null && keyMap == null && jwksUri == null) {
             return Optional.empty();
         }
+        JwtKeySource source;
+        if (jwksUri != null) {
+            source = JwtKeySource.JWKS_URI;
+            if (keyMap != null || pem != null) {
+                logger.warn("CLOCKIFY_JWT_JWKS_URI is set; ignoring CLOCKIFY_JWT_PUBLIC_KEY_MAP and CLOCKIFY_JWT_PUBLIC_KEY(_PEM).");
+            }
+            keyMap = null;
+            pem = null;
+        } else if (keyMap != null) {
+            source = JwtKeySource.KEY_MAP;
+            if (pem != null) {
+                logger.warn("CLOCKIFY_JWT_PUBLIC_KEY_MAP is set; ignoring CLOCKIFY_JWT_PUBLIC_KEY(_PEM).");
+            }
+            jwksUri = null;
+            pem = null;
+        } else {
+            source = JwtKeySource.PUBLIC_KEY;
+            jwksUri = null;
+            keyMap = null;
+        }
         String defaultKid = trimToNull(env.get("CLOCKIFY_JWT_DEFAULT_KID"));
         String expectedIssuer = trimToNull(env.get("CLOCKIFY_JWT_EXPECT_ISS"));
         String expectedAudience = trimToNull(env.get("CLOCKIFY_JWT_EXPECT_AUD"));
@@ -199,7 +237,8 @@ public record RulesConfiguration(
                 Optional.ofNullable(defaultKid),
                 Optional.ofNullable(expectedIssuer),
                 Optional.ofNullable(expectedAudience),
-                leewaySeconds
+                leewaySeconds,
+                source
         ));
     }
 

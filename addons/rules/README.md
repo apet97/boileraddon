@@ -43,6 +43,14 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make docker-run TEMPLATE=rules
 
 `RulesConfiguration.fromEnvironment()` is the single source of truth for configuration. It reads `.env.rules` (when using `make dev-rules`) or real env vars, validates everything via `ConfigValidator`, and exposes typed records to the rest of the add-on. Use `.env.rules.example` as a starting point.
 
+### Configuration profiles
+
+- **Local dev (`.env.rules.dev.example`)** — `ENV=dev`, `RULES_APPLY_CHANGES=false`, and optional helpers such as `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, and `ADDON_SKIP_SIGNATURE_VERIFY`. `RuntimeFlags` enforces that these helpers are ignored automatically when `ENV!=dev`.
+- **Staging (`.env.rules.staging.example`)** — `ENV=staging`, real JWT bootstrap values (JWKS, PEM map, or individual PEM), no dev helpers. Start with `RULES_APPLY_CHANGES=false`, then flip to `true` only after verifying automations end-to-end.
+- **Production (`.env.rules.prod.example`)** — `ENV=prod`, `RULES_APPLY_CHANGES=true`, persistent token store enabled, and monitoring/alerting env vars configured. Stage/staging envs should mirror this file as closely as possible.
+
+Each example file includes all required keys plus inline notes linking back to this README and the production launch checklist.
+
 ### Core runtime
 
 | Variable | Purpose | Default / Notes |
@@ -52,7 +60,7 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make docker-run TEMPLATE=rules
 | `CLOCKIFY_API_BASE_URL` | Base URL for the upstream Clockify API client. | `https://api.clockify.me/api` |
 | `ENV` | Labels the environment (`dev`, `prod`, etc.); used by `RuntimeFlags` to guard risky toggles. | `prod` |
 | `RULES_APPLY_CHANGES` | Enables mutations instead of dry-run logging. Backed by `RuntimeFlags.applyChangesEnabled()` so you can flip it without reloading config. | `false` |
-| `RULES_WEBHOOK_DEDUP_SECONDS` | TTL (seconds) for `WebhookIdempotencyCache`. | `600` (clamped to ≥60s) |
+| `RULES_WEBHOOK_DEDUP_SECONDS` | TTL (seconds) for `WebhookIdempotencyCache`. | `600` (must be between 60 seconds and 24 hours) |
 
 ### Persistence (rules + token store)
 
@@ -62,7 +70,7 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make docker-run TEMPLATE=rules
 | `DB_URL`, `DB_USER`/`DB_USERNAME`, `DB_PASSWORD` | Shared DB config for the pooled `TokenStore` (and as fallback for rules storage). | Required when enabling persistence. |
 | `ENABLE_DB_TOKEN_STORE` | Forces persistent token storage on/off. | Default: `false` unless `ENV=prod`; fails fast if DB credentials are missing. |
 
-### JWT bootstrap & platform auth
+### JWT bootstrap
 
 | Variable(s) | Purpose | Notes |
 | --- | --- | --- |
@@ -73,7 +81,9 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make docker-run TEMPLATE=rules
 | `CLOCKIFY_JWT_EXPECT_ISS`, `CLOCKIFY_JWT_EXPECT_AUD` | Issuer/audience claims enforced by `JwtVerifier.Constraints`. | Defaults: issuer `clockify`, audience `rules` (the addon key). |
 | `CLOCKIFY_JWT_LEEWAY_SECONDS` | Allowed clock skew when validating temporal claims. | `60` seconds. |
 
-`RulesConfiguration.JwtBootstrapConfig` feeds all of the above into `JwtVerifier`, which prioritizes JWKS, then PEM map, then single PEM. The `expectedSubject` is derived from `addonKey` (“rules”) so JWTs are tied to the manifest key automatically.
+`RulesConfiguration.JwtBootstrapConfig` feeds all of the above into `JwtVerifier`. JWKS > PEM map > single PEM is enforced explicitly, and extra env vars are logged then ignored so there is never ambiguity about which key source is in use. Non-dev environments fail fast (with actionable error messages) unless at least one of the three key sources is configured. Dev environments may omit the keys entirely, but `/api/**` endpoints will run without bearer enforcement in that case.
+
+Platform authorization flows through `ScopedPlatformAuthFilter` + `PlatformAuthFilter` once a verifier is configured; see “Security: JWT Verification” below for architecture details.
 
 ### Middleware & networking
 
@@ -250,9 +260,9 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 
 ## Webhook idempotency & duplicate detection
 
-- `WebhookIdempotencyCache` hashes `(workspaceId, eventType, preferred payload ID)` for each webhook delivery. The TTL is configured via `RULES_WEBHOOK_DEDUP_SECONDS` (minimum 60 seconds) and is logged at startup.
-- Preferred IDs include `payloadId`, `eventId`, `timeEntry.id`, etc. If no stable field exists, the cache falls back to hashing the entire payload body.
-- When a duplicate arrives within the TTL, handlers short-circuit, emit a `deduplicated webhook` log line, and increment the Prometheus counter `rules_webhook_deduplicated_total`. Operators can alert on spikes in that metric to spot upstream retry storms.
+- `WebhookIdempotencyCache` hashes `(workspaceId, eventType, preferred payload ID)` per delivery. `RULES_WEBHOOK_DEDUP_SECONDS` must stay between **60 seconds and 24 hours**; invalid values now fail fast during startup and are clamped/logged defensively at runtime.
+- Preferred IDs include `payloadId`, `eventId`, `timeEntry.id`, etc. If no stable field exists, the cache falls back to hashing the entire payload body. The cache is **in-memory per JVM instance**, so duplicates are only caught on the same pod and within the TTL window. For multi-node deduplication, wire a durable store (Redis/SQL) behind the cache.
+- When a duplicate arrives within the TTL, handlers short-circuit, emit a `duplicate` log line, and increment the Prometheus counter `rules_webhook_dedup_hits_total`. Alert on spikes to spot upstream retry storms or delivery loops.
 
 ## Checklist: Plan, Scopes, Events
 
@@ -268,3 +278,15 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
   - Event payloads: docs/REQUEST-RESPONSE-EXAMPLES.md
   - Full catalog: dev-docs-marketplace-cake-snapshot/
   - Manifest fields: docs/CLOCKIFY_PARAMETERS.md
+
+### Database schema & migrations
+
+The JDBC stores create tables automatically for local smoke tests, but production deployments should manage DDL explicitly. See [`docs/RULES_DB_SCHEMA.md`](../../docs/RULES_DB_SCHEMA.md) for canonical table definitions (`rules` + `addon_tokens`) and migration guidance.
+
+### Monitoring & observability
+
+`/health`, `/ready`, and `/metrics` expose everything needed for SRE dashboards. [`docs/RULES_OBSERVABILITY.md`](../../docs/RULES_OBSERVABILITY.md) lists the exact checks, Micrometer metrics, and alert suggestions (readiness flaps, webhook latency, dedupe spikes, etc.).
+
+### Production launch checklist
+
+Ready to ship Rules to a new environment? Follow [`RULES_PROD_LAUNCH_CHECKLIST.md`](../../RULES_PROD_LAUNCH_CHECKLIST.md) for pre-flight validation, build/deploy steps, dedupe smoke tests, and monitoring hand-off items.

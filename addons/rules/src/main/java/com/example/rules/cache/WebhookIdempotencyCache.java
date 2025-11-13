@@ -48,13 +48,23 @@ public final class WebhookIdempotencyCache {
         CLEANER.scheduleAtFixedRate(WebhookIdempotencyCache::purgeExpired, 1, 1, TimeUnit.MINUTES);
     }
 
+    private static final long MIN_TTL_MILLIS = Duration.ofMinutes(1).toMillis();
+    private static final long MAX_TTL_MILLIS = Duration.ofHours(24).toMillis();
     private static volatile long ttlMillis = Duration.ofMinutes(10).toMillis();
 
     private WebhookIdempotencyCache() {
     }
 
     public static void configureTtl(long newTtlMillis) {
-        ttlMillis = Math.max(TimeUnit.MINUTES.toMillis(1), newTtlMillis);
+        long clamped = Math.max(MIN_TTL_MILLIS, Math.min(MAX_TTL_MILLIS, newTtlMillis));
+        if (newTtlMillis < MIN_TTL_MILLIS) {
+            logger.warn("Requested webhook dedupe TTL {} ms is below minimum {}; clamping to minimum.",
+                    newTtlMillis, MIN_TTL_MILLIS);
+        } else if (newTtlMillis > MAX_TTL_MILLIS) {
+            logger.warn("Requested webhook dedupe TTL {} ms exceeds maximum {}; clamping to maximum.",
+                    newTtlMillis, MAX_TTL_MILLIS);
+        }
+        ttlMillis = clamped;
         logger.info("Webhook idempotency TTL set to {} ms", ttlMillis);
     }
 

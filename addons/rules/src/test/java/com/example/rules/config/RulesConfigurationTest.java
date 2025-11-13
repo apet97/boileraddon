@@ -38,7 +38,8 @@ class RulesConfigurationTest {
                 Optional.empty(),
                 Optional.of("clockify"),
                 Optional.of("rules"),
-                60
+                60,
+                RulesConfiguration.JwtKeySource.PUBLIC_KEY
         );
 
         assertThrows(IllegalStateException.class, () ->

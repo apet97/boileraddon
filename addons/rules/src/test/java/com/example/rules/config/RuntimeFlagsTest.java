@@ -11,6 +11,7 @@ class RuntimeFlagsTest {
     void clearProps() {
         System.clearProperty("RULES_APPLY_CHANGES");
         System.clearProperty("ADDON_SKIP_SIGNATURE_VERIFY");
+        System.clearProperty("ENV");
     }
 
     @Test
@@ -31,8 +32,15 @@ class RuntimeFlagsTest {
     }
 
     @Test
+    void skipSignatureVerification_allowedWhenEnvOverriddenToDev() {
+        System.setProperty("ENV", "dev");
+        System.setProperty("ADDON_SKIP_SIGNATURE_VERIFY", "true");
+
+        assertTrue(RuntimeFlags.skipSignatureVerification());
+    }
+
+    @Test
     void environmentLabel_defaultsToProd() {
         assertEquals("prod", RuntimeFlags.environmentLabel());
     }
 }
-

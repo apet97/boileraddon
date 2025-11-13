@@ -7,7 +7,7 @@ The hardened `rules` module is the canonical production example in this reposito
    ```bash
    mvn -q -pl addons/rules -am package -DskipTests
    ```
-2. **Copy the env template** — `cp .env.rules.example .env.rules`, then edit base URL, DB creds, and JWT bootstrap values as needed.
+2. **Copy the env template** — `cp .env.rules.example .env.rules`, then reference the profile-specific overlays (`.env.rules.dev.example`, `.env.rules.staging.example`, `.env.rules.prod.example`) to ensure the right ENV label, JWT bootstrap, and dev-only toggles are in place for each environment.
 3. **Run with Make (loads `.env.rules`)** — `make dev-rules` starts the fat JAR with all middleware (SecurityHeadersFilter, SensitiveHeaderFilter, RateLimiter/CORS if configured). Toggle mutations via `RULES_APPLY_CHANGES=true` only when exercising real Clockify data.
 4. **Expose via ngrok and reinstall** — `ngrok http 8080`, restart with `ADDON_BASE_URL=https://<domain>/rules make run-rules`, then reinstall using `https://<domain>/rules/manifest.json`.
 5. **Optional Docker smoke** — `ADDON_BASE_URL=https://<domain>/rules make docker-build TEMPLATE=rules` builds the multi-stage image; `make docker-run TEMPLATE=rules` runs it locally with the same env vars.
@@ -50,16 +50,17 @@ DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON
   - Persistence: `ENABLE_DB_TOKEN_STORE=true`, `DB_*`, and `RULES_DB_*` when rules storage is also backing onto SQL
   - Security/middleware: `ADDON_FRAME_ANCESTORS`, `ADDON_RATE_LIMIT`/`ADDON_LIMIT_BY`, optional `ADDON_CORS_*`, `ADDON_REQUEST_LOGGING`
   - Never set `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, or `ADDON_SKIP_SIGNATURE_VERIFY` outside development.
+  - Webhook dedupe: `RULES_WEBHOOK_DEDUP_SECONDS` between **60 seconds and 24 hours**; values outside that range cause startup failures (and are clamped/logged defensively at runtime).
 
 ## Health, readiness, and metrics
 - `GET /rules/health` — Jetty + storage liveness. Includes database checks when `RULES_DB_*` or `DB_*` are configured and a `DatabaseHealthCheck` for the pooled token store.
 - `GET /rules/ready` — `ReadinessHandler` calls `RulesStore.getAll("health-probe")` and `tokenStore.count()`. Returns HTTP 503 with `"status":"DEGRADED"` when either dependency is down, so point Kubernetes readiness probes here.
-- `GET /rules/metrics` — Prometheus exposition (request counters, rule evaluations, webhook dedupe stats, executor latencies). Scrape on the same base URL as the app.
+- `GET /rules/metrics` — Prometheus exposition (request counters, rule evaluations, webhook dedupe stats, executor latencies). Scrape on the same base URL as the app. See [`docs/RULES_OBSERVABILITY.md`](docs/RULES_OBSERVABILITY.md) for alert suggestions and metric details.
 
 ## Webhook idempotency & filters
-- `WebhookIdempotencyCache` stores `(workspaceId, eventType, payloadId)` tuples for `RULES_WEBHOOK_DEDUP_SECONDS` (≥60s). Duplicates short-circuit webhook handlers and increment `rules_webhook_deduplicated_total`.
+- `WebhookIdempotencyCache` stores `(workspaceId, eventType, payloadId)` tuples for `RULES_WEBHOOK_DEDUP_SECONDS` (60s–24h). The cache is per-pod and in-memory; duplicates are only caught on the same node. Duplicates short-circuit webhook handlers and increment `rules_webhook_dedup_hits_total`. For cross-node dedupe, back the cache with a persistent store.
 - `SecurityHeadersFilter` emits CSP + security headers and shares a per-request nonce with the settings/IFTTT controllers.
 - `SensitiveHeaderFilter` wraps the servlet request to redact `Authorization`, `X-Addon-Token`, `Clockify-Signature`, and cookies before any logging occurs.
 - Workspace iframe JWTs flow through `RulesConfiguration.JwtBootstrapConfig` → `JwtVerifier` → `WorkspaceContextFilter` / `PlatformAuthFilter`, so no controller calls `System.getenv`.
 
-For the authoritative runbook (env-by-env), see `addons/rules/README.md`. For hardened guarantees, keep `PRODUCTION_CHECKLIST.md` in sync with any changes.
+For the authoritative runbook (env-by-env), see `addons/rules/README.md` and the new [`RULES_PROD_LAUNCH_CHECKLIST.md`](RULES_PROD_LAUNCH_CHECKLIST.md). Keep `PRODUCTION_CHECKLIST.md` and [`docs/RULES_DB_SCHEMA.md`](docs/RULES_DB_SCHEMA.md) in sync with any schema or ops changes.
