@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -144,12 +145,28 @@ class RulesStoreTest {
     }
 
     @Test
-    void testValidation_emptyConditions() {
+    void testValidation_emptyConditionsWithoutTrigger() {
         Rule rule = new Rule("test-rule", "Test", true, "AND",
                 Collections.emptyList(),
                 Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))), null, 0);
 
         assertThrows(IllegalArgumentException.class, () -> store.save("workspace-1", rule));
+    }
+
+    @Test
+    void testSave_allowsTriggerWithoutConditions() {
+        Rule rule = new Rule("trigger-rule", "Trigger Rule", true, "AND",
+                Collections.emptyList(),
+                Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))),
+                Map.of("event", "NEW_PROJECT"), 0);
+
+        Rule saved = store.save("workspace-1", rule);
+        assertNotNull(saved);
+
+        Optional<Rule> retrieved = store.get("workspace-1", saved.getId());
+        assertTrue(retrieved.isPresent());
+        assertEquals("Trigger Rule", retrieved.get().getName());
+        assertEquals("NEW_PROJECT", retrieved.get().getTrigger().get("event"));
     }
 
     @Test
