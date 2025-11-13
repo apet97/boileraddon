@@ -24,7 +24,9 @@ public record RulesConfiguration(
         Optional<CorsConfig> cors,
         boolean requestLoggingEnabled,
         long webhookDeduplicationTtlMillis,
-        String environment
+        String environment,
+        Optional<JwtBootstrapConfig> jwtBootstrap,
+        Optional<LocalDevSecrets> localDevSecrets
 ) {
     private static final Logger logger = LoggerFactory.getLogger(RulesConfiguration.class);
 
@@ -87,13 +89,25 @@ public record RulesConfiguration(
                 cors,
                 requestLogging,
                 dedupMillis,
-                envLabel
+                envLabel,
+                parseJwtBootstrap(env),
+                resolveLocalSecrets(env)
         );
     }
 
     public record DatabaseSettings(String url, String username, String password) {}
     public record RateLimitConfig(double permitsPerSecond, String limitBy) {}
     public record CorsConfig(String originsCsv, boolean allowCredentials) {}
+    public record JwtBootstrapConfig(
+            Optional<String> publicKeyPem,
+            Optional<String> keyMapJson,
+            Optional<String> jwksUri,
+            Optional<String> defaultKid,
+            Optional<String> expectedIssuer,
+            Optional<String> expectedAudience,
+            long leewaySeconds
+    ) {}
+    public record LocalDevSecrets(String workspaceId, String installationToken) {}
 
     private static Optional<DatabaseSettings> databaseSettings(String url, String username, String password) {
         if (url == null || url.isBlank()) {
@@ -140,6 +154,37 @@ public record RulesConfiguration(
         }
     }
 
+    private static Optional<JwtBootstrapConfig> parseJwtBootstrap(Map<String, String> env) {
+        String pem = firstNonBlank(env.get("CLOCKIFY_JWT_PUBLIC_KEY"), env.get("CLOCKIFY_JWT_PUBLIC_KEY_PEM"));
+        String keyMap = trimToNull(env.get("CLOCKIFY_JWT_PUBLIC_KEY_MAP"));
+        String jwksUri = trimToNull(env.get("CLOCKIFY_JWT_JWKS_URI"));
+        if (pem == null && keyMap == null && jwksUri == null) {
+            return Optional.empty();
+        }
+        String defaultKid = trimToNull(env.get("CLOCKIFY_JWT_DEFAULT_KID"));
+        String expectedIssuer = trimToNull(env.get("CLOCKIFY_JWT_EXPECT_ISS"));
+        String expectedAudience = trimToNull(env.get("CLOCKIFY_JWT_EXPECT_AUD"));
+        long leewaySeconds = parseLong(env.get("CLOCKIFY_JWT_LEEWAY_SECONDS"), 60L);
+        return Optional.of(new JwtBootstrapConfig(
+                Optional.ofNullable(pem),
+                Optional.ofNullable(keyMap),
+                Optional.ofNullable(jwksUri),
+                Optional.ofNullable(defaultKid),
+                Optional.ofNullable(expectedIssuer),
+                Optional.ofNullable(expectedAudience),
+                leewaySeconds
+        ));
+    }
+
+    private static Optional<LocalDevSecrets> resolveLocalSecrets(Map<String, String> env) {
+        String workspaceId = trimToNull(env.get("CLOCKIFY_WORKSPACE_ID"));
+        String installationToken = trimToNull(env.get("CLOCKIFY_INSTALLATION_TOKEN"));
+        if (workspaceId == null || installationToken == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new LocalDevSecrets(workspaceId, installationToken));
+    }
+
     private static boolean resolvePersistenceFlag(String explicitFlag, String envLabel) {
         if (explicitFlag != null && !explicitFlag.isBlank()) {
             return Boolean.parseBoolean(explicitFlag.trim());
@@ -164,5 +209,21 @@ public record RulesConfiguration(
 
     private static String normalizeEnv(String rawEnv) {
         return rawEnv == null ? "prod" : rawEnv.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String firstNonBlank(String primary, String secondary) {
+        String first = trimToNull(primary);
+        if (first != null) {
+            return first;
+        }
+        return trimToNull(secondary);
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

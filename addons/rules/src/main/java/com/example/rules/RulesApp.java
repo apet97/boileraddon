@@ -22,6 +22,7 @@ import com.example.rules.store.DatabaseRulesStore;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.security.PooledDatabaseTokenStore;
 import com.example.rules.security.JwtVerifier;
+import com.example.rules.security.JwksBasedKeySource;
 import com.example.rules.web.RequestContext;
 import com.clockify.addon.sdk.logging.LoggingContext;
 import com.example.rules.health.ReadinessHandler;
@@ -29,6 +30,9 @@ import com.example.rules.middleware.SensitiveHeaderFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.net.URI;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Rules Add-on for Clockify
@@ -118,7 +122,7 @@ public class RulesApp {
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
 
         // GET /rules/settings - Sidebar iframe (register common aliases to avoid 404 on trailing-slash)
-        JwtVerifier jwtVerifier = initializeJwtVerifier();
+        JwtVerifier jwtVerifier = initializeJwtVerifier(config);
 
         SettingsController settings = new SettingsController(jwtVerifier, baseUrl);
         addon.registerCustomEndpoint("/settings", settings);
@@ -580,21 +584,36 @@ public class RulesApp {
         PooledDatabaseTokenStore get() throws Exception;
     }
 
-    private static JwtVerifier initializeJwtVerifier() {
-        String pem = System.getenv("CLOCKIFY_JWT_PUBLIC_KEY");
-        String keyMapJson = System.getenv("CLOCKIFY_JWT_PUBLIC_KEY_MAP");
-        if ((pem == null || pem.isBlank()) && (keyMapJson == null || keyMapJson.isBlank())) {
+    private static JwtVerifier initializeJwtVerifier(RulesConfiguration config) {
+        var jwtConfigOpt = config.jwtBootstrap();
+        if (jwtConfigOpt.isEmpty()) {
             logger.debug("CLOCKIFY_JWT_PUBLIC_KEY not set; settings JWT auto-fill disabled");
             return null;
         }
+        RulesConfiguration.JwtBootstrapConfig jwtConfig = jwtConfigOpt.get();
+        JwtVerifier.Constraints constraints = new JwtVerifier.Constraints(
+                jwtConfig.expectedIssuer().orElse(null),
+                jwtConfig.expectedAudience().orElse(null),
+                jwtConfig.leewaySeconds(),
+                Set.of("RS256")
+        );
+        String expectedSubject = config.addonKey();
         try {
-            JwtVerifier.Constraints constraints = JwtVerifier.Constraints.fromEnvironment();
-            // Enforce sub == manifest key for UI/settings JWTs
-            String expectedSubject = "rules";
-            if (keyMapJson != null && !keyMapJson.isBlank()) {
-                java.util.Map<String, String> pemByKid = new com.fasterxml.jackson.databind.ObjectMapper()
-                        .readValue(keyMapJson, new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, String>>() {});
-                String defaultKid = System.getenv("CLOCKIFY_JWT_DEFAULT_KID");
+            if (jwtConfig.jwksUri().isPresent()) {
+                URI jwksUri = URI.create(jwtConfig.jwksUri().get());
+                JwtVerifier verifier = JwtVerifier.fromKeySource(new JwksBasedKeySource(jwksUri), constraints, expectedSubject);
+                logger.info("Verified settings JWTs using JWKS ({}) (iss={}, aud={}, skew={}s)",
+                        jwksUri,
+                        logValue(constraints.expectedIssuer()),
+                        logValue(constraints.expectedAudience()),
+                        constraints.clockSkewSeconds());
+                return verifier;
+            }
+            if (jwtConfig.keyMapJson().isPresent()) {
+                Map<String, String> pemByKid = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(jwtConfig.keyMapJson().get(),
+                                new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+                String defaultKid = jwtConfig.defaultKid().orElse(null);
                 JwtVerifier verifier = JwtVerifier.fromPemMap(pemByKid, defaultKid, constraints, expectedSubject);
                 logger.info("Verified settings JWTs using {} kid-mapped keys (defaultKid={}, iss={}, aud={}, skew={}s)",
                         pemByKid.size(),
@@ -604,12 +623,16 @@ public class RulesApp {
                         constraints.clockSkewSeconds());
                 return verifier;
             }
-            JwtVerifier verifier = JwtVerifier.fromPem(pem, constraints, expectedSubject);
-            logger.info("Verified settings JWTs using configured public key (iss={}, aud={}, skew={}s)",
-                    logValue(constraints.expectedIssuer()),
-                    logValue(constraints.expectedAudience()),
-                    constraints.clockSkewSeconds());
-            return verifier;
+            if (jwtConfig.publicKeyPem().isPresent()) {
+                JwtVerifier verifier = JwtVerifier.fromPem(jwtConfig.publicKeyPem().get(), constraints, expectedSubject);
+                logger.info("Verified settings JWTs using configured public key (iss={}, aud={}, skew={}s)",
+                        logValue(constraints.expectedIssuer()),
+                        logValue(constraints.expectedAudience()),
+                        constraints.clockSkewSeconds());
+                return verifier;
+            }
+            logger.warn("JWT bootstrap configuration present but no key material provided");
+            return null;
         } catch (Exception e) {
             logger.error("Failed to initialize JWT verifier: {}", e.getMessage());
             return null;
@@ -617,19 +640,17 @@ public class RulesApp {
     }
 
     private static void preloadLocalSecrets(RulesConfiguration config) {
-        String workspaceId = System.getenv("CLOCKIFY_WORKSPACE_ID");
-        String installationToken = System.getenv("CLOCKIFY_INSTALLATION_TOKEN");
-        if (workspaceId == null || workspaceId.isBlank() || installationToken == null || installationToken.isBlank()) {
-            return;
-        }
-
-        String apiBaseUrl = config.clockifyApiBaseUrl();
-        try {
-            com.clockify.addon.sdk.security.TokenStore.save(workspaceId, installationToken, apiBaseUrl);
-            logger.info("Preloaded installation token for workspace {}", workspaceId);
-        } catch (Exception e) {
-            logger.warn("Failed to preload local installation token: {}", e.getMessage());
-        }
+        config.localDevSecrets().ifPresent(secrets -> {
+            try {
+                com.clockify.addon.sdk.security.TokenStore.save(
+                        secrets.workspaceId(),
+                        secrets.installationToken(),
+                        config.clockifyApiBaseUrl());
+                logger.info("Preloaded installation token for workspace {}", secrets.workspaceId());
+            } catch (Exception e) {
+                logger.warn("Failed to preload local installation token: {}", e.getMessage());
+            }
+        });
     }
 
     static String sanitizeContextPath(String baseUrl) {

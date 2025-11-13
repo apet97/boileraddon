@@ -36,7 +36,8 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules java -jar addons/rules/target/r
 | `RULES_WEBHOOK_DEDUP_SECONDS` | TTL for webhook idempotency cache | `600` |
 | `ENABLE_DB_TOKEN_STORE` + `DB_URL/DB_USER/DB_PASSWORD` | Optional persistent token store | disabled unless `ENV=prod` |
 | `RULES_DB_URL` + `RULES_DB_USERNAME/RULES_DB_PASSWORD` | JDBC store for rule definitions | falls back to `DB_URL` |
-| `CLOCKIFY_JWT_PUBLIC_KEY` / `CLOCKIFY_JWT_PUBLIC_KEY_MAP` | Public keys for iframe JWT validation | unset |
+| `CLOCKIFY_JWT_PUBLIC_KEY` / `CLOCKIFY_JWT_PUBLIC_KEY_PEM` / `CLOCKIFY_JWT_PUBLIC_KEY_MAP` / `CLOCKIFY_JWT_JWKS_URI` | Public keys (static PEM, PEM map, or JWKS) for iframe JWT validation | unset |
+| `CLOCKIFY_JWT_EXPECT_ISS` / `CLOCKIFY_JWT_EXPECT_AUD` / `CLOCKIFY_JWT_LEEWAY_SECONDS` / `CLOCKIFY_JWT_DEFAULT_KID` | Optional claim enforcement + clock skew for JWT bootstrap | `clockify` / `rules` / `60` / unset |
 | `ADDON_RATE_LIMIT` + `ADDON_LIMIT_BY` | SDK rate limiter for inbound requests | disabled |
 | `ADDON_CORS_ORIGINS` + `ADDON_CORS_ALLOW_CREDENTIALS` | Explicit CORS allowlist for iframe AJAX calls | disabled |
 | `ADDON_REQUEST_LOGGING` | Enables scrubbed request logs | `false` |
@@ -163,6 +164,13 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 | `/ready` | Readiness probe (rules store + token store checks) | Not listed in manifest |
 | `/metrics` | Prometheus metrics scrape | Not listed in manifest |
 | Custom (e.g. `/webhooks/entries`) | Alternative webhook mount | One `webhooks[]` item per event with `path: "/webhooks/entries"` |
+
+## Health, readiness & metrics
+
+- **`/health` (liveness)** &mdash; backed by `HealthCheck`, reports the JVM version plus rule/token store connectivity. Returns `200` with JSON like `{"status":"healthy","checks":[...]}` when Jetty is up and any configured database connections succeed; otherwise `503`.
+- **`/ready` (readiness)** &mdash; served by `ReadinessHandler`, which treats missing stores as `SKIPPED`, calls `rulesStore.getAll("health-probe")`, and executes `tokenStore.count()` when persistence is enabled. Returns `200` only when both checks are UP, otherwise `503` with `"status":"DEGRADED"`.
+- **`/metrics`** &mdash; exposes Prometheus-format counters/timers (webhook dedupes, rule evaluations, executor latency). Scrape it from the same base URL (e.g., `http://service/rules/metrics`).
+- **Probe guidance** &mdash; point Kubernetes or Docker health probes at `/ready` for startup + readiness gates, and use `/health` for liveness. Both endpoints are lightweight and safe to call every few seconds.
 
 ## Checklist: Plan, Scopes, Events
 
