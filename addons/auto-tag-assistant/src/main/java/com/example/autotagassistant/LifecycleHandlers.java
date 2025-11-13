@@ -29,6 +29,14 @@ public class LifecycleHandlers {
     public static void register(ClockifyAddon addon) {
         // Handle INSTALLED event
         addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", request -> {
+            // Verify lifecycle signature (JWT) before processing
+            com.clockify.addon.sdk.security.WebhookSignatureValidator.VerificationResult sig =
+                    com.clockify.addon.sdk.security.WebhookSignatureValidator.verifyLifecycle(request, addon.getManifest().getKey());
+            if (!sig.isValid()) {
+                logger.warn("INSTALLED request rejected: invalid or missing JWT signature");
+                return sig.response();
+            }
+
             try {
                 JsonNode payload = parseRequestBody(request);
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;
@@ -81,6 +89,14 @@ public class LifecycleHandlers {
 
         // Handle DELETED event
         addon.registerLifecycleHandler("DELETED", "/lifecycle/deleted", request -> {
+            // Verify lifecycle signature (JWT) before processing
+            com.clockify.addon.sdk.security.WebhookSignatureValidator.VerificationResult sig =
+                    com.clockify.addon.sdk.security.WebhookSignatureValidator.verifyLifecycle(request, addon.getManifest().getKey());
+            if (!sig.isValid()) {
+                logger.warn("DELETED request rejected: invalid or missing JWT signature");
+                return sig.response();
+            }
+
             try {
                 JsonNode payload = parseRequestBody(request);
                 String workspaceId = payload.has("workspaceId") ? payload.get("workspaceId").asText(null) : null;

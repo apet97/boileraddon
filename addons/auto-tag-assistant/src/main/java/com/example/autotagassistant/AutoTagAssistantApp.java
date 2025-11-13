@@ -65,8 +65,23 @@ public class AutoTagAssistantApp {
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
 
-        // Token store selection: the demo module uses its local TokenStore.
-        // For production, replace with a persistent store as documented in docs/DATABASE_TOKEN_STORE.md.
+        // Configure persistent token storage if database credentials are provided
+        String dbUrl = System.getenv("DB_URL");
+        String dbUser = System.getenv().getOrDefault("DB_USER", System.getenv("DB_USERNAME"));
+        String dbPassword = System.getenv("DB_PASSWORD");
+        if (dbUrl != null && !dbUrl.isBlank() && dbUser != null && !dbUser.isBlank()) {
+            try {
+                com.clockify.addon.sdk.security.DatabaseTokenStore dbStore =
+                        new com.clockify.addon.sdk.security.DatabaseTokenStore(dbUrl, dbUser, dbPassword);
+                com.clockify.addon.sdk.security.TokenStore.configurePersistence(dbStore);
+                System.out.println("✓ TokenStore configured with database persistence (PostgreSQL)");
+            } catch (Exception e) {
+                System.err.println("⚠ Failed to initialize database token store: " + e.getMessage());
+                System.err.println("  Falling back to in-memory token storage (tokens will be lost on restart)");
+            }
+        } else {
+            System.out.println("ℹ TokenStore using in-memory storage (set DB_URL, DB_USER, DB_PASSWORD for persistence)");
+        }
 
         // Register endpoints
         // GET /auto-tag-assistant/manifest.json - Returns runtime manifest (NO $schema field)
@@ -85,9 +100,7 @@ public class AutoTagAssistantApp {
 
         // Health check with optional DB connectivity probe
         HealthCheck health = new HealthCheck("auto-tag-assistant", "0.1.0");
-        String dbUrl = System.getenv("DB_URL");
-        String dbUser = System.getenv().getOrDefault("DB_USER", System.getenv("DB_USERNAME"));
-        String dbPassword = System.getenv("DB_PASSWORD");
+        // Reuse DB credentials from token store configuration above
         if (dbUrl != null && !dbUrl.isBlank() && dbUser != null && !dbUser.isBlank()) {
             health.addHealthCheckProvider(new HealthCheck.HealthCheckProvider() {
                 @Override public String getName() { return "database"; }

@@ -10,13 +10,22 @@ import java.io.BufferedReader;
 
 public class LifecycleHandlers {
     private static final ObjectMapper om = new ObjectMapper();
+    private static String addonKey;
 
     public static void register(ClockifyAddon addon) {
+        addonKey = addon.getManifest().getKey();
         addon.registerLifecycleHandler("INSTALLED", "/lifecycle/installed", LifecycleHandlers::installed);
         addon.registerLifecycleHandler("DELETED", "/lifecycle/deleted", LifecycleHandlers::deleted);
     }
 
     private static HttpResponse installed(HttpServletRequest req) throws Exception {
+        // Verify lifecycle signature (JWT) before processing
+        com.clockify.addon.sdk.security.WebhookSignatureValidator.VerificationResult sig =
+                com.clockify.addon.sdk.security.WebhookSignatureValidator.verifyLifecycle(req, addonKey);
+        if (!sig.isValid()) {
+            return sig.response();
+        }
+
         JsonNode b = parse(req);
         String ws = text(b, "workspaceId");
         String token = text(b, "installationToken");
@@ -26,6 +35,13 @@ public class LifecycleHandlers {
     }
 
     private static HttpResponse deleted(HttpServletRequest req) throws Exception {
+        // Verify lifecycle signature (JWT) before processing
+        com.clockify.addon.sdk.security.WebhookSignatureValidator.VerificationResult sig =
+                com.clockify.addon.sdk.security.WebhookSignatureValidator.verifyLifecycle(req, addonKey);
+        if (!sig.isValid()) {
+            return sig.response();
+        }
+
         JsonNode b = parse(req);
         String ws = text(b, "workspaceId");
         if (ws != null) com.clockify.addon.sdk.security.TokenStore.delete(ws);
