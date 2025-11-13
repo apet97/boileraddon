@@ -14,17 +14,21 @@ public class CatalogEndpointsTest {
 
     @Test
     public void testTriggersToJsonReturnsNonEmpty() {
+        TriggersCatalog.clearCache();
         JsonNode result = TriggersCatalog.triggersToJson();
         assertNotNull(result);
         assertTrue(result.has("triggers"));
         assertTrue(result.has("count"));
+        assertTrue(result.get("count").asInt() > 0, "Expected packaged triggers catalog to contain entries");
     }
 
     @Test
     public void testEndpointsToJsonReturnsNonEmpty() {
+        OpenAPISpecLoader.clearCache();
         JsonNode result = OpenAPISpecLoader.endpointsToJson();
         assertNotNull(result);
         assertTrue(result.has("tags"));
         assertTrue(result.has("count"));
+        assertTrue(result.get("count").asInt() > 0, "Expected packaged actions catalog to contain endpoints");
     }
 }

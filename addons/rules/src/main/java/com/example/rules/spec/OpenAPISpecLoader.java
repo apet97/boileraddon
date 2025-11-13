@@ -19,66 +19,57 @@ public class OpenAPISpecLoader {
     private static final Logger logger = LoggerFactory.getLogger(OpenAPISpecLoader.class);
     private static final ObjectMapper mapper = new ObjectMapper();
 
+    private static final String PRIMARY_CLASSPATH_RESOURCE = "clockify-openapi.json";
+    private static final String LEGACY_CLASSPATH_RESOURCE = "openapi.json";
+
     private static JsonNode cachedSpec = null;
     private static List<EndpointInfo> cachedEndpoints = null;
 
     /**
-     * Load the OpenAPI spec from the filesystem or classpath.
-     * Tries openapi (1).json at repo root first, then downloads/openapi (1).json,
-     * then classpath (clockify-openapi.json), then falls back to
-     * dev-docs-marketplace-cake-snapshot/extras/clockify-openapi.json.
+     * Load the OpenAPI spec from the classpath (packaged artifact) or filesystem overrides.
+     * Prefers bundled resources and only falls back to well-known filesystem locations when
+     * developers want to override the spec locally.
      */
     public static synchronized JsonNode loadSpec() {
         if (cachedSpec != null) {
             return cachedSpec;
         }
 
-        // Try root directory first (preferred location) - use relative path from project root
-        try {
-            java.nio.file.Path rootPath = java.nio.file.Paths.get("../openapi (1).json");
-            if (java.nio.file.Files.exists(rootPath)) {
-                cachedSpec = mapper.readTree(rootPath.toFile());
-                logger.info("Loaded OpenAPI spec from root: {}", rootPath);
-                return cachedSpec;
+        // Prefer classpath resources (bundled with the jar)
+        for (String resource : List.of(PRIMARY_CLASSPATH_RESOURCE, LEGACY_CLASSPATH_RESOURCE)) {
+            try (InputStream is = OpenAPISpecLoader.class.getClassLoader().getResourceAsStream(resource)) {
+                if (is != null) {
+                    cachedSpec = mapper.readTree(is);
+                    logger.info("Loaded OpenAPI spec from classpath: {}", resource);
+                    return cachedSpec;
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to load OpenAPI spec from classpath resource {}", resource, e);
             }
-        } catch (Exception e) {
-            logger.warn("Failed to load OpenAPI spec from root", e);
         }
 
-        // Try current directory (for local development)
-        try {
-            java.nio.file.Path currentPath = java.nio.file.Paths.get("openapi (1).json");
-            if (java.nio.file.Files.exists(currentPath)) {
-                cachedSpec = mapper.readTree(currentPath.toFile());
-                logger.info("Loaded OpenAPI spec from current dir: {}", currentPath);
-                return cachedSpec;
-            }
-        } catch (Exception e) {
-            logger.warn("Failed to load OpenAPI spec from current dir", e);
-        }
+        // Developer overrides - check common filesystem locations
+        List<java.nio.file.Path> overrideCandidates = List.of(
+                java.nio.file.Paths.get("clockify-openapi.json"),
+                java.nio.file.Paths.get("../clockify-openapi.json"),
+                java.nio.file.Paths.get("openapi (1).json"),
+                java.nio.file.Paths.get("../openapi (1).json"),
+                java.nio.file.Paths.get("downloads", "clockify-openapi.json"),
+                java.nio.file.Paths.get("../downloads", "clockify-openapi.json"),
+                java.nio.file.Paths.get("downloads", "openapi (1).json"),
+                java.nio.file.Paths.get("../downloads", "openapi (1).json")
+        );
 
-        // Try downloads directory
-        try {
-            java.nio.file.Path downloadsPath = java.nio.file.Paths.get("../downloads", "openapi (1).json");
-            if (java.nio.file.Files.exists(downloadsPath)) {
-                cachedSpec = mapper.readTree(downloadsPath.toFile());
-                logger.info("Loaded OpenAPI spec from downloads: {}", downloadsPath);
-                return cachedSpec;
+        for (java.nio.file.Path candidate : overrideCandidates) {
+            try {
+                if (java.nio.file.Files.exists(candidate)) {
+                    cachedSpec = mapper.readTree(candidate.toFile());
+                    logger.info("Loaded OpenAPI spec from override: {}", candidate);
+                    return cachedSpec;
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to load OpenAPI spec from override {}", candidate, e);
             }
-        } catch (Exception e) {
-            logger.warn("Failed to load OpenAPI spec from downloads", e);
-        }
-
-        // Try classpath resource next
-        try (InputStream is = OpenAPISpecLoader.class.getClassLoader()
-                .getResourceAsStream("openapi.json")) {
-            if (is != null) {
-                cachedSpec = mapper.readTree(is);
-                logger.info("Loaded OpenAPI spec from classpath: openapi.json");
-                return cachedSpec;
-            }
-        } catch (Exception e) {
-            logger.warn("Failed to load OpenAPI spec from classpath", e);
         }
 
         // Fallback: try reading from dev-docs snapshot
@@ -96,6 +87,14 @@ public class OpenAPISpecLoader {
 
         logger.error("OpenAPI spec not found in any expected location");
         return mapper.createObjectNode();
+    }
+
+    /**
+     * Clear cached spec and endpoints (test utility).
+     */
+    public static synchronized void clearCache() {
+        cachedSpec = null;
+        cachedEndpoints = null;
     }
 
     /**
