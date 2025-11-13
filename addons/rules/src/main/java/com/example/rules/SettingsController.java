@@ -6,6 +6,7 @@ import com.clockify.addon.sdk.middleware.DiagnosticContextFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
 import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
 import com.example.rules.config.RuntimeFlags;
+import com.example.rules.security.AuthTokenVerifier;
 import com.example.rules.security.JwtVerifier;
 import com.example.rules.web.Nonce;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,11 +25,11 @@ public class SettingsController implements RequestHandler {
     private static final Logger logger = LoggerFactory.getLogger(SettingsController.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private final JwtVerifier jwtVerifier;
+    private final AuthTokenVerifier jwtVerifier;
     // Force base URL injection so runtime config always flows through RulesConfiguration.
     private final String baseUrl;
 
-    public SettingsController(JwtVerifier jwtVerifier, String baseUrl) {
+    public SettingsController(AuthTokenVerifier jwtVerifier, String baseUrl) {
         this.jwtVerifier = jwtVerifier;
         this.baseUrl = baseUrl == null ? "" : baseUrl;
     }

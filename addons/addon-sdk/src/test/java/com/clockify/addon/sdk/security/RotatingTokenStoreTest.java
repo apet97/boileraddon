@@ -280,7 +280,8 @@ class RotatingTokenStoreTest {
 
     @Test
     void testConcurrentTokenValidation() throws InterruptedException {
-        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(NEW_TOKEN));
+        // First call (inside rotate) should see OLD_TOKEN; subsequent calls see NEW_TOKEN
+        when(mockDelegate.get(WORKSPACE_ID)).thenReturn(Optional.of(OLD_TOKEN), Optional.of(NEW_TOKEN));
 
         // Setup rotation state
         rotatingStore.rotate(WORKSPACE_ID, NEW_TOKEN);

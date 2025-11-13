@@ -50,7 +50,7 @@ import java.util.Set;
  *
  * @see Constraints#fromEnvironment() for environment-based configuration
  */
-public final class JwtVerifier {
+public final class JwtVerifier implements AuthTokenVerifier {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final PublicKey defaultKey;

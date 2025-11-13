@@ -3,6 +3,7 @@ package com.example.rules;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.middleware.DiagnosticContextFilter;
 import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
+import com.example.rules.security.AuthTokenVerifier;
 import com.example.rules.security.JwtVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -80,21 +81,21 @@ class SettingsControllerTest {
 
     @Test
     void resolveBootstrapCapturesAuthTokenWhenVerifierPresent() throws Exception {
-        JwtVerifier verifier = mock(JwtVerifier.class);
-        SettingsController controllerWithVerifier =
-                new SettingsController(verifier, "http://localhost/rules");
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getAttribute(DiagnosticContextFilter.REQUEST_ID_ATTR)).thenReturn("req-777");
-        when(request.getParameter("auth_token")).thenReturn("token-abc");
         var payload = MAPPER.createObjectNode()
                 .put("workspaceId", "ws-123")
                 .put("userId", "user-555")
                 .put("userEmail", "someone@example.com")
                 .put("theme", "dark")
                 .put("language", "es");
-        JwtVerifier.DecodedJwt decoded = new JwtVerifier.DecodedJwt(MAPPER.createObjectNode(), payload);
-        when(verifier.verify("token-abc")).thenReturn(decoded);
-
+        AuthTokenVerifier verifier = token -> {
+            assertEquals("token-abc", token);
+            return new JwtVerifier.DecodedJwt(MAPPER.createObjectNode(), payload);
+        };
+        SettingsController controllerWithVerifier =
+                new SettingsController(verifier, "http://localhost/rules");
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(DiagnosticContextFilter.REQUEST_ID_ATTR)).thenReturn("req-777");
+        when(request.getParameter("auth_token")).thenReturn("token-abc");
         SettingsController.SettingsBootstrap bootstrap = controllerWithVerifier.resolveBootstrap(request);
 
         assertEquals("ws-123", bootstrap.workspaceId());
