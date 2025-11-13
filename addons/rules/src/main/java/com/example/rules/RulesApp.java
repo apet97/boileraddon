@@ -105,7 +105,7 @@ public class RulesApp {
 
         // Initialize stores
         rulesStore = selectRulesStore();
-        RulesController rulesController = new RulesController(rulesStore);
+        RulesController rulesController = new RulesController(rulesStore, addon);
 
         // Initialize Clockify client for Projects/Clients/Tasks CRUD operations
         ClockifyClient clockifyClient = new ClockifyClient(

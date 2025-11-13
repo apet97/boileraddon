@@ -1,10 +1,12 @@
 package com.example.rules;
 
+import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
 import com.clockify.addon.sdk.logging.LoggingContext;
 import com.example.rules.api.ErrorResponse;
 import com.example.rules.cache.RuleCache;
+import com.example.rules.DynamicWebhookHandlers;
 import com.example.rules.engine.Rule;
 import com.example.rules.engine.RuleValidator;
 import com.example.rules.store.RulesStoreSPI;
@@ -30,9 +32,11 @@ public class RulesController {
     private static final String MEDIA_JSON = "application/json";
 
     private final RulesStoreSPI rulesStore;
+    private final ClockifyAddon addon;
 
-    public RulesController(RulesStoreSPI rulesStore) {
+    public RulesController(RulesStoreSPI rulesStore, ClockifyAddon addon) {
         this.rulesStore = rulesStore;
+        this.addon = addon;
         // Initialize rule cache
         RuleCache.initialize(rulesStore);
     }
@@ -88,6 +92,7 @@ public class RulesController {
                 Rule saved = rulesStore.save(workspaceId, rule);
                 // Invalidate cache for this workspace
                 RuleCache.invalidate(workspaceId);
+                DynamicWebhookHandlers.registerTriggerEvent(addon, saved);
                 String json = objectMapper.writeValueAsString(saved);
                 return HttpResponse.ok(json, MEDIA_JSON);
 

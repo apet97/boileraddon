@@ -202,4 +202,9 @@ public class RulesStore implements RulesStoreSPI {
         workspaceRules.clear();
         logger.info("Cleared all rules from store");
     }
+
+    @Override
+    public synchronized List<String> listWorkspaces() {
+        return new ArrayList<>(workspaceRules.keySet());
+    }
 }
