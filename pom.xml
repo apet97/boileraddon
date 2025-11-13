@@ -170,6 +170,22 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Internal project dependencies -->
+            <dependency>
+                <groupId>com.clockify.boilerplate</groupId>
+                <artifactId>addon-sdk</artifactId>
+                <version>0.1.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.clockify.boilerplate</groupId>
+                <artifactId>addon-sdk</artifactId>
+                <version>0.1.0</version>
+                <classifier>tests</classifier>
+                <type>test-jar</type>
+                <scope>test</scope>
+            </dependency>
+
+            <!-- Third-party dependencies -->
             <dependency>
                 <groupId>com.nimbusds</groupId>
                 <artifactId>nimbus-jose-jwt</artifactId>
