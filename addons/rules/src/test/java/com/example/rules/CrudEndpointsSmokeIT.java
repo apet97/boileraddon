@@ -124,7 +124,7 @@ class CrudEndpointsSmokeIT {
         addon.registerCustomEndpoint("/api/tags", request -> {
             String method = request.getMethod();
             if ("GET".equals(method)) {
-                return HttpResponse.ok("[]", "application/json");
+                return com.clockify.addon.sdk.HttpResponse.ok("[]", "application/json");
             } else if ("POST".equals(method)) {
                 return tagsController.createTag().handle(request);
             } else if ("PUT".equals(method)) {
@@ -139,7 +139,7 @@ class CrudEndpointsSmokeIT {
         addon.registerCustomEndpoint("/api/projects", request -> {
             String method = request.getMethod();
             if ("GET".equals(method)) {
-                return HttpResponse.ok("[]", "application/json");
+                return com.clockify.addon.sdk.HttpResponse.ok("[]", "application/json");
             } else if ("POST".equals(method)) {
                 return projectsController.createProject().handle(request);
             } else if ("PUT".equals(method)) {
@@ -154,7 +154,7 @@ class CrudEndpointsSmokeIT {
         addon.registerCustomEndpoint("/api/clients", request -> {
             String method = request.getMethod();
             if ("GET".equals(method)) {
-                return HttpResponse.ok("[]", "application/json");
+                return com.clockify.addon.sdk.HttpResponse.ok("[]", "application/json");
             } else if ("POST".equals(method)) {
                 return clientsController.createClient().handle(request);
             } else if ("PUT".equals(method)) {
@@ -169,7 +169,7 @@ class CrudEndpointsSmokeIT {
         addon.registerCustomEndpoint("/api/tasks", request -> {
             String method = request.getMethod();
             if ("GET".equals(method)) {
-                return HttpResponse.ok("[]", "application/json");
+                return com.clockify.addon.sdk.HttpResponse.ok("[]", "application/json");
             } else if ("POST".equals(method)) {
                 return tasksController.createTask().handle(request);
             } else if ("PUT".equals(method)) {
