@@ -16,6 +16,8 @@ import com.example.rules.config.RuntimeFlags;
 import com.example.rules.config.RulesConfiguration;
 import com.example.rules.cache.WebhookIdempotencyCache;
 import com.example.rules.api.ErrorResponse;
+import com.example.rules.api.explorer.WorkspaceExplorerController;
+import com.example.rules.api.explorer.WorkspaceExplorerService;
 import com.example.rules.store.RulesStore;
 import com.example.rules.store.RulesStoreSPI;
 import com.example.rules.store.DatabaseRulesStore;
@@ -121,6 +123,8 @@ public class RulesApp {
         ClientsController clientsController = new ClientsController(clockifyClient);
         TasksController tasksController = new TasksController(clockifyClient);
         TagsController tagsController = new TagsController(clockifyClient);
+        WorkspaceExplorerService explorerService = new WorkspaceExplorerService(new WorkspaceExplorerService.ClockifyExplorerGateway());
+        WorkspaceExplorerController explorerController = new WorkspaceExplorerController(explorerService);
 
         // Register endpoints
         // GET /rules/manifest.json - Returns runtime manifest (NO $schema field)
@@ -230,6 +234,14 @@ public class RulesApp {
                         .withHeader("Allow", "GET,POST,PUT,DELETE");
             }
         });
+
+        // Workspace explorer API
+        addon.registerCustomEndpoint("/api/rules/explorer/overview", explorerController.overview());
+        addon.registerCustomEndpoint("/api/rules/explorer/users", explorerController.users());
+        addon.registerCustomEndpoint("/api/rules/explorer/projects", explorerController.projects());
+        addon.registerCustomEndpoint("/api/rules/explorer/clients", explorerController.clients());
+        addon.registerCustomEndpoint("/api/rules/explorer/tags", explorerController.tags());
+        addon.registerCustomEndpoint("/api/rules/explorer/time-entries", explorerController.timeEntries());
 
         // Cache endpoints: GET /rules/api/cache?workspaceId=... (summary), POST /rules/api/cache/refresh?workspaceId=...
         addon.registerCustomEndpoint("/api/cache", request -> {

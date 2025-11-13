@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rules Workspace Explorer</title>
+  <style nonce="{{NONCE}}">
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --success: #16a34a;
+      --warning: #f97316;
+      --danger: #dc2626;
+    }
+    body.theme-dark {
+      --bg: #0f172a;
+      --card: #111827;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #1f2937;
+      --accent: #60a5fa;
+      --accent-soft: #172554;
+      --success: #22c55e;
+      --warning: #fb923c;
+      --danger: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
+    .hero {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      padding-bottom: 12px;
+    }
+    .hero h1 { margin: 4px 0 8px; font-size: 28px; }
+    .hero p { margin: 0; color: var(--muted); }
+    .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: var(--accent); margin: 0; }
+    .hero-badges { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; }
+    .badge {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-card {
+      background: var(--card);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .status-card strong { display:block; font-size:14px; margin-bottom:4px; }
+    .status-card p { margin:0; color:var(--muted); font-size:13px; }
+    .tabs {
+      display: inline-flex;
+      background: rgba(37,99,235,0.08);
+      border-radius: 999px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 20px;
+      overflow-x:auto;
+    }
+    .tabs button {
+      border: none;
+      background: transparent;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .tabs button.active {
+      background: var(--card);
+      color: var(--text);
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(15,23,42,0.12);
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 18px 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(15,23,42,0.08);
+    }
+    .card-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .summary-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: inset 0 0 0 1px rgba(37,99,235,0.05);
+    }
+    .summary-card h2 { margin: 12px 0 4px; font-size: 28px; }
+    .summary-card .label { text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+    .panel-controls { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+    .panel-controls input,
+    .panel-controls select {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+    }
+    .panel-controls input::placeholder { color: var(--muted); }
+    button.ghost {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button.ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .list { display: flex; flex-direction: column; gap: 12px; }
+    .list-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .list-item h4 { margin: 0 0 4px; font-size: 16px; }
+    .list-item p { margin: 0; color: var(--muted); font-size: 13px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pill.success { background: rgba(22,163,74,0.15); color: var(--success); }
+    .pill.warning { background: rgba(249,115,22,0.15); color: var(--warning); }
+    .pill.danger { background: rgba(220,38,38,0.15); color: var(--danger); }
+    .timeline { display:flex; flex-direction:column; gap:12px; }
+    .timeline-entry { border-left: 3px solid var(--accent); padding-left:12px; }
+    .timeline-entry h4 { margin:0 0 4px; font-size:15px; }
+    .timeline-entry p { margin:0; color:var(--muted); font-size:13px; }
+    .loading, .empty, .error-banner {
+      border-radius: 12px;
+      padding: 14px;
+      border: 1px dashed var(--border);
+      text-align: center;
+      color: var(--muted);
+    }
+    .error-banner { border-color: var(--danger); color: var(--danger); }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    @media (max-width: 640px) {
+      .status-card { flex-direction: column; align-items: flex-start; }
+      .card { padding: 16px; }
+    }
+  </style>
+</head>
+<body class="{{BODY_CLASS}}">
+  <div class="app">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Rules Workspace Explorer</p>
+        <h1>Understand your Clockify workspace instantly</h1>
+        <p>Everything you need to audit users, projects, tags, clients, and time in one secure view.</p>
+      </div>
+      <div class="hero-badges">
+        <span class="badge" data-runtime-pill="env">Env: —</span>
+        <span class="badge" data-runtime-pill="mode">Mode: —</span>
+        <span class="badge" data-runtime-pill="signature">Signature: —</span>
+      </div>
+    </header>
+
+    <div class="status-card">
+      <div>
+        <strong>Base URL</strong>
+        <p data-runtime-pill="base">—</p>
+      </div>
+      <div>
+        <strong>Workspace</strong>
+        <p data-runtime-pill="workspace">Waiting for auth…</p>
+      </div>
+      <button type="button" class="ghost" id="btn-open-ifttt">Open IFTTT Builder</button>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button class="active" data-panel-trigger="overview">Overview</button>
+      <button data-panel-trigger="users">Users</button>
+      <button data-panel-trigger="projects">Projects</button>
+      <button data-panel-trigger="clients">Clients</button>
+      <button data-panel-trigger="tags">Tags</button>
+      <button data-panel-trigger="time-entries">Time Entries</button>
+    </nav>
+
+    <section class="panel active" id="panel-overview" data-panel="overview">
+      <div class="summary-grid">
+        <div class="summary-card" data-summary-card="users">
+          <p class="label">Users</p>
+          <h2>—</h2>
+          <p class="muted small">Loading…</p>
+        </div>
+        <div class="summary-card" data-summary-card="projects">
+          <p class="label">Projects</p>
+          <h2>—</h2>
+          <p class="muted small">Loading…</p>
+        </div>
+        <div class="summary-card" data-summary-card="clients">
+          <p class="label">Clients</p>
+          <h2>—</h2>
+          <p class="muted small">Loading…</p>
+        </div>
+        <div class="summary-card" data-summary-card="tags">
+          <p class="label">Tags</p>
+          <h2>—</h2>
+          <p class="muted small">Loading…</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Recent Time Entries</h3>
+          <button type="button" class="ghost" data-refresh="overview">Refresh</button>
+        </div>
+        <div id="recent-time-entries" class="timeline"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-users" data-panel="users">
+      <div class="card">
+        <div class="card-header">
+          <h3>Workspace Users</h3>
+          <button type="button" class="ghost" data-refresh="users">Refresh</button>
+        </div>
+        <div class="panel-controls">
+          <input type="search" name="search" placeholder="Search name or email" data-filter="users" />
+          <select name="status" data-filter="users">
+            <option value="">Status: All</option>
+            <option value="ACTIVE">Active</option>
+            <option value="PENDING">Pending</option>
+            <option value="INACTIVE">Inactive</option>
+          </select>
+        </div>
+        <div id="users-list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-projects" data-panel="projects">
+      <div class="card">
+        <div class="card-header">
+          <h3>Projects</h3>
+          <button type="button" class="ghost" data-refresh="projects">Refresh</button>
+        </div>
+        <div class="panel-controls">
+          <input type="search" name="search" placeholder="Search by name" data-filter="projects" />
+          <select name="archived" data-filter="projects">
+            <option value="">Archive: All</option>
+            <option value="false">Active</option>
+            <option value="true">Archived</option>
+          </select>
+          <select name="billable" data-filter="projects">
+            <option value="">Billable: All</option>
+            <option value="true">Billable</option>
+            <option value="false">Non-billable</option>
+          </select>
+        </div>
+        <div id="projects-list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-clients" data-panel="clients">
+      <div class="card">
+        <div class="card-header">
+          <h3>Clients</h3>
+          <button type="button" class="ghost" data-refresh="clients">Refresh</button>
+        </div>
+        <div class="panel-controls">
+          <input type="search" name="search" placeholder="Search by name" data-filter="clients" />
+          <select name="archived" data-filter="clients">
+            <option value="">Archive: All</option>
+            <option value="false">Active</option>
+            <option value="true">Archived</option>
+          </select>
+        </div>
+        <div id="clients-list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-tags" data-panel="tags">
+      <div class="card">
+        <div class="card-header">
+          <h3>Tags</h3>
+          <button type="button" class="ghost" data-refresh="tags">Refresh</button>
+        </div>
+        <div class="panel-controls">
+          <input type="search" name="search" placeholder="Search by name" data-filter="tags" />
+          <select name="archived" data-filter="tags">
+            <option value="">Archive: All</option>
+            <option value="false">Active</option>
+            <option value="true">Archived</option>
+          </select>
+        </div>
+        <div id="tags-list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-time-entries" data-panel="time-entries">
+      <div class="card">
+        <div class="card-header">
+          <h3>Time Entries</h3>
+          <button type="button" class="ghost" data-refresh="time-entries">Refresh</button>
+        </div>
+        <div class="panel-controls">
+          <select name="range" data-filter="time-entries">
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="1">Today</option>
+          </select>
+          <input type="search" name="userId" placeholder="User ID" data-filter="time-entries" />
+          <input type="search" name="projectId" placeholder="Project ID" data-filter="time-entries" />
+        </div>
+        <div id="time-entries-list" class="list"></div>
+      </div>
+    </section>
+  </div>
+
+  <script nonce="{{NONCE}}">window.__RULES_BOOTSTRAP__ = {{BOOTSTRAP_JSON}}; window.__RULES_RUNTIME__ = {{RUNTIME_JSON}};</script>
+  <script nonce="{{NONCE}}">
+    (function() {
+      const runtime = window.__RULES_RUNTIME__ || {};
+      const bootstrap = window.__RULES_BOOTSTRAP__ || {};
+      const API_BASE = (runtime.apiBase || '').replace(/\/$/, '');
+      const baseUrl = (runtime.baseUrl || '').replace(/\/$/, '');
+      const workspaceId = runtime.workspaceId || bootstrap.workspaceId || '';
+      const state = {
+        loaded: {},
+        filters: {
+          users: { search: '', status: '' },
+          projects: { search: '', archived: '', billable: '' },
+          clients: { search: '', archived: '' },
+          tags: { search: '', archived: '' },
+          'time-entries': { range: '7', userId: '', projectId: '' }
+        }
+      };
+
+      const panels = document.querySelectorAll('[data-panel]');
+      const triggers = document.querySelectorAll('[data-panel-trigger]');
+      const runtimePills = document.querySelectorAll('[data-runtime-pill]');
+
+      const runtimeMap = {
+        env: runtime.env || 'unknown',
+        mode: runtime.applyMode || 'unknown',
+        signature: `Signature: ${runtime.skipSignature || 'unknown'}`,
+        base: baseUrl || 'not set',
+        workspace: workspaceId || 'pending auth'
+      };
+      runtimePills.forEach(pill => {
+        const key = pill.getAttribute('data-runtime-pill');
+        if (runtimeMap[key]) {
+          pill.textContent = key === 'mode' ? `Mode: ${runtimeMap[key]}` : runtimeMap[key];
+        }
+      });
+
+      document.getElementById('btn-open-ifttt').addEventListener('click', () => {
+        if (!baseUrl) return;
+        window.open(`${baseUrl.replace(/\/$/, '')}/ifttt`, '_blank');
+      });
+
+      triggers.forEach(btn => btn.addEventListener('click', () => activatePanel(btn.getAttribute('data-panel-trigger'), btn)));
+
+      function activatePanel(panelId, trigger) {
+        if (!panelId) return;
+        triggers.forEach(btn => btn.classList.toggle('active', btn === trigger));
+        panels.forEach(panel => panel.classList.toggle('active', panel.getAttribute('data-panel') === panelId));
+        if (!state.loaded[panelId]) {
+          loadPanel(panelId);
+        }
+      }
+
+      function loadPanel(panelId) {
+        const loaders = {
+          overview: loadOverview,
+          users: () => loadCollection('users', '/users', renderUsers),
+          projects: () => loadCollection('projects', '/projects', renderProjects),
+          clients: () => loadCollection('clients', '/clients', renderClients),
+          tags: () => loadCollection('tags', '/tags', renderTags),
+          'time-entries': () => loadCollection('time-entries', '/time-entries', renderTimeEntries)
+        };
+        const loader = loaders[panelId];
+        if (loader) {
+          loader().finally(() => state.loaded[panelId] = true);
+        }
+      }
+
+      document.querySelectorAll('[data-refresh]').forEach(btn => btn.addEventListener('click', () => loadPanel(btn.getAttribute('data-refresh'))));
+
+      document.querySelectorAll('[data-filter]').forEach(input => {
+        const panel = input.closest('.panel');
+        const target = panel ? panel.getAttribute('data-panel') : null;
+        if (!target) return;
+        input.addEventListener('input', debounce(() => {
+          const name = input.getAttribute('name');
+          if (!name) return;
+          state.filters[target][name] = input.value.trim();
+          if (target === 'time-entries' && name === 'range' && !input.value) {
+            state.filters[target][name] = '7';
+          }
+          loadPanel(target);
+        }, 300));
+      });
+
+      const secureHeaders = (headers = {}) => {
+        const h = new Headers(headers);
+        if (bootstrap.authToken) {
+          h.set('Authorization', `Bearer ${bootstrap.authToken}`);
+        }
+        const csrf = getCookie('clockify-addon-csrf');
+        if (csrf) {
+          h.set('X-CSRF-Token', csrf);
+        }
+        return h;
+      };
+
+      const apiUrl = (path, params = {}) => {
+        const url = new URL(`${API_BASE}${path}`, window.location.origin);
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && `${value}`.trim() !== '') {
+            url.searchParams.set(key, value);
+          }
+        });
+        if (workspaceId) {
+          url.searchParams.set('workspaceId', workspaceId);
+        }
+        return url;
+      };
+
+      async function request(path, params) {
+        const url = apiUrl(path, params);
+        const response = await fetch(url, { headers: secureHeaders({ 'Accept': 'application/json' }) });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const detail = data.detail || response.statusText;
+          throw new Error(detail || 'Request failed');
+        }
+        return data;
+      }
+
+      async function loadOverview() {
+        setTimelineState('Loading recent activity…');
+        try {
+          const data = await request('/overview');
+          renderOverview(data);
+        } catch (err) {
+          setTimelineState(err.message || 'Failed to load overview', true);
+        }
+      }
+
+      function loadCollection(panelId, path, renderer) {
+        const list = document.getElementById(`${panelId}-list`);
+        if (list) {
+          list.innerHTML = `<div class="loading">Loading ${panelId.replace('-', ' ')}…</div>`;
+        }
+        const filters = state.filters[panelId] || {};
+        const params = { ...filters };
+        if (panelId === 'time-entries') {
+          const days = Number(filters.range || '7');
+          const now = new Date();
+          const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+          params.from = start.toISOString();
+          params.to = now.toISOString();
+          delete params.range;
+        }
+        return request(path, params)
+          .then(data => renderer(data))
+          .catch(err => {
+            if (list) {
+              list.innerHTML = `<div class="error-banner">${escapeHtml(err.message || 'Request failed')}</div>`;
+            }
+          });
+      }
+
+      function renderOverview(data) {
+        const map = data && data.summary ? data.summary : {};
+        ['users','projects','clients','tags'].forEach(key => {
+          const card = document.querySelector(`[data-summary-card="${key}"]`);
+          if (!card) return;
+          const summary = map[key] || {};
+          const value = summary.total ?? summary.sampleSize ?? '—';
+          card.querySelector('h2').textContent = value;
+          const tip = summary.hasMore ? `Showing ${summary.sampleSize} • more available` : `Showing ${summary.sampleSize || 0}`;
+          card.querySelector('.muted').textContent = tip;
+        });
+        const target = document.getElementById('recent-time-entries');
+        if (!target) return;
+        const items = (data && data.recentTimeEntries && data.recentTimeEntries.items) || [];
+        if (!items.length) {
+          setTimelineState('No recent time entries');
+          return;
+        }
+        target.innerHTML = items.map(renderTimelineEntry).join('');
+      }
+
+      function renderTimelineEntry(entry) {
+        const user = escapeHtml(entry?.user?.name || 'Unknown user');
+        const project = escapeHtml(entry?.project?.name || 'No project');
+        const desc = escapeHtml(entry?.description || '(no description)');
+        const duration = formatDuration(entry?.timeInterval?.duration || 0);
+        const when = formatDate(entry?.timeInterval?.start);
+        return `<div class="timeline-entry">
+          <h4>${desc}</h4>
+          <p>${user} • ${project}</p>
+          <p class="muted small">${duration} • ${when}</p>
+        </div>`;
+      }
+
+      function renderUsers(data) {
+        renderList('users-list', data, user => {
+          const status = (user.status || 'ACTIVE').toUpperCase();
+          return `<div class="list-item">
+            <div>
+              <h4>${escapeHtml(user.name || user.email || 'Unnamed user')}</h4>
+              <p>${escapeHtml(user.email || 'No email on record')}</p>
+            </div>
+            <span class="pill ${status === 'ACTIVE' ? 'success' : status === 'PENDING' ? 'warning' : 'danger'}">${status}</span>
+          </div>`;
+        }, 'No users found');
+      }
+
+      function renderProjects(data) {
+        renderList('projects-list', data, project => {
+          const archived = project.archived ? '<span class="pill warning">Archived</span>' : '';
+          const client = project.clientName ? `Client: ${escapeHtml(project.clientName)}` : 'No client';
+          return `<div class="list-item">
+            <div>
+              <h4>${escapeHtml(project.name || 'Untitled project')}</h4>
+              <p>${client}</p>
+            </div>
+            <div>
+              <span class="pill ${project.billable ? 'success' : ''}">${project.billable ? 'Billable' : 'Non-billable'}</span>
+              ${archived}
+            </div>
+          </div>`;
+        }, 'No projects found');
+      }
+
+      function renderClients(data) {
+        renderList('clients-list', data, client => {
+          return `<div class="list-item">
+            <div>
+              <h4>${escapeHtml(client.name || 'Unnamed client')}</h4>
+              <p>${escapeHtml(client.email || 'No email')}</p>
+            </div>
+            <div>
+              <span class="pill ${client.archived ? 'warning' : 'success'}">${client.archived ? 'Archived' : 'Active'}</span>
+            </div>
+          </div>`;
+        }, 'No clients found');
+      }
+
+      function renderTags(data) {
+        renderList('tags-list', data, tag => {
+          return `<div class="list-item">
+            <div>
+              <h4>${escapeHtml(tag.name || 'Unnamed tag')}</h4>
+              <p>ID: ${escapeHtml(tag.id || 'n/a')}</p>
+            </div>
+            <div>
+              <span class="pill" style="background:${escapeHtml(tag.color || '#eef2ff')}; color:#0f172a;">${tag.archived ? 'Archived' : 'Active'}</span>
+            </div>
+          </div>`;
+        }, 'No tags found');
+      }
+
+      function renderTimeEntries(data) {
+        renderList('time-entries-list', data, entry => {
+          const desc = escapeHtml(entry.description || '(no description)');
+          const project = escapeHtml((entry.project && entry.project.name) || 'No project');
+          const user = escapeHtml((entry.user && entry.user.name) || 'Unknown user');
+          const duration = formatDuration(entry?.timeInterval?.duration || 0);
+          return `<div class="list-item">
+            <div>
+              <h4>${desc}</h4>
+              <p>${project}</p>
+            </div>
+            <div>
+              <span class="pill">${duration}</span>
+              <span class="pill">${user}</span>
+            </div>
+          </div>`;
+        }, 'No time entries in range');
+      }
+
+      function renderList(targetId, data, renderer, emptyText) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const items = (data && data.items) || [];
+        if (!items.length) {
+          target.innerHTML = `<div class="empty">${emptyText}</div>`;
+          return;
+        }
+        target.innerHTML = items.map(renderer).join('');
+      }
+
+      function setTimelineState(message, isError) {
+        const target = document.getElementById('recent-time-entries');
+        if (!target) return;
+        target.innerHTML = `<div class="${isError ? 'error-banner' : 'empty'}">${escapeHtml(message)}</div>`;
+      }
+
+      function formatDuration(seconds) {
+        if (!seconds) return '0m';
+        const mins = Math.floor(seconds / 60);
+        if (mins < 60) return `${mins}m`;
+        const hours = Math.floor(mins / 60);
+        const rem = mins % 60;
+        return rem ? `${hours}h ${rem}m` : `${hours}h`;
+      }
+
+      function formatDate(value) {
+        if (!value) return 'unknown date';
+        try {
+          return new Date(value).toLocaleString();
+        } catch (_) {
+          return value;
+        }
+      }
+
+      function escapeHtml(value) {
+        return (value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch] || ch));
+      }
+
+      function debounce(fn, delay) {
+        let timeout;
+        return (...args) => {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => fn(...args), delay);
+        };
+      }
+
+      function getCookie(name) {
+        const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()\[\]\/+^]/g, '\\$&') + '=([^;]*)'));
+        return match ? decodeURIComponent(match[1]) : '';
+      }
+
+      loadPanel('overview');
+      activatePanel('overview', document.querySelector('[data-panel-trigger="overview"]'));
+    })();
+  </script>
+</body>
+</html>

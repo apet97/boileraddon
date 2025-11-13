@@ -11,6 +11,27 @@ Automation add-on that applies rule-driven actions to time entries (e.g., taggin
 
 See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Matrix](../../docs/PERMISSIONS_MATRIX.md) for choosing plan/scopes and wiring routes.
 
+## Workspace Explorer UI
+
+`/settings` now renders an interactive workspace explorer that stays entirely within the secured add-on surface. The iframe:
+
+- Bootstraps via the signed `auth_token` JWT and never calls Clockify APIs directly from the browser.
+- Surfaces summaries plus drill-down tabs for users, projects, clients, tags, and recent time entries.
+- Streams data from new backend routes under `/api/rules/explorer/**`, which wrap the Clockify OpenAPI GET endpoints using the installation token.
+
+### Explorer API (backend-only)
+
+| Endpoint | Purpose | Supported query params |
+| --- | --- | --- |
+| `GET /api/rules/explorer/overview` | Aggregated counts + recent activity | `sampleSize` (default 5), `recentDays` (default 7) |
+| `GET /api/rules/explorer/users` | Paginated workspace users | `page`, `pageSize`, `search`, `status` |
+| `GET /api/rules/explorer/projects` | Paginated projects | `page`, `pageSize`, `search`, `archived`, `billable` |
+| `GET /api/rules/explorer/clients` | Paginated clients | `page`, `pageSize`, `search`, `archived` |
+| `GET /api/rules/explorer/tags` | Paginated tags | `page`, `pageSize`, `search`, `archived` |
+| `GET /api/rules/explorer/time-entries` | Recent time entries (hydrated) | `page`, `pageSize`, `from`, `to`, `userId`, `projectId` |
+
+All requests inherit workspace context from `PlatformAuthFilter`. When running in local dev mode you can still provide `workspaceId` as a query parameter, but production traffic **must** rely on the signed JWT headers.
+
 ## Quick Start  
 
 ```bash

@@ -25,6 +25,60 @@ public class ClockifyClient {
     private final String token;
     private final ObjectMapper om = new ObjectMapper();
 
+    public static final class PageResult {
+        private final ArrayNode items;
+        private final Pagination pagination;
+
+        public PageResult(ArrayNode items, Pagination pagination) {
+            this.items = items;
+            this.pagination = pagination;
+        }
+
+        public ArrayNode items() {
+            return items;
+        }
+
+        public Pagination pagination() {
+            return pagination;
+        }
+    }
+
+    public static final class Pagination {
+        private final int page;
+        private final int pageSize;
+        private final boolean hasMore;
+        private final int nextPage;
+        private final long totalItems;
+
+        public Pagination(int page, int pageSize, boolean hasMore, int nextPage, long totalItems) {
+            this.page = page;
+            this.pageSize = pageSize;
+            this.hasMore = hasMore;
+            this.nextPage = nextPage;
+            this.totalItems = totalItems;
+        }
+
+        public int page() {
+            return page;
+        }
+
+        public int pageSize() {
+            return pageSize;
+        }
+
+        public boolean hasMore() {
+            return hasMore;
+        }
+
+        public int nextPage() {
+            return nextPage;
+        }
+
+        public long totalItems() {
+            return totalItems;
+        }
+    }
+
     public ClockifyClient(String baseUrl, String addonToken) {
         this(new ClockifyHttpClient(baseUrl), addonToken);
     }
@@ -115,6 +169,26 @@ public class ClockifyClient {
         return (ObjectNode) out;
     }
 
+    public PageResult getUsersPage(String workspaceId, Map<String, String> queryParams, int page, int pageSize) throws Exception {
+        return fetchPage("/workspaces/" + workspaceId + "/users", queryParams, page, pageSize);
+    }
+
+    public PageResult getProjectsPage(String workspaceId, Map<String, String> queryParams, int page, int pageSize) throws Exception {
+        return fetchPage("/workspaces/" + workspaceId + "/projects", queryParams, page, pageSize);
+    }
+
+    public PageResult getClientsPage(String workspaceId, Map<String, String> queryParams, int page, int pageSize) throws Exception {
+        return fetchPage("/workspaces/" + workspaceId + "/clients", queryParams, page, pageSize);
+    }
+
+    public PageResult getTagsPage(String workspaceId, Map<String, String> queryParams, int page, int pageSize) throws Exception {
+        return fetchPage("/workspaces/" + workspaceId + "/tags", queryParams, page, pageSize);
+    }
+
+    public PageResult getTimeEntriesPage(String workspaceId, Map<String, String> queryParams, int page, int pageSize) throws Exception {
+        return fetchPage("/workspaces/" + workspaceId + "/time-entries", queryParams, page, pageSize);
+    }
+
     public static Map<String, String> mapTagsByNormalizedName(JsonNode tagsArray) {
         Map<String, String> map = new LinkedHashMap<>();
         if (tagsArray != null && tagsArray.isArray()) {
@@ -159,8 +233,9 @@ public class ClockifyClient {
     private ArrayNode fetchPaginatedArray(String basePath, Map<String, String> queryParams) throws Exception {
         ArrayNode aggregated = om.createArrayNode();
         int page = 1;
+        Map<String, String> sanitized = sanitizeQuery(queryParams);
         while (true) {
-            String pathWithQuery = buildPaginatedPath(basePath, queryParams, page);
+            String pathWithQuery = buildPaginatedPath(basePath, sanitized, page, PAGE_SIZE);
             HttpResponse<String> resp = http.get(pathWithQuery, token, Map.of());
             ensure2xx(resp, 200);
             JsonNode node = om.readTree(resp.body());
@@ -198,14 +273,41 @@ public class ClockifyClient {
         return aggregated;
     }
 
+    public PageResult fetchPage(String basePath, Map<String, String> queryParams, int page, int pageSize) throws Exception {
+        if (page < 1) {
+            throw new IllegalArgumentException("page must be >= 1");
+        }
+        if (pageSize < 1) {
+            throw new IllegalArgumentException("pageSize must be >= 1");
+        }
+        Map<String, String> sanitized = sanitizeQuery(queryParams);
+        String pathWithQuery = buildPaginatedPath(basePath, sanitized, page, pageSize);
+        HttpResponse<String> resp = http.get(pathWithQuery, token, Map.of());
+        ensure2xx(resp, 200);
+        JsonNode node = om.readTree(resp.body());
+        if (node == null || node.isNull()) {
+            node = om.createArrayNode();
+        }
+        if (!node.isArray()) {
+            throw new IllegalStateException("Clockify API response for " + basePath + " is not an array");
+        }
+        ArrayNode items = (ArrayNode) node;
+        Pagination pagination = paginationFrom(resp, page, pageSize, items.size());
+        return new PageResult(items, pagination);
+    }
+
     private String buildPaginatedPath(String basePath, Map<String, String> queryParams, int page) {
+        return buildPaginatedPath(basePath, queryParams, page, PAGE_SIZE);
+    }
+
+    private String buildPaginatedPath(String basePath, Map<String, String> queryParams, int page, int pageSize) {
         StringBuilder sb = new StringBuilder(basePath);
         if (!basePath.contains("?")) {
             sb.append('?');
         } else if (!basePath.endsWith("?") && !basePath.endsWith("&")) {
             sb.append('&');
         }
-        sb.append("page-size=").append(PAGE_SIZE);
+        sb.append("page-size=").append(pageSize);
         sb.append("&page=").append(page);
         if (queryParams != null && !queryParams.isEmpty()) {
             for (Map.Entry<String, String> e : queryParams.entrySet()) {
@@ -217,5 +319,56 @@ public class ClockifyClient {
             }
         }
         return sb.toString();
+    }
+
+    private Map<String, String> sanitizeQuery(Map<String, String> queryParams) {
+        if (queryParams == null || queryParams.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> sanitized = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : queryParams.entrySet()) {
+            if (entry.getValue() == null) {
+                continue;
+            }
+            String trimmed = entry.getValue().trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            sanitized.put(entry.getKey(), trimmed);
+        }
+        return sanitized;
+    }
+
+    private Pagination paginationFrom(HttpResponse<String> resp, int page, int pageSize, int itemCount) {
+        boolean hasMore = false;
+        int nextPage = page;
+        Optional<String> nextPageHeader = resp.headers().firstValue("X-Next-Page");
+        if (nextPageHeader.isPresent()) {
+            try {
+                int parsed = Integer.parseInt(nextPageHeader.get());
+                if (parsed > page) {
+                    hasMore = true;
+                    nextPage = parsed;
+                }
+            } catch (NumberFormatException ignored) {
+                // fall back to size-based detection
+            }
+        }
+        if (!hasMore && itemCount >= pageSize) {
+            hasMore = true;
+            nextPage = page + 1;
+        }
+
+        long totalItems = -1L;
+        Optional<String> totalHeader = resp.headers().firstValue("X-Total-Count");
+        if (totalHeader.isPresent()) {
+            try {
+                totalItems = Long.parseLong(totalHeader.get());
+            } catch (NumberFormatException ignored) {
+                totalItems = -1L;
+            }
+        }
+
+        return new Pagination(page, pageSize, hasMore, hasMore ? nextPage : page, totalItems);
     }
 }
