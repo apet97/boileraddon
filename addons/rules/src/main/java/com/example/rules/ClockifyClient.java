@@ -7,21 +7,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.net.URLEncoder;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Thin wrapper around the SDK ClockifyHttpClient for the Rules add-on use cases.
  */
 public class ClockifyClient {
+    private static final int PAGE_SIZE = 500;
+
     private final ClockifyHttpClient http;
     private final String token;
     private final ObjectMapper om = new ObjectMapper();
 
     public ClockifyClient(String baseUrl, String addonToken) {
-        this.http = new ClockifyHttpClient(baseUrl);
+        this(new ClockifyHttpClient(baseUrl), addonToken);
+    }
+
+    ClockifyClient(ClockifyHttpClient httpClient, String addonToken) {
+        this.http = httpClient;
         this.token = addonToken;
     }
 
@@ -53,31 +62,25 @@ public class ClockifyClient {
     }
 
     public JsonNode getProjects(String workspaceId, boolean archived) throws Exception {
-        String qs = "?archived=" + archived + "&page-size=500";
-        HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/projects" + qs, token, Map.of());
-        ensure2xx(resp, 200);
-        return om.readTree(resp.body());
+        return fetchPaginatedArray(
+                "/workspaces/" + workspaceId + "/projects",
+                Map.of("archived", String.valueOf(archived))
+        );
     }
 
     public JsonNode getClients(String workspaceId, boolean archived) throws Exception {
-        String qs = "?archived=" + archived + "&page-size=500";
-        HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/clients" + qs, token, Map.of());
-        ensure2xx(resp, 200);
-        return om.readTree(resp.body());
+        return fetchPaginatedArray(
+                "/workspaces/" + workspaceId + "/clients",
+                Map.of("archived", String.valueOf(archived))
+        );
     }
 
     public JsonNode getUsers(String workspaceId) throws Exception {
-        String qs = "?page-size=500";
-        HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/users" + qs, token, Map.of());
-        ensure2xx(resp, 200);
-        return om.readTree(resp.body());
+        return fetchPaginatedArray("/workspaces/" + workspaceId + "/users");
     }
 
     public JsonNode getTasks(String workspaceId, String projectId) throws Exception {
-        String qs = "?page-size=500";
-        HttpResponse<String> resp = http.get("/workspaces/" + workspaceId + "/projects/" + projectId + "/tasks" + qs, token, Map.of());
-        ensure2xx(resp, 200);
-        return om.readTree(resp.body());
+        return fetchPaginatedArray("/workspaces/" + workspaceId + "/projects/" + projectId + "/tasks");
     }
 
     public ObjectNode getTimeEntry(String workspaceId, String timeEntryId) throws Exception {
@@ -147,5 +150,72 @@ public class ClockifyClient {
         if (code != expected && (code / 100) != 2) {
             throw new RuntimeException("Clockify API error: status=" + code + " body=" + resp.body());
         }
+    }
+
+    private ArrayNode fetchPaginatedArray(String basePath) throws Exception {
+        return fetchPaginatedArray(basePath, Map.of());
+    }
+
+    private ArrayNode fetchPaginatedArray(String basePath, Map<String, String> queryParams) throws Exception {
+        ArrayNode aggregated = om.createArrayNode();
+        int page = 1;
+        while (true) {
+            String pathWithQuery = buildPaginatedPath(basePath, queryParams, page);
+            HttpResponse<String> resp = http.get(pathWithQuery, token, Map.of());
+            ensure2xx(resp, 200);
+            JsonNode node = om.readTree(resp.body());
+            if (node == null || node.isNull()) {
+                break;
+            }
+            if (!node.isArray()) {
+                throw new IllegalStateException("Clockify API response for " + basePath + " is not an array");
+            }
+            ArrayNode pageItems = (ArrayNode) node;
+            if (pageItems.isEmpty()) {
+                break;
+            }
+            aggregated.addAll(pageItems);
+
+            Optional<String> nextPage = resp.headers().firstValue("X-Next-Page");
+            if (nextPage.isPresent() && !nextPage.get().isBlank()) {
+                try {
+                    int parsed = Integer.parseInt(nextPage.get());
+                    if (parsed <= page) {
+                        break;
+                    }
+                    page = parsed;
+                    continue;
+                } catch (NumberFormatException ignored) {
+                    // Fallback to size-based pagination below
+                }
+            }
+
+            if (pageItems.size() < PAGE_SIZE) {
+                break;
+            }
+            page++;
+        }
+        return aggregated;
+    }
+
+    private String buildPaginatedPath(String basePath, Map<String, String> queryParams, int page) {
+        StringBuilder sb = new StringBuilder(basePath);
+        if (!basePath.contains("?")) {
+            sb.append('?');
+        } else if (!basePath.endsWith("?") && !basePath.endsWith("&")) {
+            sb.append('&');
+        }
+        sb.append("page-size=").append(PAGE_SIZE);
+        sb.append("&page=").append(page);
+        if (queryParams != null && !queryParams.isEmpty()) {
+            for (Map.Entry<String, String> e : queryParams.entrySet()) {
+                if (e.getValue() == null) continue;
+                sb.append('&')
+                        .append(URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8))
+                        .append('=')
+                        .append(URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8));
+            }
+        }
+        return sb.toString();
     }
 }
