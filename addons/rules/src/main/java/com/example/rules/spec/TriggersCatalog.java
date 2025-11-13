@@ -23,6 +23,9 @@ public class TriggersCatalog {
     private static final Logger logger = LoggerFactory.getLogger(TriggersCatalog.class);
     private static final ObjectMapper mapper = new ObjectMapper();
 
+    private static final String PRIMARY_CLASSPATH_RESOURCE = "clockify-webhook-samples.md";
+    private static final String LEGACY_CLASSPATH_RESOURCE = "Clockify_Webhook_JSON_Samples.md";
+
     private static List<WebhookTrigger> cachedTriggers = null;
 
     /**
@@ -39,44 +42,48 @@ public class TriggersCatalog {
         try {
             String content = null;
 
-            // Try classpath resource first (for CI environment)
-            try (InputStream is = TriggersCatalog.class.getClassLoader()
-                    .getResourceAsStream("Clockify_Webhook_JSON_Samples.md")) {
-                if (is != null) {
-                    content = new String(is.readAllBytes());
-                    logger.info("Loaded webhook samples from classpath: Clockify_Webhook_JSON_Samples.md");
+            // Prefer classpath resources bundled with the jar
+            for (String resource : List.of(PRIMARY_CLASSPATH_RESOURCE, LEGACY_CLASSPATH_RESOURCE)) {
+                try (InputStream is = TriggersCatalog.class.getClassLoader().getResourceAsStream(resource)) {
+                    if (is != null) {
+                        content = new String(is.readAllBytes());
+                        logger.info("Loaded webhook samples from classpath: {}", resource);
+                        break;
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to load webhook samples from classpath resource {}", resource, e);
                 }
-            } catch (Exception e) {
-                logger.warn("Failed to load webhook samples from classpath", e);
             }
 
-            // If classpath loading failed, try filesystem paths
+            // If classpath loading failed, try filesystem overrides for developers
             if (content == null) {
-                // Try root directory first (preferred location) - use relative path from project root
-                Path webhookPath = Paths.get("../Clockify_Webhook_JSON_Samples.md");
-                if (!Files.exists(webhookPath)) {
-                    // Try current directory (for local development)
-                    webhookPath = Paths.get("Clockify_Webhook_JSON_Samples.md");
-                    if (!Files.exists(webhookPath)) {
-                        // Try downloads directory
-                        Path dl = Paths.get("../downloads", "Clockify_Webhook_JSON_Samples.md");
-                        if (Files.exists(dl)) {
-                            webhookPath = dl;
-                        } else {
-                            // Fallback to current directory downloads
-                            dl = Paths.get("downloads", "Clockify_Webhook_JSON_Samples.md");
-                            if (Files.exists(dl)) {
-                                webhookPath = dl;
-                            } else {
-                                logger.warn("Webhook samples file not found in any expected location");
-                                cachedTriggers = triggers;
-                                return triggers;
-                            }
-                        }
+                List<Path> candidates = List.of(
+                        Paths.get("clockify-webhook-samples.md"),
+                        Paths.get("../clockify-webhook-samples.md"),
+                        Paths.get("Clockify_Webhook_JSON_Samples.md"),
+                        Paths.get("../Clockify_Webhook_JSON_Samples.md"),
+                        Paths.get("downloads", "clockify-webhook-samples.md"),
+                        Paths.get("../downloads", "clockify-webhook-samples.md"),
+                        Paths.get("downloads", "Clockify_Webhook_JSON_Samples.md"),
+                        Paths.get("../downloads", "Clockify_Webhook_JSON_Samples.md")
+                );
+
+                Path webhookPath = null;
+                for (Path candidate : candidates) {
+                    if (Files.exists(candidate)) {
+                        webhookPath = candidate;
+                        break;
                     }
                 }
+
+                if (webhookPath == null) {
+                    logger.warn("Webhook samples file not found in any expected location");
+                    cachedTriggers = triggers;
+                    return triggers;
+                }
+
                 content = Files.readString(webhookPath);
-                logger.info("Loaded webhook samples from filesystem: {}", webhookPath);
+                logger.info("Loaded webhook samples from filesystem override: {}", webhookPath);
             }
 
             // Pattern to extract webhook event names (markdown headers like ## EVENT_NAME)
@@ -114,6 +121,13 @@ public class TriggersCatalog {
         }
 
         return triggers;
+    }
+
+    /**
+     * Clear cached triggers (test utility).
+     */
+    public static synchronized void clearCache() {
+        cachedTriggers = null;
     }
 
     /**
