@@ -206,7 +206,7 @@ See also: docs/WEBHOOK_IFTTT.md for event→action patterns.
 
 ## Manifest (Scopes and Plan)
 
-Rules needs to read and optionally modify time entries, and it uses tags. By default it targets the FREE plan; raise the minimum plan and adapt scopes as needed.
+Rules needs to read and optionally modify time entries, and it uses tags. It targets the PRO plan by default so Clockify’s automation features are available; raise the minimum plan further only if your deployment requires enterprise-only capabilities.
 
 ```java
 ClockifyManifest manifest = ClockifyManifest
@@ -214,7 +214,7 @@ ClockifyManifest manifest = ClockifyManifest
     .key("rules")
     .name("Rules")
     .baseUrl(baseUrl)
-    .minimalSubscriptionPlan("FREE")
+    .minimalSubscriptionPlan("PRO")
     .scopes(new String[]{
         "TIME_ENTRY_READ", "TIME_ENTRY_WRITE",
         "TAG_READ", "TAG_WRITE"

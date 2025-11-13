@@ -48,13 +48,15 @@ ngrok http 8080
 
 ## Manifest (Admins‑only component)
 
+Rules ships with `minimalSubscriptionPlan("PRO")` so Clockify’s automation features remain available during installs. Adjust the plan only if your deployment needs to restrict access further.
+
 ```java
 ClockifyManifest manifest = ClockifyManifest
     .v1_3Builder()
     .key("rules")
     .name("Rules")
     .baseUrl(baseUrl)
-    .minimalSubscriptionPlan("FREE")
+    .minimalSubscriptionPlan("PRO")
     .scopes(new String[]{
         "TIME_ENTRY_READ", "TIME_ENTRY_WRITE",
         "TAG_READ", "TAG_WRITE", "PROJECT_READ"

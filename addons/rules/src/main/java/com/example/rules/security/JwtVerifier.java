@@ -127,6 +127,13 @@ public final class JwtVerifier implements AuthTokenVerifier {
         return new JwtVerifier(defaultKey, Map.of(), constraints, null, clock);
     }
 
+    static JwtVerifier forTesting(PublicKey defaultKey,
+                                  Constraints constraints,
+                                  Clock clock,
+                                  String expectedSubject) {
+        return new JwtVerifier(defaultKey, Map.of(), constraints, null, clock, expectedSubject);
+    }
+
     static JwtVerifier forTesting(Map<String, PublicKey> kidKeys, PublicKey defaultKey,
                                   Constraints constraints, Clock clock) {
         return new JwtVerifier(defaultKey, kidKeys, constraints, null, clock);

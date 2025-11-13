@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.micrometer.core.instrument.Timer;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,15 +90,21 @@ public class WebhookHandlers {
 
         for (String event : events) {
             addon.registerWebhookHandler(event, request -> {
+                Timer.Sample sample = RulesMetrics.startWebhookTimer();
+                String eventType = event;
+                List<Action> actionsToApply = new ArrayList<>();
                 try (LoggingContext loggingContext = LoggingContext.create()) {
                     JsonNode payload = parseRequestBody(request);
+                    if (payload.has("event")) {
+                        eventType = payload.get("event").asText();
+                    }
                     String workspaceId = extractWorkspaceId(payload);
                     if (workspaceId == null || workspaceId.isBlank()) {
-                        return ErrorResponse.of(400, "RULES.MISSING_WORKSPACE", "workspaceId missing in payload", request, false);
+                        return respondWithMetrics(sample, eventType, "missing_workspace",
+                                ErrorResponse.of(400, "RULES.MISSING_WORKSPACE", "workspaceId missing in payload", request, false));
                     }
                     request.setAttribute(DiagnosticContextFilter.WORKSPACE_ID_ATTR, workspaceId);
                     loggingContext.workspace(workspaceId);
-                    String eventType = payload.has("event") ? payload.get("event").asText() : event;
 
                     // Verify webhook signature (allow opt-out in dev)
                     boolean skipSig = RuntimeFlags.skipSignatureVerification();
@@ -106,7 +113,7 @@ public class WebhookHandlers {
                                 WebhookSignatureValidator.verify(request, workspaceId, addon.getManifest().getKey());
                         if (!verificationResult.isValid()) {
                             logger.warn("Webhook signature verification failed for workspace {}", workspaceId);
-                            return verificationResult.response();
+                            return respondWithMetrics(sample, eventType, "invalid_signature", verificationResult.response());
                         }
                     } else {
                         logger.info("Skipping webhook signature verification (dev mode)");
@@ -117,14 +124,14 @@ public class WebhookHandlers {
                     if (WebhookIdempotencyCache.isDuplicate(workspaceId, eventType, payload)) {
                         RulesMetrics.recordDeduplicatedEvent(eventType);
                         logger.info("Duplicate webhook suppressed | workspace={} event={}", workspaceId, eventType);
-                        return createResponse(eventType, "duplicate", new ArrayList<>());
+                        return respondWithMetrics(sample, eventType, "duplicate", createResponse(eventType, "duplicate", new ArrayList<>()));
                     }
 
-                    // Extract time entry from payload
                     JsonNode timeEntry = extractTimeEntry(payload);
                     if (timeEntry == null || timeEntry.isMissingNode()) {
                         logger.warn("Time entry not found in webhook payload");
-                        return ErrorResponse.of(400, "RULES.MISSING_TIME_ENTRY", "Time entry not found in payload", request, false);
+                        return respondWithMetrics(sample, eventType, "invalid_payload",
+                                ErrorResponse.of(400, "RULES.MISSING_TIME_ENTRY", "Time entry not found in payload", request, false));
                     }
                     String userId = payload.path("userId").asText(null);
                     if (userId != null && !userId.isBlank()) {
@@ -132,76 +139,70 @@ public class WebhookHandlers {
                         loggingContext.user(userId);
                     }
 
-                    // Load enabled rules for workspace
                     List<Rule> rules = rulesStore.getEnabled(workspaceId);
                     if (rules.isEmpty()) {
                         logger.debug("No enabled rules found for workspace {}", workspaceId);
-                        return createResponse(eventType, "no_rules", new ArrayList<>());
+                        RulesMetrics.recordRuleEvaluation(eventType, 0, 0);
+                        return respondWithMetrics(sample, eventType, "no_rules", createResponse(eventType, "no_rules", new ArrayList<>()));
                     }
 
-                    // Evaluate rules and collect actions
                     TimeEntryContext context = new TimeEntryContext(timeEntry);
-                    List<Action> actionsToApply = new ArrayList<>();
-
+                    int matchedRules = 0;
                     for (Rule rule : rules) {
                         boolean matches = evaluator.evaluate(rule, context);
                         if (matches && rule.getActions() != null) {
+                            matchedRules++;
                             logger.info("Rule '{}' matched for time entry", rule.getName());
                             actionsToApply.addAll(rule.getActions());
                         }
                     }
+                    RulesMetrics.recordRuleEvaluation(eventType, rules.size(), matchedRules);
 
                     if (actionsToApply.isEmpty()) {
                         logger.debug("No rules matched for time entry");
-                        return createResponse(eventType, "no_match", new ArrayList<>());
+                        return respondWithMetrics(sample, eventType, "no_match", createResponse(eventType, "no_match", new ArrayList<>()));
                     }
 
-                    // If not enabled to mutate, log and exit (backward-compatible behavior for tests)
                     if (!RuntimeFlags.applyChangesEnabled()) {
                         logger.info("RULES_APPLY_CHANGES=false — logging actions only");
                         logActions(actionsToApply);
-                        return createResponse(eventType, "actions_logged", actionsToApply);
+                        return respondWithMetrics(sample, eventType, "actions_logged", createResponse(eventType, "actions_logged", actionsToApply));
                     }
 
-                    // Schedule async processing for complex rule sets to prevent timeout
-                    // (Clockify addon guide recommendation: lines 1790-1793)
                     if (actionsToApply.size() > ASYNC_ACTION_THRESHOLD) {
                         logger.info("Scheduling async processing for {} actions (threshold: {})",
-                            actionsToApply.size(), ASYNC_ACTION_THRESHOLD);
+                                actionsToApply.size(), ASYNC_ACTION_THRESHOLD);
                         String finalWorkspaceId = workspaceId;
                         JsonNode finalTimeEntry = timeEntry;
                         String finalEventType = eventType;
                         if (scheduleAsyncProcessing(finalWorkspaceId, finalTimeEntry, actionsToApply, finalEventType)) {
-                            return createResponse(eventType, "scheduled", actionsToApply);
+                            return respondWithMetrics(sample, eventType, "scheduled", createResponse(eventType, "scheduled", actionsToApply));
                         }
                         logger.warn(
                                 "Async webhook executor saturated for workspace {} (event: {}). Processing synchronously.",
                                 workspaceId, eventType);
                     }
 
-                    // Apply actions idempotently using SDK HTTP client
                     var wkOpt = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
                     if (wkOpt.isEmpty()) {
                         logger.warn("Missing installation token for workspace {} — skipping mutations", workspaceId);
-                        return ErrorResponse.of(412, "RULES.MISSING_TOKEN", "Workspace installation token not found", request, false);
+                        return respondWithMetrics(sample, eventType, "missing_token",
+                                ErrorResponse.of(412, "RULES.MISSING_TOKEN", "Workspace installation token not found", request, false));
                     }
 
                     var wk = wkOpt.get();
                     ClockifyClient api = clientFactory.create(wk.apiBaseUrl(), wk.token());
 
-                    // Read existing entry and tags once, then apply changes in-memory and PUT once if needed
                     com.fasterxml.jackson.databind.node.ObjectNode entry = api.getTimeEntry(workspaceId, timeEntry.path("id").asText());
                     com.fasterxml.jackson.databind.JsonNode tagsArray = api.getTags(workspaceId);
                     java.util.Map<String, String> tagsByNorm = ClockifyClient.mapTagsByNormalizedName(tagsArray);
-                    // Workspace cache for name→id mappings (projects, tasks, clients)
                     var snap = com.example.rules.cache.WorkspaceCache.get(workspaceId);
 
                     boolean changed = false;
                     com.fasterxml.jackson.databind.node.ObjectNode patch = objectMapper.createObjectNode();
-                    // seed patch with current tagIds for unified updates when needed
                     var patchTagIds = objectMapper.createArrayNode();
                     boolean patchHasTags = false;
-                    String pendingProjectId = null; // track if we set project later; affects task resolution
+                    String pendingProjectId = null;
 
                     for (Action action : actionsToApply) {
                         String type = action.getType();
@@ -369,15 +370,20 @@ public class WebhookHandlers {
 
                     if (changed) {
                         api.updateTimeEntry(workspaceId, timeEntry.path("id").asText(), patch);
-                        return createResponse(eventType, "actions_applied", actionsToApply);
+                        recordActionMetrics(actionsToApply, true);
+                        return respondWithMetrics(sample, eventType, "actions_applied",
+                                createResponse(eventType, "actions_applied", actionsToApply));
                     } else {
-                        return createResponse(eventType, "no_changes", new ArrayList<>());
+                        return respondWithMetrics(sample, eventType, "no_changes",
+                                createResponse(eventType, "no_changes", new ArrayList<>()));
                     }
 
                 } catch (Exception e) {
+                    recordActionMetrics(actionsToApply, false);
                     logger.error("Error processing webhook", e);
-                    return ErrorResponse.of(500, "RULES.UNHANDLED_ERROR",
-                            "Unexpected webhook error", request, true, e.getMessage());
+                    return respondWithMetrics(sample, eventType, "error",
+                            ErrorResponse.of(500, "RULES.UNHANDLED_ERROR",
+                                    "Unexpected webhook error", request, true, e.getMessage()));
                 }
             });
         }
@@ -413,6 +419,23 @@ public class WebhookHandlers {
         }
         sb.append("Note: In production, apply via Clockify API");
         logger.info(sb.toString());
+    }
+
+    private static HttpResponse respondWithMetrics(Timer.Sample sample, String event, String outcome, HttpResponse response) {
+        RulesMetrics.stopWebhookTimer(sample, event, outcome);
+        return response;
+    }
+
+    private static void recordActionMetrics(List<Action> actions, boolean success) {
+        if (actions == null || actions.isEmpty()) {
+            return;
+        }
+        for (Action action : actions) {
+            if (action == null || action.getType() == null) {
+                continue;
+            }
+            RulesMetrics.recordActionResult(action.getType(), success);
+        }
     }
 
     private static HttpResponse createResponse(String eventType, String status, List<Action> actions)
@@ -729,6 +752,7 @@ public class WebhookHandlers {
 
             if (changed) {
                 api.updateTimeEntry(workspaceId, timeEntry.path("id").asText(), patch);
+                recordActionMetrics(actions, true);
                 logger.info("Async action processing completed successfully for workspace {} ({} changes applied)",
                     workspaceId, actions.size());
             } else {
@@ -736,6 +760,7 @@ public class WebhookHandlers {
             }
 
         } catch (Exception e) {
+            recordActionMetrics(actions, false);
             logger.error("Async action processing failed for workspace {}", workspaceId, e);
         }
     }

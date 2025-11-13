@@ -2,11 +2,24 @@ package com.example.rules.engine;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Validates rule objects for correctness and safety.
  */
 public class RuleValidator {
+
+    private static final Set<String> SUPPORTED_ACTION_TYPES = Set.of(
+            "add_tag",
+            "remove_tag",
+            "set_description",
+            "set_billable",
+            "set_project_by_id",
+            "set_project_by_name",
+            "set_task_by_id",
+            "set_task_by_name",
+            "openapi_call"
+    );
 
     /**
      * Validates a rule object for correctness.
@@ -37,6 +50,12 @@ public class RuleValidator {
         // Validate priority
         if (rule.getPriority() < -100 || rule.getPriority() > 100) {
             throw new RuleValidationException("Priority must be between -100 and 100");
+        }
+
+        boolean hasConditions = rule.getConditions() != null && !rule.getConditions().isEmpty();
+        boolean hasTrigger = rule.getTrigger() != null && !rule.getTrigger().isEmpty();
+        if (!hasConditions && !hasTrigger) {
+            throw new RuleValidationException("Rule must include at least one condition or trigger");
         }
 
         // Validate trigger
@@ -192,10 +211,7 @@ public class RuleValidator {
     }
 
     private static boolean isValidActionType(String type) {
-        return List.of(
-            "add_tag", "remove_tag", "set_description", "set_billable",
-            "openapi_call"
-        ).contains(type);
+        return SUPPORTED_ACTION_TYPES.contains(type);
     }
 
     /**

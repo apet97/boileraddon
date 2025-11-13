@@ -171,6 +171,39 @@ class JwtVerifierTest {
         assertThrows(JwtVerifier.JwtVerificationException.class, () -> verifier.verify(token));
     }
 
+    @Test
+    void subjectMustMatchWhenExpected() throws Exception {
+        JwtVerifier verifier = JwtVerifier.forTesting(KEY_PAIR.getPublic(), CONSTRAINTS, FIXED_CLOCK, "rules");
+        String valid = createTokenWithSubject(
+                Instant.now(FIXED_CLOCK).plusSeconds(300),
+                Instant.now(FIXED_CLOCK).minusSeconds(60),
+                "clockify",
+                "rules",
+                "rules",
+                KEY_PAIR.getPrivate());
+        assertDoesNotThrow(() -> verifier.verify(valid));
+
+        String mismatch = createTokenWithSubject(
+                Instant.now(FIXED_CLOCK).plusSeconds(300),
+                Instant.now(FIXED_CLOCK).minusSeconds(60),
+                "clockify",
+                "rules",
+                "other-addon",
+                KEY_PAIR.getPrivate());
+        assertThrows(JwtVerifier.JwtVerificationException.class, () -> verifier.verify(mismatch));
+    }
+
+    @Test
+    void missingSubjectFailsWhenExpected() throws Exception {
+        JwtVerifier verifier = JwtVerifier.forTesting(KEY_PAIR.getPublic(), CONSTRAINTS, FIXED_CLOCK, "rules");
+        String token = createToken(Instant.now(FIXED_CLOCK).plusSeconds(300),
+                Instant.now(FIXED_CLOCK).minusSeconds(60),
+                "clockify",
+                "rules",
+                KEY_PAIR.getPrivate());
+        assertThrows(JwtVerifier.JwtVerificationException.class, () -> verifier.verify(token));
+    }
+
     private static KeyPair generateKeyPair() {
         try {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -212,6 +245,17 @@ class JwtVerifierTest {
         String headerJson = "{\"alg\":\"RS256\",\"typ\":\"JWT\"}";
         String payloadJson = String.format("{\"iss\":\"%s\",\"aud\":[%s],\"exp\":%d,\"nbf\":%d}",
                 iss, audJson, exp.getEpochSecond(), nbf.getEpochSecond());
+        String header = base64Url(headerJson.getBytes(StandardCharsets.UTF_8));
+        String payload = base64Url(payloadJson.getBytes(StandardCharsets.UTF_8));
+        String signature = sign(header + "." + payload, key);
+        return header + "." + payload + "." + signature;
+    }
+
+    private static String createTokenWithSubject(Instant exp, Instant nbf, String iss, String aud,
+                                                 String subject, PrivateKey key) throws Exception {
+        String headerJson = "{\"alg\":\"RS256\",\"typ\":\"JWT\"}";
+        String payloadJson = String.format("{\"iss\":\"%s\",\"aud\":\"%s\",\"exp\":%d,\"nbf\":%d,\"sub\":\"%s\"}",
+                iss, aud, exp.getEpochSecond(), nbf.getEpochSecond(), subject);
         String header = base64Url(headerJson.getBytes(StandardCharsets.UTF_8));
         String payload = base64Url(payloadJson.getBytes(StandardCharsets.UTF_8));
         String signature = sign(header + "." + payload, key);
