@@ -1,0 +1,254 @@
+The main cause of the failing job is a Maven dependency resolution error:
+
+> Could not resolve dependencies for project com.clockify.boilerplate:_template-addon:jar:0.1.0
+> Could not find artifact com.clockify.boilerplate:addon-sdk:jarThe main reason for the failing job is a Maven dependency resolution error:0.1.0 in central (https://repo.maven.apache.org/maven2)
+
+This means your project is trying:
+
+```
+[ERROR] Failed to execute goal on project _template-addon: Could not resolve dependencies for project com.clockify.boilerplate:_template-addon:jar: to use com.clockify.boilerplate:addon-sdk:jar:0.1.0, but this artifact is not available in Maven Central or any of the configured repositories.
+
+**How to fix0.1.0
+[ERROR] dependency: com.clockify.boilerplate:**
+
+1. **Check if addon-sdk is an internal module or locally:addon-sdk:jar:0.1.0 (compile)
+[ERROR] 	Could not find artifact com.clockify.boilerplate:addon-sdk:jar:0.1. built artifact.**
+   - If so, make sure it0 in central (https://repo.maven.apache.org/maven2)
+ is built and installed to your local repository (run ````
+
+## Solution
+
+You need to resolve the missing dependency `com.clockify.boilerplate:addonmvn install` in the addon-sdk directory first).
+   - If your workflow depends on this module, you need to-sdk:jar:0.1.0`. Maven cannot find this artifact in the central repository.
+
+### How to fix
+
+#### Option 1: Install add an explicit step to build/install it before building _template addon-sdk locally
+
+If `addon-sdk` is developed in the-addon.
+
+2. **If addon-sdk should be published same repository or you have its source code, build and to a private Maven repository:**
+   - Make sure your repository install it locally before running the build for `_template is listed in the `<repositories>` section of-addon`:
+
+```sh
+cd path/to/addon-sdk
+mvn your pom.xml.
+   - Example:
+     ```xml
+     clean install
+```
+
+#### Option 2: Publish addon-sdk <repositories>
+       <repository>
+         <id>my-internal to a remote repository
+
+If this dependency is meant to be-repo</id>
+         <url>https://your.internal.repo.url</url>
+       </repository>
+     </repositories>
+     fetched from a private/npm-hosted Maven repository, make sure ```
+
+3. **If addon-sdk should be fetched:
+
+- The artifact `addon-sdk:0. from another source, verify its version.**
+  1.0` is available and published in the repository.
+- Your Maven - Double-check the version `0.1.0` is correct and that it exists in the referenced repository.
+
+**Immediate workaround for `settings.xml` is configured with access to that CI (assuming addon-sdk is part of repo.
+- The repository is correctly declared in your root `pom.xml`.
+
+Example snippet for your `pom.xml`:
+```xml
+<repositories>
+  <repository>
+    <id>your-repo-id</id>
+    <url>https://your.maven.repo/url</url>
+  </repository>
+</repositories>
+```
+
+#### Option 3: Fix Dependency Coordinates
+
+Check that your dependency declaration in the `pom.xml` of `_template-addon` matches exactly the published coordinates of the dependency. Case errors or version mismatches will cause this issue.
+
+### Additional Failing Test
+
+There is also a test failure in `DatabaseMetricsTest`:
+
+```
+java.lang.RuntimeException: Test failure
+	at com.example.rules.metrics.DatabaseMetricsTest.testRecordOperationFailure(DatabaseMetricsTest.java:86)
+```
+You should review the failing test method:
+- Inspect `DatabaseMetricsTest.java`, method `testRecordOperationFailure`.
+- Ensure prerequisites or mocks are properly configured.
+- If this is an expected failure in an the same monorepo):**
+- Build and install addon unimplemented feature, you may want to mark the test with-sdk before building other modules, or configure your `@Disabled` (JUnit 5) or `@Ignore` (JUnit 4) until resolved.
+
+---
+
+## Next Steps
+
+1 Maven build to perform a multi-module build (using a. Fix the Maven dependency resolution by ensuring the `addon-sdk` JAR is available to your build (via install parent `pom.xml`).
+
+**Example adjustment to or repository).
+2. Review and fix the failing unit test as needed.
+
+If you need help with a specific file or `pom.xml` configuration, please share the relevant your workflow step:**
+```yaml
+- name: Build addon-sdk
+ file and I can provide code suggestions.  run: mvn -pl addons/addon-sdk install
+
+- name: Build and test all modules
+  run: mvn install
+```
+
+**Summary of main steps:**
+- Ensure all required modules/artifacts, especially addon-sdk, are available to your build (install locally or publish to a repository).
+- If you use composite builds or multiple modules, invoke Maven from the parent directory so all modules build together.
+
+If you need further pointers, please specify if addon-sdk is part of your repo or if it's external.
+
+Skip to content
+Navigation Menu
+apet97
+boileraddon
+
+Type / to search
+Code
+Issues
+Pull requests
+Actions
+Projects
+Wiki
+Security
+Insights
+Settings
+build-and-test
+fix(ci): run verify phase to package jars before testing dependent mo… #196
+Jobs
+Run details
+Annotations
+2 errors
+build
+failed 1 minute ago in 39m 3s
+Search logs
+3s
+1s
+1s
+0s
+2s
+1m 29s
+2s
+2s
+10s
+1s
+37m 7s
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/jackson-parent/2.20/jackson-parent-2.20.pom (6.8 kB at 169 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/fasterxml/oss-parent/70/oss-parent-70.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/oss-parent/70/oss-parent-70.pom (24 kB at 716 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/owasp/dependency-check-maven/12.1.9/dependency-check-maven-12.1.9.jar
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/owasp/dependency-check-maven/12.1.9/dependency-check-maven-12.1.9.jar (128 kB at 2.8 MB/s)
+[INFO] 
+[INFO] --------< com.clockify.boilerplate:clockify-addon-boilerplate >---------
+[INFO] Building Clockify Add-on Boilerplate 1.0.0                         [1/6]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --- dependency-check:12.1.9:check (default-cli) @ clockify-addon-boilerplate ---
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/owasp/dependency-check-core/12.1.9/dependency-check-core-12.1.9.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/owasp/dependency-check-core/12.1.9/dependency-check-core-12.1.9.pom (31 kB at 736 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/io/github/jeremylong/open-vulnerability-clients/7.3.2/open-vulnerability-clients-7.3.2.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/github/jeremylong/open-vulnerability-clients/7.3.2/open-vulnerability-clients-7.3.2.pom (2.9 kB at 95 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/jackson-bom/2.18.3/jackson-bom-2.18.3.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/jackson-bom/2.18.3/jackson-bom-2.18.3.pom (19 kB at 623 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.pom (1.5 kB at 46 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5/5.5.1/httpclient5-5.5.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5/5.5.1/httpclient5-5.5.1.pom (6.1 kB at 217 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5-parent/5.5.1/httpclient5-parent-5.5.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5-parent/5.5.1/httpclient5-parent-5.5.1.pom (17 kB at 439 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpcomponents-parent/14/httpcomponents-parent-14.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpcomponents-parent/14/httpcomponents-parent-14.pom (30 kB at 949 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/junit/junit-bom/5.13.0/junit-bom-5.13.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/junit-bom/5.13.0/junit-bom-5.13.0.pom (5.6 kB at 171 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5/5.3.6/httpcore5-5.3.6.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5/5.3.6/httpcore5-5.3.6.pom (3.9 kB at 123 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-parent/5.3.6/httpcore5-parent-5.3.6.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-parent/5.3.6/httpcore5-parent-5.3.6.pom (14 kB at 399 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpcomponents-parent/13/httpcomponents-parent-13.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/httpcomponents-parent/13/httpcomponents-parent-13.pom (30 kB at 975 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-h2/5.3.6/httpcore5-h2-5.3.6.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/core5/httpcore5-h2/5.3.6/httpcore5-h2-5.3.6.pom (3.6 kB at 106 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5-cache/5.4.3/httpclient5-cache-5.4.3.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5-cache/5.4.3/httpclient5-cache-5.4.3.pom (4.4 kB at 146 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5-parent/5.4.3/httpclient5-parent-5.4.3.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/httpcomponents/client5/httpclient5-parent/5.4.3/httpclient5-parent-5.4.3.pom (16 kB at 543 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/junit/junit-bom/5.11.0/junit-bom-5.11.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/junit-bom/5.11.0/junit-bom-5.11.0.pom (5.6 kB at 177 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.20.1/jackson-databind-2.20.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.20.1/jackson-databind-2.20.1.pom (23 kB at 694 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/jackson-base/2.20.1/jackson-base-2.20.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/jackson-base/2.20.1/jackson-base-2.20.1.pom (13 kB at 362 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.20/jackson-annotations-2.20.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.20/jackson-annotations-2.20.pom (7.0 kB at 226 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-core/2.20.1/jackson-core-2.20.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-core/2.20.1/jackson-core-2.20.1.pom (9.7 kB at 270 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.20.1/jackson-datatype-jsr310-2.20.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.20.1/jackson-datatype-jsr310-2.20.1.pom (5.3 kB at 167 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/module/jackson-modules-java8/2.20.1/jackson-modules-java8-2.20.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/fasterxml/jackson/module/jackson-modules-java8/2.20.1/jackson-modules-java8-2.20.1.pom (3.1 kB at 96 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/samskivert/jmustache/1.16/jmustache-1.16.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/samskivert/jmustache/1.16/jmustache-1.16.pom (6.9 kB at 238 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/anarres/jdiagnostics/jdiagnostics/1.0.7/jdiagnostics-1.0.7.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/anarres/jdiagnostics/jdiagnostics/1.0.7/jdiagnostics-1.0.7.pom (2.0 kB at 63 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/whitesource/pecoff4j/0.0.2.1/pecoff4j-0.0.2.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/whitesource/pecoff4j/0.0.2.1/pecoff4j-0.0.2.1.pom (6.8 kB at 227 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-jcs3-core/3.2.1/commons-jcs3-core-3.2.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-jcs3-core/3.2.1/commons-jcs3-core-3.2.1.pom (8.7 kB at 223 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-jcs3/3.2.1/commons-jcs3-3.2.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-jcs3/3.2.1/commons-jcs3-3.2.1.pom (21 kB at 562 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-parent/58/commons-parent-58.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-parent/58/commons-parent-58.pom (83 kB at 2.1 MB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/io/github/jeremylong/jcs3-slf4j/1.0.5/jcs3-slf4j-1.0.5.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/io/github/jeremylong/jcs3-slf4j/1.0.5/jcs3-slf4j-1.0.5.pom (1.9 kB at 66 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/com/github/package-url/packageurl-java/1.5.0/packageurl-java-1.5.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/com/github/package-url/packageurl-java/1.5.0/packageurl-java-1.5.0.pom (12 kB at 405 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/us/springett/cpe-parser/3.0.1/cpe-parser-3.0.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/us/springett/cpe-parser/3.0.1/cpe-parser-3.0.1.pom (19 kB at 598 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/assertj/assertj-bom/3.27.6/assertj-bom-3.27.6.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/assertj/assertj-bom/3.27.6/assertj-bom-3.27.6.pom (3.3 kB at 115 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/junit/junit-bom/5.14.1/junit-bom-5.14.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/junit-bom/5.14.1/junit-bom-5.14.1.pom (5.7 kB at 189 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/semver4j/semver4j/5.8.0/semver4j-5.8.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/semver4j/semver4j/5.8.0/semver4j-5.8.0.pom (11 kB at 368 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/owasp/dependency-check-utils/12.1.9/dependency-check-utils-12.1.9.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/owasp/dependency-check-utils/12.1.9/dependency-check-utils-12.1.9.pom (6.2 kB at 201 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/commons-io/commons-io/2.21.0/commons-io-2.21.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/commons-io/commons-io/2.21.0/commons-io-2.21.0.pom (21 kB at 294 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-parent/91/commons-parent-91.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-parent/91/commons-parent-91.pom (79 kB at 2.3 MB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-collections4/4.5.0/commons-collections4-4.5.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-collections4/4.5.0/commons-collections4-4.5.0.pom (26 kB at 723 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-compress/1.27.1/commons-compress-1.27.1.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-compress/1.27.1/commons-compress-1.27.1.pom (23 kB at 591 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-parent/72/commons-parent-72.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-parent/72/commons-parent-72.pom (78 kB at 1.9 MB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/junit/junit-bom/5.11.0-M2/junit-bom-5.11.0-M2.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/junit/junit-bom/5.11.0-M2/junit-bom-5.11.0-M2.pom (5.7 kB at 204 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/commons-codec/commons-codec/1.20.0/commons-codec-1.20.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/commons-codec/commons-codec/1.20.0/commons-codec-1.20.0.pom (19 kB at 587 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-dbcp2/2.13.0/commons-dbcp2-2.13.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-dbcp2/2.13.0/commons-dbcp2-2.13.0.pom (18 kB at 580 kB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-parent/78/commons-parent-78.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-parent/78/commons-parent-78.pom (78 kB at 1.9 MB/s)
+[INFO] Downloading from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-pool2/2.12.0/commons-pool2-2.12.0.pom
+[INFO] Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/commons/commons-pool2/2.12.0/commons-pool2-2.12.0.pom (16 kB at 483 kB/s)
+2s
+0s
+0s
+0s
+0s
+0s
+0s
+0s

@@ -53,6 +53,14 @@ public final class RulesMetrics {
                 .increment();
     }
 
+    public static void recordDeduplicatedEvent(String event) {
+        Counter.builder("rules_webhook_dedup_hits_total")
+                .description("Duplicate webhook requests ignored")
+                .tag("event", sanitize(event))
+                .register(REGISTRY)
+                .increment();
+    }
+
     private static String sanitize(String value) {
         if (value == null || value.isBlank()) {
             return "unknown";

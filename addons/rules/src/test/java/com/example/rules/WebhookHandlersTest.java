@@ -10,6 +10,7 @@ import com.example.rules.engine.Rule;
 import com.clockify.addon.sdk.security.WebhookSignatureValidator;
 import com.clockify.addon.sdk.testutil.SignatureTestUtil;
 import com.example.rules.store.RulesStore;
+import com.example.rules.cache.WebhookIdempotencyCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -52,6 +53,7 @@ class WebhookHandlersTest {
         store = new RulesStore();
         mapper = new ObjectMapper();
         request = Mockito.mock(HttpServletRequest.class);
+        WebhookIdempotencyCache.clear();
 
         // Clear token store
         com.clockify.addon.sdk.security.TokenStore.clear();
@@ -80,6 +82,7 @@ class WebhookHandlersTest {
         System.clearProperty(EXECUTOR_QUEUE_PROP);
         WebhookHandlers.setClientFactory(null);
         WebhookHandlers.resetAsyncExecutorForTesting();
+        WebhookIdempotencyCache.clear();
     }
 
     @Test
@@ -173,6 +176,43 @@ class WebhookHandlersTest {
         JsonNode json = mapper.readTree(response.getBody());
         assertEquals("actions_logged", json.get("status").asText());
         assertEquals(1, json.get("actionsCount").asInt());
+    }
+
+    @Test
+    void duplicateWebhookIsIgnored() throws Exception {
+        String workspaceId = "workspace-dup";
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, "token", "https://api.clockify.me/api");
+
+        String payload = """
+            {
+                "workspaceId": "workspace-dup",
+                "event": "NEW_TIME_ENTRY",
+                "timeEntry": {
+                    "id": "entry-dup",
+                    "description": "First call",
+                    "tagIds": []
+                }
+            }
+            """;
+        setupWebhookRequestJwt(payload, workspaceId);
+
+        ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+                .key("rules")
+                .name("Rules")
+                .baseUrl("http://localhost:8080/rules")
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ"})
+                .build();
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        WebhookHandlers.register(addon, store);
+
+        HttpResponse first = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
+        JsonNode firstBody = mapper.readTree(first.getBody());
+        assertEquals("no_rules", firstBody.get("status").asText());
+
+        HttpResponse second = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
+        JsonNode secondBody = mapper.readTree(second.getBody());
+        assertEquals("duplicate", secondBody.get("status").asText());
     }
 
     @Test

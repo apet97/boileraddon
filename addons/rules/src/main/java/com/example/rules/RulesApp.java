@@ -3,7 +3,6 @@ package com.example.rules;
 import com.clockify.addon.sdk.AddonServlet;
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
-import com.clockify.addon.sdk.ConfigValidator;
 import com.clockify.addon.sdk.EmbeddedServer;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.health.DatabaseHealthCheck;
@@ -14,6 +13,8 @@ import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
 import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
 import com.example.rules.config.RuntimeFlags;
+import com.example.rules.config.RulesConfiguration;
+import com.example.rules.cache.WebhookIdempotencyCache;
 import com.example.rules.api.ErrorResponse;
 import com.example.rules.store.RulesStore;
 import com.example.rules.store.RulesStoreSPI;
@@ -23,6 +24,8 @@ import com.clockify.addon.sdk.security.PooledDatabaseTokenStore;
 import com.example.rules.security.JwtVerifier;
 import com.example.rules.web.RequestContext;
 import com.clockify.addon.sdk.logging.LoggingContext;
+import com.example.rules.health.ReadinessHandler;
+import com.example.rules.middleware.SensitiveHeaderFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,18 +63,11 @@ public class RulesApp {
     private static RulesStoreSPI rulesStore;
 
     public static void main(String[] args) throws Exception {
-        // Read and validate configuration from environment
-        String baseUrl = ConfigValidator.validateUrl(
-                System.getenv("ADDON_BASE_URL"),
-                "http://localhost:8080/rules",
-                "ADDON_BASE_URL"
-        );
-        int port = ConfigValidator.validatePort(
-                System.getenv("ADDON_PORT"),
-                8080,
-                "ADDON_PORT"
-        );
-        String addonKey = "rules";
+        RulesConfiguration config = RulesConfiguration.fromEnvironment();
+        WebhookIdempotencyCache.configureTtl(config.webhookDeduplicationTtlMillis());
+        String baseUrl = config.baseUrl();
+        int port = config.port();
+        String addonKey = config.addonKey();
 
         // Build manifest programmatically (v1.3, no $schema in runtime)
         ClockifyManifest manifest = ClockifyManifest
@@ -104,13 +100,13 @@ public class RulesApp {
         ClockifyAddon addon = new ClockifyAddon(manifest);
 
         // Initialize stores
-        rulesStore = selectRulesStore();
+        rulesStore = selectRulesStore(config);
         RulesController rulesController = new RulesController(rulesStore, addon);
 
         // Initialize Clockify client for Projects/Clients/Tasks CRUD operations
         ClockifyClient clockifyClient = new ClockifyClient(
-            System.getenv().getOrDefault("CLOCKIFY_API_BASE_URL", "https://api.clockify.me/api"),
-            null // Token will be provided per-workspace from TokenStore
+                config.clockifyApiBaseUrl(),
+                null // Token will be provided per-workspace from TokenStore
         );
         ProjectsController projectsController = new ProjectsController(clockifyClient);
         ClientsController clientsController = new ClientsController(clockifyClient);
@@ -124,19 +120,19 @@ public class RulesApp {
         // GET /rules/settings - Sidebar iframe (register common aliases to avoid 404 on trailing-slash)
         JwtVerifier jwtVerifier = initializeJwtVerifier();
 
-        SettingsController settings = new SettingsController(jwtVerifier);
+        SettingsController settings = new SettingsController(jwtVerifier, baseUrl);
         addon.registerCustomEndpoint("/settings", settings);
         addon.registerCustomEndpoint("/settings/", settings);
         // Convenience: serve settings at root as well (direct browsing to /rules)
         addon.registerCustomEndpoint("/", settings);
 
         // GET /rules/ifttt - IFTTT builder page
-        IftttController ifttt = new IftttController();
+        IftttController ifttt = new IftttController(baseUrl);
         addon.registerCustomEndpoint("/ifttt", ifttt);
         addon.registerCustomEndpoint("/ifttt/", ifttt);
 
         // GET /rules/simple - Simple rule builder with templates
-        SimpleSettingsController simpleSettings = new SimpleSettingsController();
+        SimpleSettingsController simpleSettings = new SimpleSettingsController(baseUrl);
         addon.registerCustomEndpoint("/simple", simpleSettings);
         addon.registerCustomEndpoint("/simple/", simpleSettings);
 
@@ -380,23 +376,22 @@ public class RulesApp {
         DynamicWebhookHandlers.registerDynamicEvents(addon, rulesStore);
 
         // Preload local secrets for development
-        preloadLocalSecrets();
+        preloadLocalSecrets(config);
 
-        String dbUrl = System.getenv("DB_URL");
-        String dbUser = System.getenv().getOrDefault("DB_USER", System.getenv("DB_USERNAME"));
-        String dbPassword = System.getenv("DB_PASSWORD");
-
-        String envLabel = RuntimeFlags.environmentLabel();
-        boolean persistentTokens =
-                Boolean.parseBoolean(System.getenv().getOrDefault("ENABLE_DB_TOKEN_STORE",
-                        String.valueOf("prod".equalsIgnoreCase(envLabel))));
+        RulesConfiguration.DatabaseSettings sharedDb = config.sharedDatabase().orElse(null);
+        String envLabel = config.environment();
         PooledDatabaseTokenStore tokenStore = initializeTokenStore(
-                persistentTokens,
+                config.persistentTokenStoreEnabled(),
                 envLabel,
-                dbUrl,
-                dbUser,
-                dbPassword,
-                () -> new PooledDatabaseTokenStore(dbUrl, dbUser, dbPassword)
+                sharedDb != null ? sharedDb.url() : null,
+                sharedDb != null ? sharedDb.username() : null,
+                sharedDb != null ? sharedDb.password() : null,
+                () -> {
+                    if (sharedDb == null) {
+                        throw new IllegalStateException("DB_URL is required for persistent token storage");
+                    }
+                    return new PooledDatabaseTokenStore(sharedDb.url(), sharedDb.username(), sharedDb.password());
+                }
         );
 
         // Register health checks
@@ -420,6 +415,7 @@ public class RulesApp {
         }
         addon.registerCustomEndpoint("/health", health);
         addon.registerCustomEndpoint("/metrics", new MetricsHandler());
+        addon.registerCustomEndpoint("/ready", new ReadinessHandler(rulesStore, tokenStore));
 
         // Extract context path from base URL
         String contextPath = sanitizeContextPath(baseUrl);
@@ -445,30 +441,22 @@ public class RulesApp {
 
         // Always add basic security headers; configure frame-ancestors via ADDON_FRAME_ANCESTORS
         server.addFilter(new SecurityHeadersFilter());
+        server.addFilter(new SensitiveHeaderFilter());
 
         // Optional rate limiter via env: ADDON_RATE_LIMIT (double, requests/sec), ADDON_LIMIT_BY (ip|workspace)
-        String rateLimit = System.getenv("ADDON_RATE_LIMIT");
-        if (rateLimit != null && !rateLimit.isBlank()) {
-            try {
-                double permits = Double.parseDouble(rateLimit.trim());
-                String limitBy = System.getenv().getOrDefault("ADDON_LIMIT_BY", "ip");
-                server.addFilter(new RateLimiter(permits, limitBy));
-                logger.info("Rate limiter enabled: {} req/sec by {}", permits, limitBy);
-            } catch (NumberFormatException nfe) {
-                logger.warn("Invalid ADDON_RATE_LIMIT value. Expected number, got: {}", rateLimit);
-            }
-        }
+        config.rateLimit().ifPresent(limit -> {
+            server.addFilter(new RateLimiter(limit.permitsPerSecond(), limit.limitBy()));
+            logger.info("Rate limiter enabled: {} req/sec by {}", limit.permitsPerSecond(), limit.limitBy());
+        });
 
         // Optional CORS allowlist via env: ADDON_CORS_ORIGINS (comma-separated origins)
-        String cors = System.getenv("ADDON_CORS_ORIGINS");
-        if (cors != null && !cors.isBlank()) {
-            server.addFilter(new CorsFilter(cors));
-            logger.info("CORS enabled for origins: {}", cors);
-        }
+        config.cors().ifPresent(cors -> {
+            server.addFilter(new CorsFilter(cors.originsCsv(), cors.allowCredentials()));
+            logger.info("CORS enabled for origins: {}", cors.originsCsv());
+        });
 
         // Optional request logging (headers scrubbed): ADDON_REQUEST_LOGGING=true
-        if ("true".equalsIgnoreCase(System.getenv().getOrDefault("ADDON_REQUEST_LOGGING", "false"))
-                || "1".equals(System.getenv().getOrDefault("ADDON_REQUEST_LOGGING", "0"))) {
+        if (config.requestLoggingEnabled()) {
             server.addFilter(new RequestLoggingFilter());
             logger.info("Request logging enabled (sensitive headers redacted)");
         }
@@ -523,26 +511,28 @@ public class RulesApp {
      * @return DatabaseRulesStore if configured and reachable, otherwise in-memory RulesStore
      * @throws IllegalStateException if database is configured but initialization fails
      */
-    private static RulesStoreSPI selectRulesStore() {
-        // Prefer RULES_DB_URL if present; fallback to DB_URL; else in-memory
-        String rulesDbUrl = System.getenv("RULES_DB_URL");
-        String dbUrl = System.getenv("DB_URL");
-        boolean dbConfigured = (rulesDbUrl != null && !rulesDbUrl.isBlank()) || (dbUrl != null && !dbUrl.isBlank());
+    private static RulesStoreSPI selectRulesStore(RulesConfiguration config) {
+        RulesConfiguration.DatabaseSettings effectiveDb = config.rulesDatabase()
+                .or(() -> config.sharedDatabase())
+                .orElse(null);
 
-        if (dbConfigured) {
+        if (effectiveDb != null && effectiveDb.url() != null && !effectiveDb.url().isBlank()) {
             try {
-                DatabaseRulesStore store = DatabaseRulesStore.fromEnvironment();
+                DatabaseRulesStore store = new DatabaseRulesStore(
+                        effectiveDb.url(),
+                        effectiveDb.username(),
+                        effectiveDb.password()
+                );
                 logger.info("✓ Rules storage initialized with database persistence");
                 return store;
             } catch (Exception e) {
-                // Database was explicitly configured but failed - this is a deployment error
                 String msg = String.format(
-                    "FATAL: Rules database storage is configured but unavailable. " +
-                    "URL: %s | Error: %s | " +
-                    "To fix: verify database credentials in environment variables (DB_URL, DB_USER, DB_PASSWORD, " +
-                    "RULES_DB_URL) and ensure database is running and accessible.",
-                    dbUrl != null && !dbUrl.isBlank() ? dbUrl : rulesDbUrl,
-                    e.getMessage()
+                        "FATAL: Rules database storage is configured but unavailable. " +
+                        "URL: %s | Error: %s | " +
+                        "To fix: verify database credentials in environment variables (DB_URL, DB_USER, DB_PASSWORD, RULES_DB_URL) " +
+                        "and ensure database is running and accessible.",
+                        effectiveDb.url(),
+                        e.getMessage()
                 );
                 logger.error(msg, e);
                 throw new IllegalStateException(msg, e);
@@ -626,14 +616,14 @@ public class RulesApp {
         }
     }
 
-    private static void preloadLocalSecrets() {
+    private static void preloadLocalSecrets(RulesConfiguration config) {
         String workspaceId = System.getenv("CLOCKIFY_WORKSPACE_ID");
         String installationToken = System.getenv("CLOCKIFY_INSTALLATION_TOKEN");
         if (workspaceId == null || workspaceId.isBlank() || installationToken == null || installationToken.isBlank()) {
             return;
         }
 
-        String apiBaseUrl = System.getenv().getOrDefault("CLOCKIFY_API_BASE_URL", "https://api.clockify.me/api");
+        String apiBaseUrl = config.clockifyApiBaseUrl();
         try {
             com.clockify.addon.sdk.security.TokenStore.save(workspaceId, installationToken, apiBaseUrl);
             logger.info("Preloaded installation token for workspace {}", workspaceId);

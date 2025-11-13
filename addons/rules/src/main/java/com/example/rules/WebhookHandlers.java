@@ -11,7 +11,9 @@ import com.example.rules.engine.Action;
 import com.example.rules.engine.Evaluator;
 import com.example.rules.engine.Rule;
 import com.example.rules.engine.TimeEntryContext;
+import com.example.rules.cache.WebhookIdempotencyCache;
 import com.example.rules.store.RulesStore;
+import com.example.rules.metrics.RulesMetrics;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -111,6 +113,12 @@ public class WebhookHandlers {
                     }
 
                     logger.info("Webhook event received: {} for workspace {}", eventType, workspaceId);
+
+                    if (WebhookIdempotencyCache.isDuplicate(workspaceId, eventType, payload)) {
+                        RulesMetrics.recordDeduplicatedEvent(eventType);
+                        logger.info("Duplicate webhook suppressed | workspace={} event={}", workspaceId, eventType);
+                        return createResponse(eventType, "duplicate", new ArrayList<>());
+                    }
 
                     // Extract time entry from payload
                     JsonNode timeEntry = extractTimeEntry(payload);

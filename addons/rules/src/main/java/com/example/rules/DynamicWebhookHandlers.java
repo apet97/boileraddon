@@ -14,6 +14,7 @@ import com.example.rules.engine.PlaceholderResolver;
 import com.example.rules.engine.Rule;
 import com.example.rules.engine.TimeEntryContext;
 import com.example.rules.cache.RuleCache;
+import com.example.rules.cache.WebhookIdempotencyCache;
 import com.example.rules.api.ErrorResponse;
 import com.example.rules.metrics.RulesMetrics;
 import com.example.rules.store.RulesStoreSPI;
@@ -118,6 +119,13 @@ public class DynamicWebhookHandlers {
                 }
 
                 logger.info("Dynamic webhook event received: {} for workspace {}", eventType, workspaceId);
+
+                if (WebhookIdempotencyCache.isDuplicate(workspaceId, eventType, payload)) {
+                    RulesMetrics.recordDeduplicatedEvent(eventType);
+                    logger.info("Duplicate dynamic webhook suppressed | workspace={} event={}", workspaceId, eventType);
+                    return respondWithMetrics(sample, eventType, "duplicate",
+                            createResponse(eventType, "duplicate", new ArrayList<>(), ActionExecutionSummary.none()));
+                }
 
                 List<Rule> allRules = RuleCache.getEnabledRules(workspaceId);
                 List<Rule> matchingRules = new ArrayList<>();

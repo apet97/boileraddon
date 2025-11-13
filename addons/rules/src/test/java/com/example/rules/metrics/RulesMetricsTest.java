@@ -105,6 +105,18 @@ class RulesMetricsTest {
     }
 
     @Test
+    void testRecordDeduplicatedEvent() {
+        RulesMetrics.recordDeduplicatedEvent("NEW_TIME_ENTRY");
+
+        Counter dedupCounter = testRegistry.find("rules_webhook_dedup_hits_total")
+            .tag("event", "NEW_TIME_ENTRY")
+            .counter();
+
+        assertNotNull(dedupCounter);
+        assertEquals(1.0, dedupCounter.count());
+    }
+
+    @Test
     void testSanitizeHandlesNull() {
         // Test private sanitize method through public methods
         RulesMetrics.recordRuleEvaluation(null, 5, 1);

@@ -12,6 +12,16 @@ import jakarta.servlet.http.HttpServletRequest;
  */
 public class SimpleSettingsController implements RequestHandler {
 
+    private final String baseUrl;
+
+    public SimpleSettingsController() {
+        this(System.getenv().getOrDefault("ADDON_BASE_URL", ""));
+    }
+
+    public SimpleSettingsController(String baseUrl) {
+        this.baseUrl = baseUrl == null ? "" : baseUrl;
+    }
+
     @Override
     public HttpResponse handle(HttpServletRequest request) {
         String applyMode = RuntimeFlags.applyChangesEnabled() ? "Apply" : "Log-only";
@@ -19,7 +29,7 @@ public class SimpleSettingsController implements RequestHandler {
                 ? "ON"
                 : (RuntimeFlags.isDevEnvironment() ? "OFF" : "LOCKED");
         String envLabel = RuntimeFlags.environmentLabel();
-        String base = System.getenv().getOrDefault("ADDON_BASE_URL", "");
+        String base = this.baseUrl;
         String nonce = Nonce.create();
 
         String html = """

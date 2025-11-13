@@ -6,6 +6,7 @@ import com.example.rules.engine.Action;
 import com.example.rules.engine.Condition;
 import com.example.rules.engine.Rule;
 import com.example.rules.store.RulesStore;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -15,6 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DynamicWebhookHandlersTest {
+
+    @BeforeEach
+    void resetCache() {
+        com.example.rules.cache.WebhookIdempotencyCache.clear();
+    }
 
     @Test
     void computeDelayUsesRetryAfterCap() {

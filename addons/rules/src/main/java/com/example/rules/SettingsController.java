@@ -25,13 +25,19 @@ public class SettingsController implements RequestHandler {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final JwtVerifier jwtVerifier;
+    private final String baseUrl;
 
     public SettingsController() {
-        this(null);
+        this(null, System.getenv().getOrDefault("ADDON_BASE_URL", ""));
     }
 
     public SettingsController(JwtVerifier jwtVerifier) {
+        this(jwtVerifier, System.getenv().getOrDefault("ADDON_BASE_URL", ""));
+    }
+
+    public SettingsController(JwtVerifier jwtVerifier, String baseUrl) {
         this.jwtVerifier = jwtVerifier;
+        this.baseUrl = baseUrl == null ? "" : baseUrl;
     }
 
     @Override
@@ -41,7 +47,7 @@ public class SettingsController implements RequestHandler {
                 ? "ON"
                 : (RuntimeFlags.isDevEnvironment() ? "OFF" : "LOCKED");
         String envLabel = RuntimeFlags.environmentLabel();
-        String base = System.getenv().getOrDefault("ADDON_BASE_URL", "");
+        String base = this.baseUrl;
 
         // CRITICAL: Use the same nonce that SecurityHeadersFilter puts in CSP header
         // to avoid browser rejecting all scripts/styles due to nonce mismatch

@@ -23,6 +23,26 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules java -jar addons/rules/target/r
 # Install using: https://YOUR.ngrok-free.app/rules/manifest.json
 ```
 
+## Configuration
+
+`addons/rules/src/main/java/com/example/rules/config/RulesConfiguration.java` loads and validates every environment variable once at startup. Copy `.env.rules.example`, tweak the values, and these keys will be wired automatically:
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `ADDON_BASE_URL` | External URL surfaced in the manifest and iframe redirects | `http://localhost:8080/rules` |
+| `ADDON_PORT` | Embedded Jetty listener | `8080` |
+| `CLOCKIFY_API_BASE_URL` | Upstream API base for `ClockifyClient` | `https://api.clockify.me/api` |
+| `RULES_APPLY_CHANGES` | Toggle between dry-run and mutation modes | `false` |
+| `RULES_WEBHOOK_DEDUP_SECONDS` | TTL for webhook idempotency cache | `600` |
+| `ENABLE_DB_TOKEN_STORE` + `DB_URL/DB_USER/DB_PASSWORD` | Optional persistent token store | disabled unless `ENV=prod` |
+| `RULES_DB_URL` + `RULES_DB_USERNAME/RULES_DB_PASSWORD` | JDBC store for rule definitions | falls back to `DB_URL` |
+| `CLOCKIFY_JWT_PUBLIC_KEY` / `CLOCKIFY_JWT_PUBLIC_KEY_MAP` | Public keys for iframe JWT validation | unset |
+| `ADDON_RATE_LIMIT` + `ADDON_LIMIT_BY` | SDK rate limiter for inbound requests | disabled |
+| `ADDON_CORS_ORIGINS` + `ADDON_CORS_ALLOW_CREDENTIALS` | Explicit CORS allowlist for iframe AJAX calls | disabled |
+| `ADDON_REQUEST_LOGGING` | Enables scrubbed request logs | `false` |
+
+Dev helpers such as `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, and `ADDON_SKIP_SIGNATURE_VERIFY` remain available for local smoke tests but must never be enabled in production.
+
 Developer signatures: webhooks include an HMAC header `clockify-webhook-signature` (and case variants). In Developer workspaces, Clockify may send a JWT header `Clockify-Signature`; the SDK accepts it by default. Toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
 
 ## Security: JWT Verification
@@ -140,9 +160,9 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 | `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
 | `/webhook` (default) | Time entry webhooks (NEW_TIME_ENTRY, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
 | `/health` | Health endpoint (includes DB probe when DB_URL/DB_USER set) | Not listed in manifest |
+| `/ready` | Readiness probe (rules store + token store checks) | Not listed in manifest |
 | `/metrics` | Prometheus metrics scrape | Not listed in manifest |
 | Custom (e.g. `/webhooks/entries`) | Alternative webhook mount | One `webhooks[]` item per event with `path: "/webhooks/entries"` |
-| `/health` | Health endpoint (includes DB probe when DB_URL/DB_USER set) | Not listed in manifest |
 
 ## Checklist: Plan, Scopes, Events
 

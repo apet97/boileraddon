@@ -23,9 +23,19 @@ import jakarta.servlet.http.HttpServletRequest;
  */
 public class IftttController implements RequestHandler {
 
+    private final String baseUrl;
+
+    public IftttController() {
+        this(System.getenv().getOrDefault("ADDON_BASE_URL", ""));
+    }
+
+    public IftttController(String baseUrl) {
+        this.baseUrl = baseUrl == null ? "" : baseUrl;
+    }
+
     @Override
     public HttpResponse handle(HttpServletRequest request) {
-        String base = System.getenv().getOrDefault("ADDON_BASE_URL", "");
+        String base = this.baseUrl;
 
         // CRITICAL: Use the same nonce that SecurityHeadersFilter puts in CSP header
         // to avoid browser rejecting all scripts/styles due to nonce mismatch
