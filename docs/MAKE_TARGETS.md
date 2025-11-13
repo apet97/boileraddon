@@ -30,6 +30,7 @@ Run locally (native JVM)
 
 Docker
 - `make docker-run TEMPLATE=<module>` — build and run selected add-on in Docker, forwarding `ADDON_PORT` and `ADDON_BASE_URL`.
+- `make docker-build TEMPLATE=<module>` — build the multi-stage image only (passes `ADDON_DIR=addons/<module>` and `DEFAULT_BASE_URL` to the Dockerfile).
 
 Scaffolding
 - `make new-addon NAME=my-addon DISPLAY="My Add-on"` — scaffold a new add-on from the template.

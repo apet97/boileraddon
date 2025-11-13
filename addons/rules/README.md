@@ -13,38 +13,86 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 
 ## Quick Start  
 
-```
+```bash
+# 1) Build once (fat JAR lives under addons/rules/target/)
 mvn -q -pl addons/rules -am package -DskipTests
-ADDON_BASE_URL=http://localhost:8080/rules java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar
-# In another terminal:
+
+# 2) Copy the env template (RulesConfiguration reads this automatically via make dev-rules)
+cp .env.rules.example .env.rules
+
+# 3) Start the add-on (loads .env.rules, including JWT bootstrap + DB config if present)
+make dev-rules
+
+# 4) Expose via ngrok in a separate terminal, then restart with the HTTPS base URL
 ngrok http 8080
-# Restart with HTTPS base URL
-ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar
-# Install using: https://YOUR.ngrok-free.app/rules/manifest.json
+ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make run-rules
+
+# 5) Install using: https://YOUR.ngrok-free.app/rules/manifest.json
+```
+
+Docker workflow:
+```bash
+# Build-only: multi-stage Dockerfile with ADDON_DIR=addons/rules baked in
+ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make docker-build TEMPLATE=rules
+
+# Build and run (for local verification)
+ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make docker-run TEMPLATE=rules
 ```
 
 ## Configuration
 
-`addons/rules/src/main/java/com/example/rules/config/RulesConfiguration.java` loads and validates every environment variable once at startup. Copy `.env.rules.example`, tweak the values, and these keys will be wired automatically:
+`RulesConfiguration.fromEnvironment()` is the single source of truth for configuration. It reads `.env.rules` (when using `make dev-rules`) or real env vars, validates everything via `ConfigValidator`, and exposes typed records to the rest of the add-on. Use `.env.rules.example` as a starting point.
 
-| Variable | Purpose | Default |
+### Core runtime
+
+| Variable | Purpose | Default / Notes |
 | --- | --- | --- |
-| `ADDON_BASE_URL` | External URL surfaced in the manifest and iframe redirects | `http://localhost:8080/rules` |
-| `ADDON_PORT` | Embedded Jetty listener | `8080` |
-| `CLOCKIFY_API_BASE_URL` | Upstream API base for `ClockifyClient` | `https://api.clockify.me/api` |
-| `RULES_APPLY_CHANGES` | Toggle between dry-run and mutation modes | `false` |
-| `RULES_WEBHOOK_DEDUP_SECONDS` | TTL for webhook idempotency cache | `600` |
-| `ENABLE_DB_TOKEN_STORE` + `DB_URL/DB_USER/DB_PASSWORD` | Optional persistent token store | disabled unless `ENV=prod` |
-| `RULES_DB_URL` + `RULES_DB_USERNAME/RULES_DB_PASSWORD` | JDBC store for rule definitions | falls back to `DB_URL` |
-| `CLOCKIFY_JWT_PUBLIC_KEY` / `CLOCKIFY_JWT_PUBLIC_KEY_PEM` / `CLOCKIFY_JWT_PUBLIC_KEY_MAP` / `CLOCKIFY_JWT_JWKS_URI` | Public keys (static PEM, PEM map, or JWKS) for iframe JWT validation | unset |
-| `CLOCKIFY_JWT_EXPECT_ISS` / `CLOCKIFY_JWT_EXPECT_AUD` / `CLOCKIFY_JWT_LEEWAY_SECONDS` / `CLOCKIFY_JWT_DEFAULT_KID` | Optional claim enforcement + clock skew for JWT bootstrap | `clockify` / `rules` / `60` / unset |
-| `ADDON_RATE_LIMIT` + `ADDON_LIMIT_BY` | SDK rate limiter for inbound requests | disabled |
-| `ADDON_CORS_ORIGINS` + `ADDON_CORS_ALLOW_CREDENTIALS` | Explicit CORS allowlist for iframe AJAX calls | disabled |
-| `ADDON_REQUEST_LOGGING` | Enables scrubbed request logs | `false` |
+| `ADDON_BASE_URL` | External URL used in the runtime manifest, redirects, and iframe embeds. | `http://localhost:8080/rules` |
+| `ADDON_PORT` | Embedded Jetty listener. | `8080` |
+| `CLOCKIFY_API_BASE_URL` | Base URL for the upstream Clockify API client. | `https://api.clockify.me/api` |
+| `ENV` | Labels the environment (`dev`, `prod`, etc.); used by `RuntimeFlags` to guard risky toggles. | `prod` |
+| `RULES_APPLY_CHANGES` | Enables mutations instead of dry-run logging. Backed by `RuntimeFlags.applyChangesEnabled()` so you can flip it without reloading config. | `false` |
+| `RULES_WEBHOOK_DEDUP_SECONDS` | TTL (seconds) for `WebhookIdempotencyCache`. | `600` (clamped to ≥60s) |
 
-Dev helpers such as `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, and `ADDON_SKIP_SIGNATURE_VERIFY` remain available for local smoke tests but must never be enabled in production.
+### Persistence (rules + token store)
 
-Developer signatures: webhooks include an HMAC header `clockify-webhook-signature` (and case variants). In Developer workspaces, Clockify may send a JWT header `Clockify-Signature`; the SDK accepts it by default. Toggle with `ADDON_ACCEPT_JWT_SIGNATURE=true|false`.
+| Variable(s) | Purpose | Default / Notes |
+| --- | --- | --- |
+| `RULES_DB_URL`, `RULES_DB_USERNAME`, `RULES_DB_PASSWORD` | JDBC settings for `DatabaseRulesStore`. | Optional; falls back to `DB_*` if unset. |
+| `DB_URL`, `DB_USER`/`DB_USERNAME`, `DB_PASSWORD` | Shared DB config for the pooled `TokenStore` (and as fallback for rules storage). | Required when enabling persistence. |
+| `ENABLE_DB_TOKEN_STORE` | Forces persistent token storage on/off. | Default: `false` unless `ENV=prod`; fails fast if DB credentials are missing. |
+
+### JWT bootstrap & platform auth
+
+| Variable(s) | Purpose | Notes |
+| --- | --- | --- |
+| `CLOCKIFY_JWT_PUBLIC_KEY`, `CLOCKIFY_JWT_PUBLIC_KEY_PEM` | Single PEM key used to verify settings iframe JWTs (and PlatformAuthFilter if wired). | Provide either `CLOCKIFY_JWT_PUBLIC_KEY` or `_PEM`; trimmed before use. |
+| `CLOCKIFY_JWT_PUBLIC_KEY_MAP` | JSON map of `{kid: pem}` for key rotation. | Pair with `CLOCKIFY_JWT_DEFAULT_KID` to define a fallback. |
+| `CLOCKIFY_JWT_JWKS_URI` | JWKS endpoint for self-serve key rotation. | Preferred in production; overrides PEM inputs when set. |
+| `CLOCKIFY_JWT_DEFAULT_KID` | Default key ID to fall back to when the JWT header omits `kid`. | Optional. |
+| `CLOCKIFY_JWT_EXPECT_ISS`, `CLOCKIFY_JWT_EXPECT_AUD` | Issuer/audience claims enforced by `JwtVerifier.Constraints`. | Defaults: issuer `clockify`, audience `rules` (the addon key). |
+| `CLOCKIFY_JWT_LEEWAY_SECONDS` | Allowed clock skew when validating temporal claims. | `60` seconds. |
+
+`RulesConfiguration.JwtBootstrapConfig` feeds all of the above into `JwtVerifier`, which prioritizes JWKS, then PEM map, then single PEM. The `expectedSubject` is derived from `addonKey` (“rules”) so JWTs are tied to the manifest key automatically.
+
+### Middleware & networking
+
+| Variable | Purpose | Default / Notes |
+| --- | --- | --- |
+| `ADDON_FRAME_ANCESTORS` | Value injected into the CSP `frame-ancestors` directive. | `'self' https://*.clockify.me https://*.clockify.com https://developer.clockify.me` |
+| `ADDON_RATE_LIMIT`, `ADDON_LIMIT_BY` | Enables `RateLimiter` per IP or workspace. | Disabled unless `ADDON_RATE_LIMIT` is set. |
+| `ADDON_CORS_ORIGINS`, `ADDON_CORS_ALLOW_CREDENTIALS` | Enables `CorsFilter` with the provided comma-separated allowlist. | Disabled unless origins list is set. |
+| `ADDON_REQUEST_LOGGING` | Enables scrubbed request logging. | `false`. |
+
+### Dev-only helpers (never set in production)
+
+| Variable | Purpose | Notes |
+| --- | --- | --- |
+| `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN` | Preload a workspace/token pair into the in-memory TokenStore for local smoke tests. | Parsed via `RulesConfiguration.LocalDevSecrets`, logged once, and ignored in prod. |
+| `ADDON_SKIP_SIGNATURE_VERIFY` | Skips webhook signature verification. | Only honored when `ENV=dev`; blocked in other environments by `RuntimeFlags.skipSignatureVerification()`. |
+| `ADDON_ACCEPT_JWT_SIGNATURE` | Allows Developer JWT (`Clockify-Signature`) headers instead of HMAC. | Requires `ENV=dev`; default is disabled so production always expects `clockify-webhook-signature`. |
+
+Developer signatures: webhooks always include an HMAC header `clockify-webhook-signature` (and case variants). When you opt into `ADDON_ACCEPT_JWT_SIGNATURE=true` **and** run with `ENV=dev`, the SDK also accepts the JWT header `Clockify-Signature`. Keep HMAC verification enabled in every production/staging deployment.
 
 ## Security: JWT Verification
 
@@ -53,6 +101,14 @@ This addon implements JWT verification at the **addon level** rather than in the
 - **Customize verification constraints** (issuer, audience, allowed algorithms, clock skew) based on its specific security requirements
 - **Manage keys independently** using addon-specific JWKS endpoints or environment-configured key maps
 - **Evolve security policies** without requiring SDK updates across all addons
+
+`RulesConfiguration.JwtBootstrapConfig` builds the `JwtVerifier` instance on startup. Constraints (`expectedIssuer`, `expectedAudience`, `clockSkewSeconds`) come straight from env vars, while the expected subject is derived from the manifest key (`rules`). Key material is sourced in this priority order:
+
+1. **JWKS (`CLOCKIFY_JWT_JWKS_URI`)** — best for production key rotation.
+2. **PEM map (`CLOCKIFY_JWT_PUBLIC_KEY_MAP` + optional `CLOCKIFY_JWT_DEFAULT_KID`)** — supports multiple `kid` entries in a single env var.
+3. **Single PEM (`CLOCKIFY_JWT_PUBLIC_KEY` or `_PEM`)** — simplest local setup.
+
+The same verifier powers `WorkspaceContextFilter` (Settings iframe JWT), `PlatformAuthFilter` (portal-authenticated APIs), and any other component that needs to validate Clockify-issued tokens—controllers never touch `System.getenv` directly.
 
 ### Key Features
 
@@ -64,6 +120,8 @@ The `JwtVerifier` class (`src/main/java/com/example/rules/security/JwtVerifier.j
 4. **Audience any-of matching**: Supports both string and array audience claims with any-of semantics
 5. **JWKS integration**: Optional `JwksKeySource` for dynamic key rotation
 6. **Environment configuration**: Configure via `CLOCKIFY_JWT_PUBLIC_KEY_MAP`, `CLOCKIFY_JWT_DEFAULT_KID`, `CLOCKIFY_JWT_EXPECT_AUD`, `CLOCKIFY_JWT_LEEWAY_SECONDS`
+
+When you need bearer-style platform authentication (e.g., developer portal or custom UI), instantiate `PlatformAuthFilter` with the same verifier reference that `RulesConfiguration` produced. The `devFromEnv()` helper is intended for ad-hoc experiments only; production filters should never read secrets directly from `System.getenv`.
 
 ### Configuration Examples
 
@@ -83,6 +141,18 @@ export CLOCKIFY_JWT_LEEWAY_SECONDS=60
 **When to use SDK-level vs Addon-level JWT verification**:
 - **Addon-level** (current pattern): When addons have different trust domains, key management, or security policies
 - **SDK-level** (future consideration): When all addons share identical JWT verification requirements and key infrastructure
+
+## UI controllers, CSP nonce, and base URL injection
+
+- `SettingsController`, `SimpleSettingsController`, and `IftttController` accept the resolved `baseUrl` via constructor parameters. That keeps redirects, iframe assets, and relative links consistent with the manifest without ever calling `System.getenv`.
+- Each controller reads the CSP nonce stored in `SecurityHeadersFilter.CSP_NONCE_ATTR`. If the filter did not run (unit tests that exercise controllers directly), the controllers generate a fallback nonce before rendering HTML.
+- When JWT bootstrap is configured, `WorkspaceContextFilter` runs ahead of `SecurityHeadersFilter`. It verifies the iframe JWT using the configured `JwtVerifier`, attaches workspace/user attributes to the `HttpServletRequest`, and lets controllers personalize responses without decoding JWTs on their own.
+
+## HTTP filters & logging hygiene
+
+- **SecurityHeadersFilter** sets security headers (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cache-Control`) and injects the CSP nonce that UI controllers consume. Override `ADDON_FRAME_ANCESTORS` to embed outside the Clockify defaults.
+- **SensitiveHeaderFilter** redacts `Authorization`, `X-Addon-Token`, `X-Addon-Lifecycle-Token`, `Clockify-Signature`, `Cookie`, and `Set-Cookie` before any logging occurs so request logs never leak installation tokens.
+- **Optional filters** (RateLimiter, CorsFilter, RequestLoggingFilter) are attached only when the corresponding env vars are set in `RulesConfiguration`. This avoids divergent behavior between local dev and production.
 
 ### Persistent Token Storage with DatabaseTokenStore
 
@@ -108,6 +178,10 @@ export DB_PASSWORD="your-secure-password"
 4. Tokens will be persisted in database going forward
 
 See: [Database Token Store Guide](../../docs/DATABASE_TOKEN_STORE.md) for complete setup, troubleshooting, and production tuning.
+
+> 🧪 **Local smoke tests**: When `CLOCKIFY_WORKSPACE_ID` and `CLOCKIFY_INSTALLATION_TOKEN` are present (and `ENV=dev`), `RulesConfiguration.LocalDevSecrets` preloads the in-memory TokenStore so you can call `/rules/status` or `/rules/api/test` without reinstalling. These env vars are ignored automatically in non-dev environments.
+>
+> ⚠️ **Fail-fast on misconfiguration:** If any `RULES_DB_*`/`DB_*` variables are set but the database cannot be reached, `RulesApp` throws during startup instead of quietly falling back to in-memory storage. Fix credentials or unset the variables before redeploying.
 
 ### Workspace Cache (ID ↔ Name)
 
@@ -171,6 +245,12 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 - **`/ready` (readiness)** &mdash; served by `ReadinessHandler`, which treats missing stores as `SKIPPED`, calls `rulesStore.getAll("health-probe")`, and executes `tokenStore.count()` when persistence is enabled. Returns `200` only when both checks are UP, otherwise `503` with `"status":"DEGRADED"`.
 - **`/metrics`** &mdash; exposes Prometheus-format counters/timers (webhook dedupes, rule evaluations, executor latency). Scrape it from the same base URL (e.g., `http://service/rules/metrics`).
 - **Probe guidance** &mdash; point Kubernetes or Docker health probes at `/ready` for startup + readiness gates, and use `/health` for liveness. Both endpoints are lightweight and safe to call every few seconds.
+
+## Webhook idempotency & duplicate detection
+
+- `WebhookIdempotencyCache` hashes `(workspaceId, eventType, preferred payload ID)` for each webhook delivery. The TTL is configured via `RULES_WEBHOOK_DEDUP_SECONDS` (minimum 60 seconds) and is logged at startup.
+- Preferred IDs include `payloadId`, `eventId`, `timeEntry.id`, etc. If no stable field exists, the cache falls back to hashing the entire payload body.
+- When a duplicate arrives within the TTL, handlers short-circuit, emit a `deduplicated webhook` log line, and increment the Prometheus counter `rules_webhook_deduplicated_total`. Operators can alert on spikes in that metric to spot upstream retry storms.
 
 ## Checklist: Plan, Scopes, Events
 

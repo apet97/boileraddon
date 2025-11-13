@@ -1,16 +1,65 @@
 # Rules Add-on — Production Summary
 
-The Rules add-on evaluates Clockify time-entry events against declarative conditions and applies actions (tagging, description edits, HTTP calls) with built-in lifecycle handlers, settings UI, and webhook processing. It ships with webhook idempotency + metrics, hardened JWT verification for the iframe bootstrap, and CSP/headers for the entire surface. The service exposes `/health`, `/ready`, and `/metrics` for orchestration and Prometheus scraping, and it can persist rules/tokens via PostgreSQL.
+The hardened `rules` module is the canonical production example in this repository. It evaluates Clockify webhooks against declarative rules, persists state via PostgreSQL/MySQL, and exposes health/metrics endpoints for orchestration. Configuration flows exclusively through `RulesConfiguration`, so controllers and filters never reach into `System.getenv`.
 
-## Running locally
-1. `cp .env.rules.example .env.rules` then tweak envs (base URL, optional DB, dev helpers).
-2. `make dev-rules` or `mvn -q -pl addons/rules -am package && ADDON_BASE_URL=http://localhost:8080/rules java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar`.
-3. Use ngrok to expose port 8080 and reinstall via `/rules/manifest.json`. Keep `ADDON_SKIP_SIGNATURE_VERIFY` dev-only.
+## Local workflow (dev/staging)
+1. **Build once**  
+   ```bash
+   mvn -q -pl addons/rules -am package -DskipTests
+   ```
+2. **Copy the env template** — `cp .env.rules.example .env.rules`, then edit base URL, DB creds, and JWT bootstrap values as needed.
+3. **Run with Make (loads `.env.rules`)** — `make dev-rules` starts the fat JAR with all middleware (SecurityHeadersFilter, SensitiveHeaderFilter, RateLimiter/CORS if configured). Toggle mutations via `RULES_APPLY_CHANGES=true` only when exercising real Clockify data.
+4. **Expose via ngrok and reinstall** — `ngrok http 8080`, restart with `ADDON_BASE_URL=https://<domain>/rules make run-rules`, then reinstall using `https://<domain>/rules/manifest.json`.
+5. **Optional Docker smoke** — `ADDON_BASE_URL=https://<domain>/rules make docker-build TEMPLATE=rules` builds the multi-stage image; `make docker-run TEMPLATE=rules` runs it locally with the same env vars.
 
-## Running in production
-1. Build the Docker image (`make docker-build TEMPLATE=rules`) or use the provided `Dockerfile` (non-root `addon` user, `/opt/addon/app.jar`).
-2. Supply mandatory envs via secrets manager: `ADDON_BASE_URL`, `ADDON_PORT`, Clockify JWT keys (`CLOCKIFY_JWT_PUBLIC_KEY*` or `CLOCKIFY_JWT_JWKS_URI`), DB credentials when persistence is required, and rate limit/CORS/CSP flags.
-3. Wire probes: `/ready` for readiness/startup gates, `/health` for liveness, `/metrics` for scraping. Monitor `RulesMetrics` counters for dedupe hits and rule evaluations.
-4. Never set `ADDON_SKIP_SIGNATURE_VERIFY`, `CLOCKIFY_WORKSPACE_ID`, or `CLOCKIFY_INSTALLATION_TOKEN` outside dev/test.
+DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON_SKIP_SIGNATURE_VERIFY`) are honored only when `ENV=dev`; production/staging ignores them via `RuntimeFlags`.
 
-For detailed procedures, see `addons/rules/README.md` (config/deployment guide) and `PRODUCTION_CHECKLIST.md` (audited hardening items).
+## Production runtime (Docker or fat JAR)
+- **Build container**  
+  ```bash
+  DOCKER_IMAGE=registry.example.com/rules:latest \
+  ADDON_BASE_URL=https://rules.example.com \
+  make docker-build TEMPLATE=rules
+  ```
+  The Make target passes `ADDON_DIR=addons/rules` and `DEFAULT_BASE_URL` into the Dockerfile so the packaged fat JAR lands at `/opt/addon/app.jar` running as the non-root `addon` user.
+
+- **Run container (sample)**  
+  ```bash
+  docker run -d --name rules \
+    -e ADDON_PORT=8080 \
+    -e ADDON_BASE_URL=https://rules.example.com \
+    -e CLOCKIFY_JWT_JWKS_URI=https://clockify.example.com/.well-known/jwks.json \
+    -e CLOCKIFY_JWT_EXPECT_ISS=clockify \
+    -e CLOCKIFY_JWT_EXPECT_AUD=rules \
+    -e RULES_WEBHOOK_DEDUP_SECONDS=600 \
+    -e ENABLE_DB_TOKEN_STORE=true \
+    -e DB_URL=jdbc:postgresql://db:5432/clockify_addons \
+    -e DB_USER=addons \
+    -e DB_PASSWORD=*** \
+    -e RULES_DB_URL=jdbc:postgresql://db:5432/rules \
+    -e RULES_DB_USERNAME=rules \
+    -e RULES_DB_PASSWORD=*** \
+    -p 8080:8080 \
+    registry.example.com/rules:latest
+  ```
+  For bare-metal or VM deployments, run the same fat JAR directly: `ADDON_BASE_URL=https://rules.example.com java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar`.
+
+- **Mandatory envs/secrets**  
+  - Base networking: `ADDON_PORT`, `ADDON_BASE_URL`, `CLOCKIFY_API_BASE_URL`
+  - JWT bootstrap: JWKS URI or PEM map, plus `CLOCKIFY_JWT_EXPECT_ISS`/`AUD`
+  - Persistence: `ENABLE_DB_TOKEN_STORE=true`, `DB_*`, and `RULES_DB_*` when rules storage is also backing onto SQL
+  - Security/middleware: `ADDON_FRAME_ANCESTORS`, `ADDON_RATE_LIMIT`/`ADDON_LIMIT_BY`, optional `ADDON_CORS_*`, `ADDON_REQUEST_LOGGING`
+  - Never set `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, or `ADDON_SKIP_SIGNATURE_VERIFY` outside development.
+
+## Health, readiness, and metrics
+- `GET /rules/health` — Jetty + storage liveness. Includes database checks when `RULES_DB_*` or `DB_*` are configured and a `DatabaseHealthCheck` for the pooled token store.
+- `GET /rules/ready` — `ReadinessHandler` calls `RulesStore.getAll("health-probe")` and `tokenStore.count()`. Returns HTTP 503 with `"status":"DEGRADED"` when either dependency is down, so point Kubernetes readiness probes here.
+- `GET /rules/metrics` — Prometheus exposition (request counters, rule evaluations, webhook dedupe stats, executor latencies). Scrape on the same base URL as the app.
+
+## Webhook idempotency & filters
+- `WebhookIdempotencyCache` stores `(workspaceId, eventType, payloadId)` tuples for `RULES_WEBHOOK_DEDUP_SECONDS` (≥60s). Duplicates short-circuit webhook handlers and increment `rules_webhook_deduplicated_total`.
+- `SecurityHeadersFilter` emits CSP + security headers and shares a per-request nonce with the settings/IFTTT controllers.
+- `SensitiveHeaderFilter` wraps the servlet request to redact `Authorization`, `X-Addon-Token`, `Clockify-Signature`, and cookies before any logging occurs.
+- Workspace iframe JWTs flow through `RulesConfiguration.JwtBootstrapConfig` → `JwtVerifier` → `WorkspaceContextFilter` / `PlatformAuthFilter`, so no controller calls `System.getenv`.
+
+For the authoritative runbook (env-by-env), see `addons/rules/README.md`. For hardened guarantees, keep `PRODUCTION_CHECKLIST.md` in sync with any changes.

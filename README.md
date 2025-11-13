@@ -13,6 +13,14 @@ A clean, **self-contained** boilerplate for building Clockify add‑ons with **M
 
 **🎉 Status: Production Ready** • All 638+ tests passing • Full security hardening • CI/CD automated
 
+## Codebase overview
+- **Repo purpose:** end-to-end Clockify add-on boilerplate with a hardened production target (`addons/rules`), plus smaller reference modules (`addons/auto-tag-assistant`, `addons/_template-addon`) you can inspect when prototyping.
+- **Primary add-on – Rules (`addons/rules`)**: automation engine, settings/IFTTT UI, lifecycle/webhooks, persistence, readiness/metrics filters. All production docs point here.
+- **In-repo SDK (`addons/addon-sdk`)**: manifest model, routing, middleware (SecurityHeadersFilter, RateLimiter, CorsFilter, WorkspaceContextFilter), TokenStore interfaces, metrics/health helpers.
+- **Docs + tooling:** `docs/` (architecture, parameters, AI guides), `tools/` (manifest validators, schema), `_briefings/` (pinned references), `Makefile` helpers (`make dev-rules`, `make docker-build TEMPLATE=rules`).
+- **Other modules:** Auto-Tag Assistant (demo), `addons/overtime` (policy sample), `_template-addon` for scaffolding; treat them as learning aids, not the canonical prod surface.
+- **Configuration flow:** `RulesConfiguration` is the single source of truth for env vars, JWT bootstrap, rate limiting, and dev-only helpers. Runtime toggles (`RuntimeFlags`) guard dangerous flags so production never depends on `System.getenv` scattered across controllers.
+
 ## 🎯 New to the Project? Start Here!
 
 ### 🚀 How to Launch (Choose Your Path)
@@ -59,6 +67,8 @@ curl http://localhost:8080/rules/health
 ```bash
 # Build and run in Docker
 ADDON_BASE_URL=https://your-ngrok.ngrok-free.app/rules make docker-run TEMPLATE=rules
+# Build-only (image tagged via DOCKER_IMAGE, defaults to rules)
+ADDON_BASE_URL=https://your-ngrok.ngrok-free.app/rules make docker-build TEMPLATE=rules
 ```
 
 ### 📝 What You'll Need
@@ -111,6 +121,20 @@ Once your add-on is running and exposed via ngrok:
 **📖 [Setup Script Guide](docs/SETUP_SCRIPT_GUIDE.md)** - All script options and examples
 
 ---
+
+## Configuration (Rules add-on)
+
+`RulesConfiguration` reads `.env.rules` (or real env vars) once at startup, validates every value via `ConfigValidator`, and fans out typed config to controllers, filters, and stores. Start from `.env.rules.example` (or `.env.example` for docker-compose) and adjust the following buckets:
+
+| Category | Variables | Notes |
+| --- | --- | --- |
+| **Core runtime** | `ADDON_BASE_URL`, `ADDON_PORT`, `CLOCKIFY_API_BASE_URL`, `ENV`, `RULES_APPLY_CHANGES`, `RULES_WEBHOOK_DEDUP_SECONDS` | Base URL/port drive the runtime manifest and Jetty context path. `RULES_APPLY_CHANGES` is exposed through `RuntimeFlags` so you can flip it without rebuilding. Dedup TTL configures `WebhookIdempotencyCache`. |
+| **Persistence** | `ENABLE_DB_TOKEN_STORE`, `DB_URL`, `DB_USER`/`DB_USERNAME`, `DB_PASSWORD`, `RULES_DB_URL`, `RULES_DB_USERNAME`, `RULES_DB_PASSWORD` | Rules storage prefers `RULES_DB_*` and falls back to shared `DB_*`. Token storage is enabled when `ENABLE_DB_TOKEN_STORE=true` (or `ENV=prod`) **and** `DB_URL` is set. Missing/invalid DB config fails fast instead of silently falling back to in-memory. |
+| **JWT bootstrap (settings iframe + PlatformAuthFilter)** | `CLOCKIFY_JWT_PUBLIC_KEY`, `CLOCKIFY_JWT_PUBLIC_KEY_PEM`, `CLOCKIFY_JWT_PUBLIC_KEY_MAP`, `CLOCKIFY_JWT_JWKS_URI`, `CLOCKIFY_JWT_DEFAULT_KID`, `CLOCKIFY_JWT_EXPECT_ISS`, `CLOCKIFY_JWT_EXPECT_AUD`, `CLOCKIFY_JWT_LEEWAY_SECONDS` | `RulesConfiguration.JwtBootstrapConfig` feeds `JwtVerifier`, which prefers JWKS, then PEM map, then single PEM. `expectedAudience` defaults to the add-on key (“rules”) and `expectedIssuer` defaults to `clockify`. |
+| **Network & middleware** | `ADDON_FRAME_ANCESTORS`, `ADDON_RATE_LIMIT`, `ADDON_LIMIT_BY`, `ADDON_CORS_ORIGINS`, `ADDON_CORS_ALLOW_CREDENTIALS`, `ADDON_REQUEST_LOGGING` | These inputs gate SDK middleware. `SecurityHeadersFilter` uses `ADDON_FRAME_ANCESTORS` when building CSP; RateLimiter and CorsFilter are added only when corresponding envs are present. |
+| **Dev-only helpers (never set in prod)** | `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON_SKIP_SIGNATURE_VERIFY` | Guarded by `RulesConfiguration.LocalDevSecrets` + `RuntimeFlags`. Use them to preload a workspace token locally or to skip signature verification during smoke tests. Production builds treat them as disabled even if someone sets them by mistake. |
+
+`PlatformAuthFilter.devFromEnv()` remains a DEV-ONLY helper. Production JWT auth must flow through `RulesConfiguration` so key material never leaks from controllers calling `System.getenv`.
 
 ## Quick links
 - **From Zero Setup**: FROM_ZERO_SETUP.md ⭐ (Start here!)
@@ -220,27 +244,37 @@ This boilerplate includes **comprehensive enterprise security hardening** and is
    ngrok http 8080
    ```
    Copy the HTTPS forwarding domain that ngrok prints (for example `https://abc123.ngrok-free.app`).
-4. **Run the Auto-Tag Assistant example (choose your runtime)**
+4. **Run the Rules add-on (primary production target)**
 
-   **Native JVM** – keeps everything on your host machine.
+   The Rules add-on loads configuration from `.env.rules` via `RulesConfiguration`, so copy the template and either run via Make or java -jar:
    ```bash
-   ADDON_PORT=8080 ADDON_BASE_URL=https://abc123.ngrok-free.app/auto-tag-assistant \
-   java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
+   cp .env.rules.example .env.rules          # one-time setup
+   make dev-rules                            # loads .env.rules automatically
+   # or run the fat jar manually:
+   ADDON_BASE_URL=https://abc123.ngrok-free.app/rules \
+   java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar
    ```
+   `make dev-rules` wires health/readiness, JWT bootstrap, rate limits, and CSP defaults exactly like production. Use `RULES_APPLY_CHANGES=true` only when you are ready to mutate time entries.
 
-   **Docker container** – builds the selected add-on and runs it with the same environment variables.
-   ```bash
-   ADDON_BASE_URL=https://abc123.ngrok-free.app/auto-tag-assistant make docker-run TEMPLATE=auto-tag-assistant
-   ```
-   `make docker-run` forwards `ADDON_PORT`/`ADDON_BASE_URL`, publishes the selected port (default `8080`), and uses the
-   multi-stage `Dockerfile` to produce a lightweight runtime image. Omit the variables to fall back to
-   `http://localhost:<port>/<addon-name>`.
+5. **Install in Clockify** – Provide `https://abc123.ngrok-free.app/rules/manifest.json` when installing a custom add-on in **Admin → Add-ons**.
 
-   If you already started the add-on before launching ngrok, stop it and restart with the HTTPS domain so the generated manifest
-   points to the public URL.
-5. **Install in Clockify** – Provide `https://abc123.ngrok-free.app/auto-tag-assistant/manifest.json` when installing a custom add-on in **Admin → Add-ons**.
+The runtime manifest served at `/rules/manifest.json` stays schema-compliant (no `$schema`, `"schemaVersion": "1.3"`) because it is generated on startup by `RulesApp`.
 
-The runtime manifest served at `/auto-tag-assistant/manifest.json` is already schema-compliant and omits `$schema`, so Clockify accepts it without modification.
+### Auto-Tag Assistant demo
+
+Need the smaller sample instead? The Auto-Tag Assistant remains available as a demo:
+
+```bash
+# Native JVM demo
+ADDON_PORT=8080 ADDON_BASE_URL=https://abc123.ngrok-free.app/auto-tag-assistant \
+java -jar addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar
+
+# Dockerized demo
+ADDON_BASE_URL=https://abc123.ngrok-free.app/auto-tag-assistant \
+make docker-run TEMPLATE=auto-tag-assistant
+```
+
+Stop and restart the process after starting ngrok so manifests always point at the public HTTPS URL.
 
 ### Rules add-on (automation)
 
@@ -280,23 +314,24 @@ For production, persist installation tokens. This boilerplate includes docs and 
 
 Examples:
 
-```
-# Enable request logging (headers scrubbed)
+```bash
+# Enable request logging (headers scrubbed) while testing
 export ADDON_REQUEST_LOGGING=true
 
 # Start a local Postgres (optional)
 docker compose -f docker-compose.dev.yml up -d
 
-# Export DB env and run
+# Export DB env and run the Rules add-on
 export DB_URL=jdbc:postgresql://localhost:5432/addons
 export DB_USERNAME=addons
 export DB_PASSWORD=addons
-make run-auto-tag-assistant-db
+export ENABLE_DB_TOKEN_STORE=true        # or set ENV=prod
+make dev-rules                           # loads .env.rules + overrides above
 ```
 
 See also: docs/DATABASE_TOKEN_STORE.md and extras/sql/token_store.sql.
 
-> 🔒 **Automatic enabling:** Set `ENABLE_DB_TOKEN_STORE=true` (or run with `ENV=prod` plus `DB_URL`/`DB_USERNAME`/`DB_PASSWORD`) and the Rules add-on will automatically switch to the pooled PostgreSQL token store. No code changes are required—just pass the env vars.
+> 🔒 **Automatic enabling:** Set `ENABLE_DB_TOKEN_STORE=true` (or run with `ENV=prod` plus `DB_URL`/`DB_USERNAME`/`DB_PASSWORD`) and the Rules add-on will automatically switch to the pooled PostgreSQL token store. Misconfigured DB URLs fail fast instead of silently falling back to in-memory storage.
 
 ### Security Hardening Quick Start
 
@@ -324,6 +359,19 @@ mvn test
 - Rate limiting: enable via env to throttle by IP or workspace.
   - `export ADDON_RATE_LIMIT=10` (requests/sec)
   - `export ADDON_LIMIT_BY=ip` (or `workspace`)
+
+### Security filters & CSP behavior (Rules add-on)
+- `SecurityHeadersFilter` (from the SDK) runs on every request, sets `X-Content-Type-Options`, `Referrer-Policy`, `Cache-Control`, `Permissions-Policy`, and conditionally `Strict-Transport-Security`, then renders a CSP with a per-request nonce. Override `frame-ancestors` via `ADDON_FRAME_ANCESTORS` if you embed outside Clockify.
+- The nonce is exposed as `SecurityHeadersFilter.CSP_NONCE_ATTR` so `SettingsController`, `SimpleSettingsController`, and `IftttController` can include inline `<script>`/`<style>` tags safely. If the filter has not run (unit tests), the controllers generate a throwaway nonce.
+- `SensitiveHeaderFilter` wraps `HttpServletRequest` so any logging (including `RequestLoggingFilter`) sees `[REDACTED]` for `Authorization`, `X-Addon-Token`, `X-Addon-Lifecycle-Token`, `Clockify-Signature`, `Cookie`, and `Set-Cookie`. Operators should expect those headers to be masked in logs.
+- `WorkspaceContextFilter` only activates when `RulesConfiguration.JwtBootstrapConfig` is present. It uses `JwtVerifier` to parse the iframe JWT, attaches workspace/user attributes, and lets controllers read them without touching `System.getenv`.
+- `PlatformAuthFilter` is available for portal JWTs. Wire it with the same `JwtVerifier` that `RulesConfiguration` produces; the `devFromEnv()` helper is explicitly marked DEV-ONLY so production never reads raw env vars inside filters.
+
+### Readiness, metrics & idempotency
+- `/health` (liveness) is backed by `HealthCheck` plus optional DB/token-store providers, so it returns `503` if either persistence layer is configured but failing.
+- `/ready` (readiness) calls `RulesStore.getAll("health-probe")` and `tokenStore.count()` via `ReadinessHandler`, returning `status: DEGRADED` and HTTP 503 if either dependency is unreachable. Point your container readiness probe here.
+- `/metrics` exposes Prometheus-compatible counters/timers (request totals, webhook dedupe hits, rule evaluations) via `MetricsHandler`.
+- `WebhookIdempotencyCache` hashes workspace/event/payload IDs and keeps them for `RULES_WEBHOOK_DEDUP_SECONDS` (minimum 60s). Duplicate deliveries increment metrics and log a `deduplicated webhook` message instead of re-running business logic.
 
 ### CORS support (optional)
 
@@ -480,8 +528,8 @@ Without both flags it prints what would be removed and exits safely.
 ## What's Included
 
 - ✅ **Working Examples**:
-  - `addons/auto-tag-assistant/` - Auto-tagging for time entries
-  - `addons/rules/` - Declarative automation rules with conditions and actions
+  - `addons/rules/` - Declarative automation rules with conditions, actions, persistence, and observability
+  - `addons/auto-tag-assistant/` - Auto-tagging demo for smaller experiments
 - ✅ **SDK Module**: `addons/addon-sdk` shared by all add-ons - no external dependencies
 - ✅ **Maven Central Only**: All dependencies from public Maven Central (Jackson, Jetty, SLF4J)
 - ✅ **No Annotation Processing**: Simple Java 17 classes and builders
@@ -496,38 +544,32 @@ boileraddon/
 ├── README.md                                  # This file
 │
 ├── addons/
-│   ├── _template-addon/                      # Minimal starter template module
-│   ├── addon-sdk/                             # Shared SDK module
+│   ├── rules/                                 # Canonical production add-on
+│   │   ├── README.md                          # Operations + config guide
+│   │   └── src/main/java/com/example/rules/
+│   │       ├── RulesApp.java                 # Entry point (registers filters/endpoints)
+│   │       ├── config/RulesConfiguration.java# Centralized env loader
+│   │       ├── config/RuntimeFlags.java      # Dev-only toggles (apply changes, skip sig)
+│   │       ├── security/JwtVerifier.java     # JWKS/PEM verification for iframe + platform auth
+│   │       ├── middleware/SensitiveHeaderFilter.java
+│   │       ├── cache/WebhookIdempotencyCache.java
+│   │       ├── health/ReadinessHandler.java  # `/ready`
+│   │       ├── metrics/RulesMetrics.java     # Prometheus counters/timers
+│   │       └── store/DatabaseRulesStore.java # Persistent storage (PostgreSQL/MySQL)
+│   ├── auto-tag-assistant/                    # Demo/sample add-on
+│   │   ├── pom.xml
+│   │   └── src/main/java/com/example/autotagassistant/
+│   │       ├── AutoTagAssistantApp.java
+│   │       ├── SettingsController.java
+│   │       ├── LifecycleHandlers.java
+│   │       └── WebhookHandlers.java
+│   ├── addon-sdk/                             # Shared SDK module (routing, filters, token store)
 │   │   └── src/main/java/com/clockify/addon/sdk/
 │   │       ├── ClockifyAddon.java
 │   │       ├── ClockifyManifest.java
-│   │       ├── AddonServlet.java
-│   │       ├── EmbeddedServer.java
-│   │       ├── RequestHandler.java
-│   │       └── HttpResponse.java
-│   ├── auto-tag-assistant/                    # Working example add-on
-│   │   ├── pom.xml                            # Maven Central dependencies only
-│   │   ├── README.md                          # Detailed implementation guide
-│   │   └── src/main/java/
-│   │       └── com/example/autotagassistant/
-│   │           ├── AutoTagAssistantApp.java  # Main application
-│   │           ├── ManifestController.java   # Manifest endpoint
-│   │           ├── SettingsController.java   # Settings UI
-│   │           ├── LifecycleHandlers.java    # INSTALLED/DELETED
-│   │           └── WebhookHandlers.java      # Time entry webhooks
-│   └── rules/                                 # Rules automation add-on
-│       ├── pom.xml                            # Maven Central dependencies only
-│       └── src/main/java/
-│           └── com/example/rules/
-│               ├── RulesApp.java             # Main application
-│               ├── RulesController.java      # CRUD API for rules
-│               ├── engine/                    # Rule evaluation engine
-│               │   ├── Rule.java             # Rule model
-│               │   ├── Condition.java        # Condition model
-│               │   ├── Action.java           # Action model
-│               │   └── Evaluator.java        # Rule evaluator (AND/OR)
-│               └── store/
-│                   └── RulesStore.java       # In-memory rule storage
+│   │       ├── middleware/* (SecurityHeadersFilter, RateLimiter, CorsFilter, WorkspaceContextFilter)
+│   │       └── security/* (TokenStore, WebhookSignatureValidator)
+│   └── _template-addon/                      # Minimal starter template module
 └── tools/
     └── validate-manifest.py                   # Manifest validation helper
 ```
@@ -588,7 +630,7 @@ addons/addon-sdk/src/main/java/com/clockify/addon/sdk/
 mvn clean package -DskipTests
 ```
 
-This produces: `addons/auto-tag-assistant/target/auto-tag-assistant-0.1.0-jar-with-dependencies.jar`
+This produces: `addons/rules/target/rules-0.1.0-jar-with-dependencies.jar` (plus the demo/template fat JARs).
 
 **First build:** Maven downloads dependencies from Maven Central (~5MB)
 **Subsequent builds:** Uses cached dependencies (fast)

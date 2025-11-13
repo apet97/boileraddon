@@ -32,6 +32,11 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
   - Middleware: `middleware/*` (RateLimiter, SecurityHeadersFilter, CorsFilter)
   - Security: `security/*` (TokenStore, WebhookSignatureValidator)
   - Path safety: `util/PathSanitizer`
+- Rules add-on (primary production target): `addons/rules/**`
+  - `RulesConfiguration` + `.env.rules.example` (single source of truth for config, JWT bootstrap, rate limits)
+  - Filters & security: `SecurityHeadersFilter` (via SDK), `SensitiveHeaderFilter`, `WorkspaceContextFilter`, `PlatformAuthFilter`
+  - Observability: `health/ReadinessHandler`, `metrics/RulesMetrics`, `cache/WebhookIdempotencyCache`
+  - Docs: `addons/rules/README.md`, `RULES_ADDON_PRODUCTION_SUMMARY.md`, `PRODUCTION_CHECKLIST.md`
 - Demo add-on: `addons/auto-tag-assistant/**`
   - Entrypoint/wiring: `AutoTagAssistantApp.java`
   - Controllers: `ManifestController`, `SettingsController`, `WebhookHandlers`, `LifecycleHandlers`
@@ -48,8 +53,9 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
 
 ## Add/Change Features (Checklist)
 1) Identify the module:
-   - New add‑on → copy from `_template-addon` via `scripts/new-addon.sh` (if present) or replicate structure.
-   - Demo add‑on → change `addons/auto-tag-assistant/**`.
+   - Production add-on → change `addons/rules/**`.
+   - New add-on → copy from `_template-addon` via `scripts/new-addon.sh` (if present) or replicate structure.
+   - Demo add-on → change `addons/auto-tag-assistant/**`.
    - SDK behavior → change `addons/addon-sdk/**`.
 2) Wire endpoints via `ClockifyAddon`:
    - `registerCustomEndpoint`, `registerLifecycleHandler`, `registerWebhookHandler`.
@@ -117,6 +123,7 @@ Scope: Entire repository. These instructions apply to all files unless a more-sp
 - `make briefings-open` / `make briefings-verify`
 - `make rules-seed-demo` — seeds a demo rule and executes `/api/test`
 - `make rules-webhook-sim` — computes HMAC and posts a signed webhook
+- `ADDON_BASE_URL=https://... make docker-build TEMPLATE=rules` — build the production image with baked-in base URL
 
 ---
 If you’re an AI agent, start at `docs/AI_ONBOARDING.md` for a role‑friendly path and examples.

@@ -8,11 +8,13 @@ Important: Build with Java 17
 
 ## 1) Read the essentials (10 minutes)
 - README.md (Quickstart + runtime manifest rules)
-- docs/ZERO_SHOT.md (Checklist for zero‑shot start)
+- docs/ZERO_SHOT.md (Checklist for zero-shot start)
 - docs/ARCHITECTURE.md (components and flows)
 - SECURITY.md + THREAT_MODEL.md (security posture)
 - docs/DATABASE_TOKEN_STORE.md (production token storage)
 - docs/BRIEFINGS_WORKFLOW.md (how briefings are generated and kept pinned)
+- addons/rules/README.md + RULES_ADDON_PRODUCTION_SUMMARY.md (canonical production add-on)
+- PRODUCTION_CHECKLIST.md (hardening guarantees you must maintain)
 
 Optional deep dives:
 - addons/addon-sdk/** (SDK runtime: routing, filters, path safety)
@@ -30,16 +32,18 @@ If Java is not 17:
 echo "Install JDK 17 and set JAVA_HOME or configure ~/.m2/toolchains.xml"
 ```
 
-## 3) Run the demo add-on
+## 3) Run the Rules add-on (primary target)
 ```bash
-make run-auto-tag-assistant
-# In another terminal (optional):
+cp .env.rules.example .env.rules      # One-time copy; edit values as needed
+make dev-rules                        # Loads .env.rules via RulesConfiguration
+# Optional: expose to Clockify
 ngrok http 8080
-# Restart with HTTPS ngrok domain, then install using the runtime manifest URL
-#   ADDON_BASE_URL=https://YOUR-NGROK.ngrok-free.app/auto-tag-assistant make run-auto-tag-assistant
-#   make manifest-url
-# Use the https URL printed by manifest-url to install in Clockify
+ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make run-rules
+# Install using https://YOUR.ngrok-free.app/rules/manifest.json
 ```
+Need a container image? Use `ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make docker-build TEMPLATE=rules` (build only) or `make docker-run TEMPLATE=rules` (build + run). The Make target passes `ADDON_DIR=addons/rules` and `DEFAULT_BASE_URL` into the Dockerfile automatically.
+
+Still want the small demo? `make run-auto-tag-assistant` remains available, but production docs/tests focus on `addons/rules`.
 
 Runtime options:
 - Security headers CSP: `export ADDON_FRAME_ANCESTORS="'self' https://*.clockify.me"`

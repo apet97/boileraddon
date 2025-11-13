@@ -16,16 +16,15 @@ This document gives a high-level map of the repository to help you find code qui
   - Utilities: `util/PathSanitizer`
   - Tests cover routing, forwarded headers, middleware, and security helpers.
 
-- addons/_template-addon (jar)
-  - Minimal template to scaffold a new add-on; build/run and install via ngrok.
+- addons/rules (jar)
+  - Canonical production target. Includes `RulesConfiguration` (single source of truth for env vars), `RuntimeFlags` (dev-only toggles), JWT bootstrap (`JwtVerifier`, `WorkspaceContextFilter`, `PlatformAuthFilter`), persistence (`DatabaseRulesStore`, `PooledDatabaseTokenStore`), middleware (`SecurityHeadersFilter`, `SensitiveHeaderFilter`, optional RateLimiter/CorsFilter), webhook idempotency cache, health/readiness handlers, and Prometheus metrics.
 
 - addons/auto-tag-assistant (jar)
-  - Sample add-on that analyzes time entries and applies/suggests tags.
-  - Demonstrates lifecycle handlers, manifest controller, webhook processing, and Clockify API calls.
+  - Sample/demonstration add-on that analyzes time entries and applies/suggests tags.
+  - Useful for quick experiments and smaller patterns (manifest wiring, lifecycle handlers, webhook processing, Clockify API calls).
 
-- addons/rules (jar)
-  - Production-style automation add-on ("if … then …").
-  - Controllers, rules engine utilities, and integration tests for lifecycle/token persistence.
+- addons/_template-addon (jar)
+  - Minimal template to scaffold a new add-on; build/run and install via ngrok.
 
 - addons/overtime (jar)
   - Policy MVP example; can be used as a second starter add-on.
@@ -55,4 +54,3 @@ This document gives a high-level map of the repository to help you find code qui
 - Use Java 17 for both Maven and the forked test JVM (see Toolchains).
 - Routing is exact-path; pass identifiers via query/body or register additional paths.
 - Always validate `clockify-webhook-signature` before processing webhooks; store installation tokens per workspace.
-

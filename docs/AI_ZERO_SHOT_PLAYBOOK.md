@@ -54,13 +54,18 @@ Summarize changes and append proof-of-green lines (test counts, BUILD SUCCESS) t
 
 7) Optional run
 ```
-TEMPLATE=auto-tag-assistant make zero-shot-run
-# In another terminal: ngrok http 8080
-# Restart with HTTPS base URL and install using `make manifest-url`
-make manifest-print                 # pretty-print runtime manifest
-make manifest-validate-runtime      # schema-validate runtime manifest
-```
+# Production example (recommended)
+cp .env.rules.example .env.rules
+make dev-rules                               # loads .env.rules into RulesConfiguration
+# Need Docker? ADDON_BASE_URL=... make docker-build TEMPLATE=rules
 
+# Demo sample (smaller surface)
+TEMPLATE=auto-tag-assistant make zero-shot-run
+
+ngrok http 8080                              # expose whichever add-on you're running
+make manifest-print                          # pretty-print runtime manifest
+make manifest-validate-runtime               # schema-validate runtime manifest
+```
 Patterns & Tips
 - Null bytes and encodings to block (`PathSanitizer`): real `\u0000`, percent-encoded `%00`, and literal `\\0`.
 - Config errors should fail fast with helpful messages; keep `Configuration validation failed:` prefix for aggregates.

@@ -17,6 +17,7 @@ If you're an AI agent asked to create a Clockify addon:
 4. [`/examples/spec-template.md`](examples/spec-template.md) - Specification format
 
 ### Step 2: Understand the Codebase
+- Production Reference: [`/addons/rules/`](addons/rules/) + [`RULES_ADDON_PRODUCTION_SUMMARY.md`](RULES_ADDON_PRODUCTION_SUMMARY.md)
 - Working Example: [`/addons/auto-tag-assistant/`](addons/auto-tag-assistant/)
 - SDK Source: [`/addons/addon-sdk/src/main/java/`](addons/addon-sdk/src/main/java/)
 - Patterns: [`/prompts/addon-patterns.json`](prompts/addon-patterns.json)

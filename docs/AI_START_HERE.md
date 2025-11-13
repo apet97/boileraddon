@@ -28,6 +28,8 @@ TEMPLATE=auto-tag-assistant make zero-shot-run
 #   bash scripts/run-rules.sh --use-ngrok     # auto-detects https ngrok URL via 127.0.0.1:4040
 # Or fully automatic (starts ngrok if needed):
 #   make rules-up
+# Need a container image?
+#   ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make docker-build TEMPLATE=rules
 # Then install using the printed manifest URL or 'make manifest-url'
 
 Developer signatures

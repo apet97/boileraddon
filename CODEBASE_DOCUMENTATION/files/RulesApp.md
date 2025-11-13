@@ -12,6 +12,8 @@
 
 `RulesApp` is the main entry point for the **Rules Addon** - a comprehensive automation engine that provides IFTTT-style rules for Clockify time entries. It demonstrates a complete, production-ready addon with database storage, caching, and extensive API.
 
+> ⚠️ **Legacy note:** This file summarizes an older snapshot that referenced helpers such as `DatabaseRulesStore.fromEnvironment()` and direct `System.getenv` calls. The current implementation centralizes every setting in `RulesConfiguration` + `.env.rules`, so controllers, stores, and filters receive typed config instead of reading env vars on their own. For authoritative, up-to-date guidance see `addons/rules/README.md` and `RULES_ADDON_PRODUCTION_SUMMARY.md`. This document is retained for historical context.
+
 ## Purpose
 
 - Main entry point for Rules addon
