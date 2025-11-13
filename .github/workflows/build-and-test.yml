@@ -26,7 +26,7 @@ jobs:
           python3 tools/check_briefing_links.py _briefings || true
           python3 tools/validate-manifest.py
       - name: Build and test
-        run: mvn -B -q -Pci test
+        run: mvn -B -q -Pci verify
       - name: Upload surefire reports and coverage
         if: always()
         uses: actions/upload-artifact@v4
