@@ -4,6 +4,7 @@ import com.clockify.addon.sdk.AddonServlet;
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.EmbeddedServer;
+import com.clockify.addon.sdk.testutil.SignatureTestUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -166,6 +167,11 @@ class AutoTagAssistantAppTest {
 
     @Test
     void lifecycleInstalledEndpointAcceptsDocumentedPayload() throws Exception {
+        // Configure JWT public key for lifecycle signature verification
+        var key = SignatureTestUtil.RsaFixture.generate("kid-test");
+        System.setProperty("CLOCKIFY_JWT_PUBLIC_KEY", key.pemPublic);
+        System.setProperty("CLOCKIFY_JWT_EXPECTED_ISS", "clockify");
+
         int port = findFreePort();
         String baseUrl = "http://localhost:" + port + "/auto-tag-assistant";
 
@@ -201,10 +207,18 @@ class AutoTagAssistantAppTest {
 
         String lifecycleUrl = baseUrl + "/lifecycle/installed";
 
+        // Generate JWT signature for lifecycle request
+        String jwt = SignatureTestUtil.rs256Jwt(
+                key,
+                new SignatureTestUtil.Builder().sub("auto-tag-assistant").workspaceId("workspace-123")
+        );
+
         try {
-            assertLifecycleInstalledRequestSucceeds(lifecycleUrl);
+            assertLifecycleInstalledRequestSucceeds(lifecycleUrl, jwt);
         } finally {
             stopServer(server, serverFuture, executor);
+            System.clearProperty("CLOCKIFY_JWT_PUBLIC_KEY");
+            System.clearProperty("CLOCKIFY_JWT_EXPECTED_ISS");
         }
     }
 
@@ -248,7 +262,7 @@ class AutoTagAssistantAppTest {
         throw new AssertionError("Manifest endpoint did not respond successfully");
     }
 
-    private static void assertLifecycleInstalledRequestSucceeds(String lifecycleUrl) throws Exception {
+    private static void assertLifecycleInstalledRequestSucceeds(String lifecycleUrl, String jwt) throws Exception {
         Exception lastException = null;
         String payload = documentedInstalledLifecyclePayload();
         for (int attempt = 0; attempt < 30; attempt++) {
@@ -260,6 +274,9 @@ class AutoTagAssistantAppTest {
                 connection.setRequestMethod("POST");
                 connection.setDoOutput(true);
                 connection.setRequestProperty("Content-Type", "application/json");
+                if (jwt != null && !jwt.isBlank()) {
+                    connection.setRequestProperty("Clockify-Signature", jwt);
+                }
                 byte[] bytes = payload.getBytes(StandardCharsets.UTF_8);
                 connection.setRequestProperty("Content-Length", Integer.toString(bytes.length));
                 try (OutputStream outputStream = connection.getOutputStream()) {

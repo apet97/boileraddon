@@ -75,6 +75,18 @@
       <artifactId>nimbus-jose-jwt</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Micrometer for metrics (needed by EmbeddedServer in tests) -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Guava (needed by rate limiting in EmbeddedServer tests) -->
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
