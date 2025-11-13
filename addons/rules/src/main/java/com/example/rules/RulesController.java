@@ -8,6 +8,7 @@ import com.example.rules.cache.RuleCache;
 import com.example.rules.engine.Rule;
 import com.example.rules.engine.RuleValidator;
 import com.example.rules.store.RulesStoreSPI;
+import com.example.rules.web.LegacyActionPayloadConverter;
 import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,6 +72,7 @@ public class RulesController {
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
                 JsonNode body = parseRequestBody(request);
+                body = LegacyActionPayloadConverter.normalize(objectMapper, body);
                 Rule rule = objectMapper.treeToValue(body, Rule.class);
 
                 // Validate the rule before saving

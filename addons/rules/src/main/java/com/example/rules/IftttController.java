@@ -813,6 +813,91 @@ public class IftttController implements RequestHandler {
       preview.innerHTML = previewText;
     }
 
+    function buildOpenApiArgs(action) {
+      if (!action || !action.endpoint) {
+        return null;
+      }
+
+      const args = {
+        method: action.endpoint.method,
+        path: buildPathWithParams(action.endpoint.path, action.params)
+      };
+
+      const serializedBody = serializeActionBody(action.body);
+      if (serializedBody) {
+        args.body = serializedBody;
+      }
+
+      return args;
+    }
+
+    function buildPathWithParams(basePath, params) {
+      if (!basePath) {
+        return '';
+      }
+
+      let path = basePath;
+      const queryParts = [];
+
+      if (params && typeof params === 'object') {
+        Object.keys(params).forEach(key => {
+          const param = params[key] || {};
+          const location = param.in;
+          const rawValue = param.value ?? '';
+          const value = typeof rawValue === 'string' ? rawValue : String(rawValue ?? '');
+
+          if (location === 'path') {
+            if (value) {
+              path = path.replace('{' + key + '}', value);
+            }
+          } else if (location === 'query') {
+            queryParts.push(`${key}=${value}`);
+          }
+        });
+      }
+
+      if (queryParts.length > 0) {
+        path += (path.includes('?') ? '&' : '?') + queryParts.join('&');
+      }
+
+      return path;
+    }
+
+    function serializeActionBody(body) {
+      if (!body || typeof body !== 'object') {
+        return null;
+      }
+
+      const cleaned = {};
+      let hasData = false;
+
+      Object.keys(body).forEach(key => {
+        const rawValue = body[key];
+        if (rawValue === undefined || rawValue === null) {
+          return;
+        }
+
+        const value = typeof rawValue === 'string' ? rawValue : String(rawValue);
+        if (typeof value === 'string' && value.trim().length === 0) {
+          return;
+        }
+
+        cleaned[key] = value;
+        hasData = true;
+      });
+
+      if (!hasData) {
+        return null;
+      }
+
+      try {
+        return JSON.stringify(cleaned);
+      } catch (err) {
+        console.warn('Failed to serialize action body', err);
+        return null;
+      }
+    }
+
     function saveRule() {
       const wsid = document.getElementById('wsid').value.trim();
       const ruleName = document.getElementById('ruleName').value.trim();
@@ -858,16 +943,11 @@ public class IftttController implements RequestHandler {
 
       // Extract actions
       actions.forEach(action => {
-        if (action.endpoint) {
+        const args = buildOpenApiArgs(action);
+        if (args) {
           rule.actions.push({
             type: 'openapi_call',
-            endpoint: {
-              method: action.endpoint.method,
-              path: action.endpoint.path,
-              operationId: action.endpoint.operationId
-            },
-            params: action.params || {},
-            body: action.body || {}
+            args
           });
         }
       });
