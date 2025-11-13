@@ -48,7 +48,7 @@ public class TasksController {
     public RequestHandler listTasks() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -75,7 +75,7 @@ public class TasksController {
     public RequestHandler createTask() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -134,7 +134,7 @@ public class TasksController {
     public RequestHandler updateTask() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -193,7 +193,7 @@ public class TasksController {
     public RequestHandler deleteTask() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -234,7 +234,7 @@ public class TasksController {
     public RequestHandler bulkTasks() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -384,22 +384,6 @@ public class TasksController {
         };
     }
 
-    private String getWorkspaceId(HttpServletRequest request) {
-        // Try to get from query parameter
-        String workspaceId = request.getParameter("workspaceId");
-        if (workspaceId != null && !workspaceId.trim().isEmpty()) {
-            return workspaceId.trim();
-        }
-
-        // For demo purposes, allow passing via header
-        String header = request.getHeader("X-Workspace-Id");
-        if (header != null && !header.trim().isEmpty()) {
-            return header.trim();
-        }
-
-        return null;
-    }
-
     private String getProjectId(HttpServletRequest request) {
         // Try to get from query parameter
         String projectId = request.getParameter("projectId");
@@ -462,7 +446,10 @@ public class TasksController {
     }
 
     private HttpResponse workspaceRequired(HttpServletRequest request) {
-        return ErrorResponse.of(400, "TASKS.WORKSPACE_REQUIRED", "workspaceId is required", request, false);
+        String hint = RequestContext.workspaceFallbackAllowed()
+                ? "workspaceId is required"
+                : "workspaceId is required (Authorization bearer token missing or expired)";
+        return ErrorResponse.of(400, "TASKS.WORKSPACE_REQUIRED", hint, request, false);
     }
 
     private HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {

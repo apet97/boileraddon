@@ -48,7 +48,7 @@ public class ClientsController {
     public RequestHandler listClients() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -71,7 +71,7 @@ public class ClientsController {
     public RequestHandler createClient() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -125,7 +125,7 @@ public class ClientsController {
     public RequestHandler updateClient() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -184,7 +184,7 @@ public class ClientsController {
     public RequestHandler deleteClient() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -216,22 +216,6 @@ public class ClientsController {
                 return internalError(request, "CLIENTS.DELETE_FAILED", "Failed to delete client", e, true);
             }
         };
-    }
-
-    private String getWorkspaceId(HttpServletRequest request) {
-        // Try to get from query parameter
-        String workspaceId = request.getParameter("workspaceId");
-        if (workspaceId != null && !workspaceId.trim().isEmpty()) {
-            return workspaceId.trim();
-        }
-
-        // For demo purposes, allow passing via header
-        String header = request.getHeader("X-Workspace-Id");
-        if (header != null && !header.trim().isEmpty()) {
-            return header.trim();
-        }
-
-        return null;
     }
 
     private String extractClientId(HttpServletRequest request) throws Exception {
@@ -279,7 +263,10 @@ public class ClientsController {
     }
 
     private HttpResponse workspaceRequired(HttpServletRequest request) {
-        return ErrorResponse.of(400, "CLIENTS.WORKSPACE_REQUIRED", "workspaceId is required", request, false);
+        String hint = RequestContext.workspaceFallbackAllowed()
+                ? "workspaceId is required"
+                : "workspaceId is required (Authorization bearer token missing or expired)";
+        return ErrorResponse.of(400, "CLIENTS.WORKSPACE_REQUIRED", hint, request, false);
     }
 
     private HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {

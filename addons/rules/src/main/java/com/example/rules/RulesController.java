@@ -47,7 +47,7 @@ public class RulesController {
     public RequestHandler listRules() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -69,7 +69,7 @@ public class RulesController {
     public RequestHandler saveRule() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -114,7 +114,7 @@ public class RulesController {
     public RequestHandler deleteRule() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -139,22 +139,6 @@ public class RulesController {
                 return internalError(request, "RULES.DELETE_FAILED", "Failed to delete rule", e, true);
             }
         };
-    }
-
-    private String getWorkspaceId(HttpServletRequest request) {
-        // Try to get from query parameter
-        String workspaceId = request.getParameter("workspaceId");
-        if (workspaceId != null && !workspaceId.trim().isEmpty()) {
-            return workspaceId.trim();
-        }
-
-        // For demo purposes, allow passing via header
-        String header = request.getHeader("X-Workspace-Id");
-        if (header != null && !header.trim().isEmpty()) {
-            return header.trim();
-        }
-
-        return null;
     }
 
     private String extractRuleId(HttpServletRequest request) throws Exception {
@@ -187,9 +171,11 @@ public class RulesController {
     public RequestHandler testRules() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 JsonNode body = parseRequestBody(request);
-                if ((workspaceId == null || workspaceId.isBlank()) && body != null && body.hasNonNull("workspaceId")) {
+                if ((workspaceId == null || workspaceId.isBlank())
+                        && RequestContext.workspaceFallbackAllowed()
+                        && body != null && body.hasNonNull("workspaceId")) {
                     workspaceId = body.get("workspaceId").asText();
                 }
                 if (workspaceId == null || workspaceId.isBlank()) {
@@ -257,7 +243,10 @@ public class RulesController {
     }
 
     private HttpResponse workspaceRequired(HttpServletRequest request) {
-        return ErrorResponse.of(400, "RULES.WORKSPACE_REQUIRED", "workspaceId is required", request, false);
+        String hint = RequestContext.workspaceFallbackAllowed()
+                ? "workspaceId is required"
+                : "workspaceId is required (Authorization bearer token missing or expired)";
+        return ErrorResponse.of(400, "RULES.WORKSPACE_REQUIRED", hint, request, false);
     }
 
     private HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {

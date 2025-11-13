@@ -3,7 +3,6 @@ package com.example.rules;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.middleware.DiagnosticContextFilter;
 import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
-import com.clockify.addon.sdk.security.TokenStore;
 import com.example.rules.security.JwtVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +31,7 @@ class SettingsControllerTest {
         assertEquals("", bootstrap.userId());
         assertEquals("", bootstrap.userEmail());
         assertEquals("req-123", bootstrap.requestId());
+        assertEquals("", bootstrap.authToken());
     }
 
     @Test
@@ -47,6 +47,7 @@ class SettingsControllerTest {
         assertEquals("ws789", bootstrap.workspaceId());
         assertEquals("user999", bootstrap.userId());
         assertEquals("req-456", bootstrap.requestId());
+        assertEquals("", bootstrap.authToken());
     }
 
     @Test
@@ -61,12 +62,13 @@ class SettingsControllerTest {
         assertEquals("", bootstrap.userId());
         assertEquals("", bootstrap.userEmail());
         assertEquals("req-123", bootstrap.requestId());
+        assertEquals("", bootstrap.authToken());
     }
 
     @Test
     void serializeBootstrapProducesJsonString() {
         SettingsController.SettingsBootstrap bootstrap =
-                new SettingsController.SettingsBootstrap("ws", "user", "user@example.com", "req-1", "light", "en");
+                new SettingsController.SettingsBootstrap("ws", "user", "user@example.com", "req-1", "light", "en", "tok");
 
         String json = controller.serializeBootstrap(bootstrap);
 
@@ -74,6 +76,33 @@ class SettingsControllerTest {
         assertTrue(json.contains("\"userEmail\":\"user@example.com\""));
         assertTrue(json.contains("\"theme\":\"light\""));
         assertTrue(json.contains("\"language\":\"en\""));
+    }
+
+    @Test
+    void resolveBootstrapCapturesAuthTokenWhenVerifierPresent() throws Exception {
+        JwtVerifier verifier = mock(JwtVerifier.class);
+        SettingsController controllerWithVerifier =
+                new SettingsController(verifier, "http://localhost/rules");
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(DiagnosticContextFilter.REQUEST_ID_ATTR)).thenReturn("req-777");
+        when(request.getParameter("auth_token")).thenReturn("token-abc");
+        var payload = MAPPER.createObjectNode()
+                .put("workspaceId", "ws-123")
+                .put("userId", "user-555")
+                .put("userEmail", "someone@example.com")
+                .put("theme", "dark")
+                .put("language", "es");
+        JwtVerifier.DecodedJwt decoded = new JwtVerifier.DecodedJwt(MAPPER.createObjectNode(), payload);
+        when(verifier.verify("token-abc")).thenReturn(decoded);
+
+        SettingsController.SettingsBootstrap bootstrap = controllerWithVerifier.resolveBootstrap(request);
+
+        assertEquals("ws-123", bootstrap.workspaceId());
+        assertEquals("user-555", bootstrap.userId());
+        assertEquals("someone@example.com", bootstrap.userEmail());
+        assertEquals("dark", bootstrap.theme());
+        assertEquals("es", bootstrap.language());
+        assertEquals("token-abc", bootstrap.authToken());
     }
 
     @Test

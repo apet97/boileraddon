@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Centralized, immutable view of all environment-driven configuration for the Rules add-on.
@@ -33,6 +34,31 @@ public record RulesConfiguration(
     private static final String DEFAULT_BASE_URL = "http://localhost:8080/rules";
     private static final String DEFAULT_API_BASE = "https://api.clockify.me/api";
     private static final long DEFAULT_DEDUP_SECONDS = 600L;
+
+    public RulesConfiguration {
+        if (addonKey == null || addonKey.isBlank()) {
+            throw new IllegalArgumentException("addonKey is required");
+        }
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new IllegalArgumentException("ADDON_BASE_URL resolved to an empty value");
+        }
+        if (environment == null || environment.isBlank()) {
+            throw new IllegalArgumentException("ENV must be provided");
+        }
+        if (!"dev".equalsIgnoreCase(environment) && jwtBootstrap.isEmpty()) {
+            throw new IllegalStateException("""
+                    CLOCKIFY_JWT_* configuration is required when ENV=%s. \
+                    Provide CLOCKIFY_JWT_JWKS_URI, CLOCKIFY_JWT_PUBLIC_KEY_MAP, or CLOCKIFY_JWT_PUBLIC_KEY.
+                    """.formatted(environment));
+        }
+        if (persistentTokenStoreEnabled && sharedDatabase.isEmpty()) {
+            throw new IllegalStateException("ENABLE_DB_TOKEN_STORE=true requires DB_URL/DB_USER/DB_PASSWORD to be configured");
+        }
+        long minDedupMillis = TimeUnit.MINUTES.toMillis(1);
+        if (webhookDeduplicationTtlMillis < minDedupMillis) {
+            throw new IllegalArgumentException("RULES_WEBHOOK_DEDUP_SECONDS must be at least 60 seconds");
+        }
+    }
 
     public static RulesConfiguration fromEnvironment() {
         Map<String, String> env = System.getenv();
@@ -77,7 +103,7 @@ public record RulesConfiguration(
         String envLabel = normalizeEnv(env.get("ENV"));
         boolean persistentTokenStore = resolvePersistenceFlag(env.get("ENABLE_DB_TOKEN_STORE"), envLabel);
 
-        return new RulesConfiguration(
+        RulesConfiguration configuration = new RulesConfiguration(
                 "rules",
                 baseUrl,
                 port,
@@ -91,8 +117,9 @@ public record RulesConfiguration(
                 dedupMillis,
                 envLabel,
                 parseJwtBootstrap(env),
-                resolveLocalSecrets(env)
+                resolveLocalSecrets(env, envLabel)
         );
+        return configuration;
     }
 
     public record DatabaseSettings(String url, String username, String password) {}
@@ -176,7 +203,14 @@ public record RulesConfiguration(
         ));
     }
 
-    private static Optional<LocalDevSecrets> resolveLocalSecrets(Map<String, String> env) {
+    private static Optional<LocalDevSecrets> resolveLocalSecrets(Map<String, String> env, String envLabel) {
+        if (!"dev".equalsIgnoreCase(envLabel)) {
+            if (trimToNull(env.get("CLOCKIFY_WORKSPACE_ID")) != null ||
+                    trimToNull(env.get("CLOCKIFY_INSTALLATION_TOKEN")) != null) {
+                logger.warn("CLOCKIFY_WORKSPACE_ID / CLOCKIFY_INSTALLATION_TOKEN are ignored when ENV!='dev'");
+            }
+            return Optional.empty();
+        }
         String workspaceId = trimToNull(env.get("CLOCKIFY_WORKSPACE_ID"));
         String installationToken = trimToNull(env.get("CLOCKIFY_INSTALLATION_TOKEN"));
         if (workspaceId == null || installationToken == null) {

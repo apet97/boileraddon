@@ -12,7 +12,7 @@ The hardened `rules` module is the canonical production example in this reposito
 4. **Expose via ngrok and reinstall** — `ngrok http 8080`, restart with `ADDON_BASE_URL=https://<domain>/rules make run-rules`, then reinstall using `https://<domain>/rules/manifest.json`.
 5. **Optional Docker smoke** — `ADDON_BASE_URL=https://<domain>/rules make docker-build TEMPLATE=rules` builds the multi-stage image; `make docker-run TEMPLATE=rules` runs it locally with the same env vars.
 
-DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON_SKIP_SIGNATURE_VERIFY`) are honored only when `ENV=dev`; production/staging ignores them via `RuntimeFlags`.
+DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON_SKIP_SIGNATURE_VERIFY`) are honored only when `ENV=dev`; production/staging ignores them via `RuntimeFlags`. Likewise, `/api/**` endpoints now require `Authorization: Bearer <auth_token>` headers unless `ENV=dev`, so operators can no longer spoof `workspaceId` via query strings.
 
 ## Production runtime (Docker or fat JAR)
 - **Build container**  
@@ -46,7 +46,7 @@ DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON
 
 - **Mandatory envs/secrets**  
   - Base networking: `ADDON_PORT`, `ADDON_BASE_URL`, `CLOCKIFY_API_BASE_URL`
-  - JWT bootstrap: JWKS URI or PEM map, plus `CLOCKIFY_JWT_EXPECT_ISS`/`AUD`
+  - JWT bootstrap: JWKS URI or PEM map, plus `CLOCKIFY_JWT_EXPECT_ISS`/`AUD` (missing config causes startup failure outside dev)
   - Persistence: `ENABLE_DB_TOKEN_STORE=true`, `DB_*`, and `RULES_DB_*` when rules storage is also backing onto SQL
   - Security/middleware: `ADDON_FRAME_ANCESTORS`, `ADDON_RATE_LIMIT`/`ADDON_LIMIT_BY`, optional `ADDON_CORS_*`, `ADDON_REQUEST_LOGGING`
   - Never set `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, or `ADDON_SKIP_SIGNATURE_VERIFY` outside development.

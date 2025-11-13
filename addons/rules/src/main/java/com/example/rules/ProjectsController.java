@@ -48,7 +48,7 @@ public class ProjectsController {
     public RequestHandler listProjects() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -71,7 +71,7 @@ public class ProjectsController {
     public RequestHandler createProject() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -131,7 +131,7 @@ public class ProjectsController {
     public RequestHandler updateProject() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -196,7 +196,7 @@ public class ProjectsController {
     public RequestHandler deleteProject() {
         return request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = getWorkspaceId(request);
+                String workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -228,22 +228,6 @@ public class ProjectsController {
                 return internalError(request, "PROJECTS.DELETE_FAILED", "Failed to delete project", e, true);
             }
         };
-    }
-
-    private String getWorkspaceId(HttpServletRequest request) {
-        // Try to get from query parameter
-        String workspaceId = request.getParameter("workspaceId");
-        if (workspaceId != null && !workspaceId.trim().isEmpty()) {
-            return workspaceId.trim();
-        }
-
-        // For demo purposes, allow passing via header
-        String header = request.getHeader("X-Workspace-Id");
-        if (header != null && !header.trim().isEmpty()) {
-            return header.trim();
-        }
-
-        return null;
     }
 
     private String extractProjectId(HttpServletRequest request) throws Exception {
@@ -291,7 +275,10 @@ public class ProjectsController {
     }
 
     private HttpResponse workspaceRequired(HttpServletRequest request) {
-        return ErrorResponse.of(400, "PROJECTS.WORKSPACE_REQUIRED", "workspaceId is required", request, false);
+        String hint = RequestContext.workspaceFallbackAllowed()
+                ? "workspaceId is required"
+                : "workspaceId is required (Authorization bearer token missing or expired)";
+        return ErrorResponse.of(400, "PROJECTS.WORKSPACE_REQUIRED", hint, request, false);
     }
 
     private HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {

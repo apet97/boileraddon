@@ -66,7 +66,7 @@ ADDON_BASE_URL=https://YOUR.ngrok-free.app/rules make docker-run TEMPLATE=rules
 
 | Variable(s) | Purpose | Notes |
 | --- | --- | --- |
-| `CLOCKIFY_JWT_PUBLIC_KEY`, `CLOCKIFY_JWT_PUBLIC_KEY_PEM` | Single PEM key used to verify settings iframe JWTs (and PlatformAuthFilter if wired). | Provide either `CLOCKIFY_JWT_PUBLIC_KEY` or `_PEM`; trimmed before use. |
+| `CLOCKIFY_JWT_PUBLIC_KEY`, `CLOCKIFY_JWT_PUBLIC_KEY_PEM` | Single PEM key used to verify settings iframe JWTs (and PlatformAuthFilter if wired). | Provide either `CLOCKIFY_JWT_PUBLIC_KEY` or `_PEM`; **required in non-dev envs**. |
 | `CLOCKIFY_JWT_PUBLIC_KEY_MAP` | JSON map of `{kid: pem}` for key rotation. | Pair with `CLOCKIFY_JWT_DEFAULT_KID` to define a fallback. |
 | `CLOCKIFY_JWT_JWKS_URI` | JWKS endpoint for self-serve key rotation. | Preferred in production; overrides PEM inputs when set. |
 | `CLOCKIFY_JWT_DEFAULT_KID` | Default key ID to fall back to when the JWT header omits `kid`. | Optional. |
@@ -147,10 +147,12 @@ export CLOCKIFY_JWT_LEEWAY_SECONDS=60
 - `SettingsController`, `SimpleSettingsController`, and `IftttController` accept the resolved `baseUrl` via constructor parameters. That keeps redirects, iframe assets, and relative links consistent with the manifest without ever calling `System.getenv`.
 - Each controller reads the CSP nonce stored in `SecurityHeadersFilter.CSP_NONCE_ATTR`. If the filter did not run (unit tests that exercise controllers directly), the controllers generate a fallback nonce before rendering HTML.
 - When JWT bootstrap is configured, `WorkspaceContextFilter` runs ahead of `SecurityHeadersFilter`. It verifies the iframe JWT using the configured `JwtVerifier`, attaches workspace/user attributes to the `HttpServletRequest`, and lets controllers personalize responses without decoding JWTs on their own.
+- The settings UI automatically forwards the Clockify-provided `auth_token` as an `Authorization: Bearer` header on every `/api/**` call so `PlatformAuthFilter` can enforce workspace scoping. In dev you may still opt into fallback via `ENV=dev`, but production requests must include a valid bearer token.
 
 ## HTTP filters & logging hygiene
 
 - **SecurityHeadersFilter** sets security headers (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cache-Control`) and injects the CSP nonce that UI controllers consume. Override `ADDON_FRAME_ANCESTORS` to embed outside the Clockify defaults.
+- **PlatformAuthFilter** now guards `/api/**` and `/status`, rejecting requests that lack a valid `Authorization: Bearer <auth_token>` header. `RequestContext.resolveWorkspaceId` only falls back to `workspaceId` query params in `ENV=dev`, so production callers cannot spoof another workspace by tweaking the URL.
 - **SensitiveHeaderFilter** redacts `Authorization`, `X-Addon-Token`, `X-Addon-Lifecycle-Token`, `Clockify-Signature`, `Cookie`, and `Set-Cookie` before any logging occurs so request logs never leak installation tokens.
 - **Optional filters** (RateLimiter, CorsFilter, RequestLoggingFilter) are attached only when the corresponding env vars are set in `RulesConfiguration`. This avoids divergent behavior between local dev and production.
 

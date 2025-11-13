@@ -12,6 +12,7 @@ import com.example.rules.store.DatabaseRulesStore;
 import com.example.rules.store.InMemoryRulesStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.rules.web.RequestContext;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -65,6 +66,7 @@ class CrudEndpointsSmokeIT {
 
     @BeforeEach
     void setUp() throws Exception {
+        RequestContext.configureWorkspaceFallback(true);
         this.port = randomPort();
         this.baseUrl = "http://localhost:" + port + "/rules";
         this.workspaceId = "ws-smoke-" + UUID.randomUUID().toString().substring(0, 8);
@@ -194,6 +196,7 @@ class CrudEndpointsSmokeIT {
 
     @AfterEach
     void tearDown() throws Exception {
+        RequestContext.configureWorkspaceFallback(false);
         if (server != null) server.stop();
         if (serverThread != null) serverThread.join(2000);
         TokenStore.clear();

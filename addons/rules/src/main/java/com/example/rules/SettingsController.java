@@ -250,6 +250,7 @@ public class SettingsController implements RequestHandler {
     ];
     let CACHE = { tags:[], projects:[], clients:[], users:[], tasks:[] };
     let MAPS = { tagNameToId:{}, projectNameToId:{}, projectIdToName:{}, clientNameToId:{}, taskNameToId:{}, taskIdToName:{}}; 
+    let AUTH_TOKEN = BOOTSTRAP.authToken || '';
     function bootstrapWorkspaceId(){
       if (BOOTSTRAP.workspaceId) return BOOTSTRAP.workspaceId;
       try {
@@ -281,11 +282,21 @@ public class SettingsController implements RequestHandler {
       }
       return headers||{};
     }
+    function authHeaders(headers){
+      const h = { ...(headers||{}) };
+      if(AUTH_TOKEN){
+        h['Authorization'] = 'Bearer ' + AUTH_TOKEN;
+      }
+      return h;
+    }
+    function secureHeaders(headers){
+      return authHeaders(csrfHeaders(headers));
+    }
     function summarize(){ const el=document.getElementById('cacheCounts'); if(!CACHE||!CACHE.tags){ el.textContent='(no data)'; return;} el.textContent=`Tags: ${CACHE.tags.length} • Projects: ${CACHE.projects.length} • Clients: ${CACHE.clients.length} • Users: ${CACHE.users.length} • Tasks: ${CACHE.tasks.length}`; }
     function fillDatalists(){ const fill=(id,arr,key='name')=>{ const dl=document.getElementById(id); if(!dl)return; dl.innerHTML=''; (arr||[]).forEach(x=>{ const o=document.createElement('option'); o.value=x[key]||''; dl.appendChild(o); }); }; fill('dl-tags',CACHE.tags); fill('dl-projects',CACHE.projects); fill('dl-clients',CACHE.clients); fill('dl-users',CACHE.users); fill('dl-tasks',CACHE.tasks); fill('dl-project-ids',CACHE.projects,'id'); fill('dl-task-ids',CACHE.tasks,'id'); }
     function rebuildMaps(){ MAPS={ tagNameToId:{}, projectNameToId:{}, projectIdToName:{}, clientNameToId:{}, taskNameToId:{}, taskIdToName:{} }; (CACHE.tags||[]).forEach(t=>{ if(t.name) MAPS.tagNameToId[t.name.toLowerCase()]=t.id; }); (CACHE.projects||[]).forEach(p=>{ if(p.name){ MAPS.projectNameToId[p.name.toLowerCase()]=p.id; MAPS.projectIdToName[p.id]=p.name; }}); (CACHE.clients||[]).forEach(c=>{ if(c.name) MAPS.clientNameToId[c.name.toLowerCase()]=c.id; }); (CACHE.tasks||[]).forEach(t=>{ if(t.name){ MAPS.taskNameToId[t.name.toLowerCase()]=t.id; MAPS.taskIdToName[t.id]=t.name; }}); }
-    async function loadCache(){ const ws=document.getElementById('wsid').value.trim(); const msg=document.getElementById('cacheMsg'); if(!ws){ msg.textContent='workspaceId required'; msg.className='error'; return;} const r=await fetch(baseUrl()+`/api/cache/data?workspaceId=${encodeURIComponent(ws)}`); if(!r.ok){ msg.textContent=formatError('Failed to load data', r); msg.className='error'; return;} CACHE=await r.json(); msg.textContent='Loaded'; msg.className='ok'; setTimeout(()=>msg.textContent='',2000); rebuildMaps(); fillDatalists(); summarize(); }
-    async function refreshCache(){ const ws=document.getElementById('wsid').value.trim(); const msg=document.getElementById('cacheMsg'); if(!ws){ msg.textContent='workspaceId required'; msg.className='error'; return;} const r=await fetch(baseUrl()+`/api/cache/refresh?workspaceId=${encodeURIComponent(ws)}`,{method:'POST',headers:csrfHeaders()}); if(r.ok){ msg.textContent='Refreshed'; msg.className='ok'; setTimeout(()=>msg.textContent='',2000); await loadCache(); } else { msg.textContent=formatError('Refresh failed', r); msg.className='error'; } }
+    async function loadCache(){ const ws=document.getElementById('wsid').value.trim(); const msg=document.getElementById('cacheMsg'); if(!ws){ msg.textContent='workspaceId required'; msg.className='error'; return;} const r=await fetch(baseUrl()+`/api/cache/data?workspaceId=${encodeURIComponent(ws)}`,{headers:secureHeaders()}); if(!r.ok){ msg.textContent=formatError('Failed to load data', r); msg.className='error'; return;} CACHE=await r.json(); msg.textContent='Loaded'; msg.className='ok'; setTimeout(()=>msg.textContent='',2000); rebuildMaps(); fillDatalists(); summarize(); }
+    async function refreshCache(){ const ws=document.getElementById('wsid').value.trim(); const msg=document.getElementById('cacheMsg'); if(!ws){ msg.textContent='workspaceId required'; msg.className='error'; return;} const r=await fetch(baseUrl()+`/api/cache/refresh?workspaceId=${encodeURIComponent(ws)}`,{method:'POST',headers:secureHeaders()}); if(r.ok){ msg.textContent='Refreshed'; msg.className='ok'; setTimeout(()=>msg.textContent='',2000); await loadCache(); } else { msg.textContent=formatError('Refresh failed', r); msg.className='error'; } }
 
     function addCond(pref={}){
       const el = document.createElement('div');
@@ -403,7 +414,7 @@ public class SettingsController implements RequestHandler {
       if(comb) payload.combinator = comb;
 
       const resp = await fetch(baseUrl()+`/api/rules?workspaceId=${encodeURIComponent(ws)}`,{
-        method:'POST', headers:csrfHeaders({'Content-Type':'application/json'}), body: JSON.stringify(payload)
+        method:'POST', headers:secureHeaders({'Content-Type':'application/json'}), body: JSON.stringify(payload)
       });
       const msg = document.getElementById('saveMsg');
       if(resp.ok){ msg.textContent = 'Saved'; msg.className='ok'; loadRules(); }
@@ -414,7 +425,7 @@ public class SettingsController implements RequestHandler {
       const ws = document.getElementById('wsid').value.trim();
       if(!ws){ return; }
       const ul = document.getElementById('rulesList'); ul.innerHTML='';
-      const r = await fetch(baseUrl()+`/api/rules?workspaceId=${encodeURIComponent(ws)}`);
+      const r = await fetch(baseUrl()+`/api/rules?workspaceId=${encodeURIComponent(ws)}`,{headers:secureHeaders()});
       if(!r.ok){ ul.innerHTML = `<li class=\"error\">${formatError('Failed to load rules', r)}</li>`; return; }
       const arr = await r.json();
       if(!Array.isArray(arr) || arr.length===0){ ul.innerHTML = '<li class=\"muted\">No rules yet.</li>'; return; }
@@ -424,7 +435,7 @@ public class SettingsController implements RequestHandler {
           <button class=\"secondary\" type=\"button\">Delete</button>`;
         const btn = li.querySelector('button');
         btn.addEventListener('click', async ()=>{
-          await fetch(baseUrl()+`/api/rules?workspaceId=${encodeURIComponent(ws)}&id=${encodeURIComponent(rule.id||'')}`,{method:'DELETE',headers:csrfHeaders()});
+          await fetch(baseUrl()+`/api/rules?workspaceId=${encodeURIComponent(ws)}&id=${encodeURIComponent(rule.id||'')}`,{method:'DELETE',headers:secureHeaders()});
           loadRules();
         });
         ul.appendChild(li);
@@ -437,7 +448,7 @@ public class SettingsController implements RequestHandler {
       const desc = document.getElementById('testDesc').value || 'Client meeting';
       const pid = document.getElementById('testPid').value;
       const body = { workspaceId: ws, timeEntry: { id:'te1', description: desc, tagIds:[], ...(pid?{projectId:pid}:{}) } };
-      const r = await fetch(baseUrl()+`/api/test`, { method:'POST', headers:csrfHeaders({'Content-Type':'application/json'}), body: JSON.stringify(body) });
+      const r = await fetch(baseUrl()+`/api/test`, { method:'POST', headers:secureHeaders({'Content-Type':'application/json'}), body: JSON.stringify(body) });
       const msg = document.getElementById('testMsg');
       if(!r.ok){ msg.textContent = formatError('Error: '+(await r.text()), r); msg.className='error'; return; }
       const json = await r.json();
@@ -450,7 +461,7 @@ public class SettingsController implements RequestHandler {
     async function refreshStatus(){
       const ws = document.getElementById('wsid').value.trim();
       if(!ws){ document.getElementById('tokenStatus').textContent='Token: workspaceId not set'; return; }
-      const r = await fetch(baseUrl()+`/status?workspaceId=${encodeURIComponent(ws)}`);
+      const r = await fetch(baseUrl()+`/status?workspaceId=${encodeURIComponent(ws)}`,{headers:secureHeaders()});
       if(!r.ok){ document.getElementById('tokenStatus').textContent='Token: status unavailable'; return; }
       const j = await r.json();
       document.getElementById('tokenStatus').textContent = 'Token: ' + (j.tokenPresent?'PRESENT':'MISSING');
@@ -524,35 +535,43 @@ public class SettingsController implements RequestHandler {
         String theme = "light"; // Default theme
         String language = "en"; // Default language
 
-        // Priority 2: Fallback to legacy jwt parameter (deprecated but kept for compatibility)
-        if ((workspaceId == null || workspaceId.isBlank()) && jwtVerifier != null) {
-            String rawJwt = request.getParameter("jwt");
-            if (rawJwt != null && !rawJwt.isBlank()) {
-                try {
-                    JwtVerifier.DecodedJwt decoded = jwtVerifier.verify(rawJwt);
-                    JsonNode payload = decoded.payload();
+        String rawJwt = firstNonBlank(request.getParameter("auth_token"), request.getParameter("jwt"));
+        String bootstrapToken = "";
+        if (jwtVerifier != null && rawJwt != null && !rawJwt.isBlank()) {
+            try {
+                JwtVerifier.DecodedJwt decoded = jwtVerifier.verify(rawJwt);
+                JsonNode payload = decoded.payload();
+                if (workspaceId == null || workspaceId.isBlank()) {
                     workspaceId = payload.path("workspaceId").asText("");
-                    userId = payload.path("userId").asText("");
-                    userEmail = payload.path("userEmail").asText("");
-                    theme = payload.path("theme").asText("light").toLowerCase();
-                    language = payload.path("language").asText("en").toLowerCase();
-                    if (!workspaceId.isBlank()) {
-                        request.setAttribute(DiagnosticContextFilter.WORKSPACE_ID_ATTR, workspaceId);
-                    }
-                    if (!userId.isBlank()) {
-                        request.setAttribute(DiagnosticContextFilter.USER_ID_ATTR, userId);
-                    }
-                } catch (JwtVerifier.JwtVerificationException e) {
-                    logger.warn("Settings JWT rejected: {}", e.getMessage());
                 }
+                if (userId == null || userId.isBlank()) {
+                    userId = payload.path("userId").asText("");
+                }
+                String payloadEmail = payload.path("userEmail").asText("");
+                if (!payloadEmail.isBlank()) {
+                    userEmail = payloadEmail;
+                }
+                theme = payload.path("theme").asText(theme).toLowerCase();
+                language = payload.path("language").asText(language).toLowerCase();
+                if (!workspaceId.isBlank()) {
+                    request.setAttribute(DiagnosticContextFilter.WORKSPACE_ID_ATTR, workspaceId);
+                }
+                if (!userId.isBlank()) {
+                    request.setAttribute(DiagnosticContextFilter.USER_ID_ATTR, userId);
+                }
+                bootstrapToken = rawJwt;
+            } catch (JwtVerifier.JwtVerificationException e) {
+                logger.warn("Settings JWT rejected: {}", e.getMessage());
             }
+        } else if (rawJwt != null && jwtVerifier == null) {
+            logger.debug("auth_token provided but JWT verifier not configured; token ignored");
         }
 
         // Normalize to empty string if null
         workspaceId = workspaceId != null ? workspaceId : "";
         userId = userId != null ? userId : "";
 
-        return new SettingsBootstrap(workspaceId, userId, userEmail, requestId, theme, language);
+        return new SettingsBootstrap(workspaceId, userId, userEmail, requestId, theme, language, bootstrapToken);
     }
 
     String serializeBootstrap(SettingsBootstrap bootstrap) {
@@ -568,6 +587,24 @@ public class SettingsController implements RequestHandler {
         return json.replace("</", "<\\/");
     }
 
-    record SettingsBootstrap(String workspaceId, String userId, String userEmail, String requestId, String theme, String language) {}
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    record SettingsBootstrap(String workspaceId,
+                             String userId,
+                             String userEmail,
+                             String requestId,
+                             String theme,
+                             String language,
+                             String authToken) {}
 
 }

@@ -3,6 +3,7 @@ package com.example.rules;
 import com.clockify.addon.sdk.*;
 import com.clockify.addon.sdk.health.HealthCheck;
 import com.example.rules.config.RuntimeFlags;
+import com.example.rules.web.RequestContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -31,55 +32,60 @@ class StatusEndpointIT {
 
     @Test
     void statusReportsFlagsAndTokenPresence() throws Exception {
-        int port = randomPort();
-        String base = "http://localhost:" + port + "/rules";
+        RequestContext.configureWorkspaceFallback(true);
+        try {
+            int port = randomPort();
+            String base = "http://localhost:" + port + "/rules";
 
-        // Seed a token so tokenPresent=true
-        String ws = "ws-smoke";
-        com.clockify.addon.sdk.security.TokenStore.save(ws, "tok", "https://api.clockify.me/api");
+            // Seed a token so tokenPresent=true
+            String ws = "ws-smoke";
+            com.clockify.addon.sdk.security.TokenStore.save(ws, "tok", "https://api.clockify.me/api");
 
-        ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
-                .key("rules").name("Rules (status)")
-                .baseUrl(base)
-                .minimalSubscriptionPlan("FREE")
-                .scopes(new String[]{})
-                .build();
+            ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+                    .key("rules").name("Rules (status)")
+                    .baseUrl(base)
+                    .minimalSubscriptionPlan("FREE")
+                    .scopes(new String[]{})
+                    .build();
 
-        ClockifyAddon addon = new ClockifyAddon(manifest);
-        // Register a handler equivalent to RulesApp’s /status lambda
-        addon.registerCustomEndpoint("/status", request -> {
-            try {
-                String qws = request.getParameter("workspaceId");
-                boolean tokenPresent = qws != null && !qws.isBlank() && com.clockify.addon.sdk.security.TokenStore.get(qws).isPresent();
-                boolean apply = RuntimeFlags.applyChangesEnabled();
-                boolean skipSig = RuntimeFlags.skipSignatureVerification();
-                String json = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
-                        .put("workspaceId", qws == null ? "" : qws)
-                        .put("tokenPresent", tokenPresent)
-                        .put("applyChanges", apply)
-                        .put("skipSignatureVerify", skipSig)
-                        .put("baseUrl", base)
-                        .toString();
-                return com.clockify.addon.sdk.HttpResponse.ok(json, "application/json");
-            } catch (Exception e) {
-                return com.clockify.addon.sdk.HttpResponse.error(500, e.getMessage());
-            }
-        });
+            ClockifyAddon addon = new ClockifyAddon(manifest);
+            // Register a handler equivalent to RulesApp’s /status lambda
+            addon.registerCustomEndpoint("/status", request -> {
+                try {
+                    String qws = request.getParameter("workspaceId");
+                    boolean tokenPresent = qws != null && !qws.isBlank() && com.clockify.addon.sdk.security.TokenStore.get(qws).isPresent();
+                    boolean apply = RuntimeFlags.applyChangesEnabled();
+                    boolean skipSig = RuntimeFlags.skipSignatureVerification();
+                    String json = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
+                            .put("workspaceId", qws == null ? "" : qws)
+                            .put("tokenPresent", tokenPresent)
+                            .put("applyChanges", apply)
+                            .put("skipSignatureVerify", skipSig)
+                            .put("baseUrl", base)
+                            .toString();
+                    return com.clockify.addon.sdk.HttpResponse.ok(json, "application/json");
+                } catch (Exception e) {
+                    return com.clockify.addon.sdk.HttpResponse.error(500, e.getMessage());
+                }
+            });
 
-        AddonServlet servlet = new AddonServlet(addon);
-        server = new EmbeddedServer(servlet, "/rules");
-        serverThread = new Thread(() -> { try { server.start(port); } catch (Exception ignored) {} });
-        serverThread.start();
+            AddonServlet servlet = new AddonServlet(addon);
+            server = new EmbeddedServer(servlet, "/rules");
+            serverThread = new Thread(() -> { try { server.start(port); } catch (Exception ignored) {} });
+            serverThread.start();
 
-        HttpClient client = HttpClient.newHttpClient();
-        HttpResponse<String> r = client.send(HttpRequest.newBuilder(URI.create(base + "/status?workspaceId=" + ws)).GET().build(), HttpResponse.BodyHandlers.ofString());
-        Assertions.assertEquals(200, r.statusCode());
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> r = client.send(HttpRequest.newBuilder(URI.create(base + "/status?workspaceId=" + ws)).GET().build(), HttpResponse.BodyHandlers.ofString());
+            Assertions.assertEquals(200, r.statusCode());
 
-        com.fasterxml.jackson.databind.JsonNode json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(r.body());
-        Assertions.assertTrue(json.get("tokenPresent").asBoolean());
-        Assertions.assertEquals(RuntimeFlags.applyChangesEnabled(), json.get("applyChanges").asBoolean());
-        Assertions.assertEquals(RuntimeFlags.skipSignatureVerification(), json.get("skipSignatureVerify").asBoolean());
-        Assertions.assertEquals(base, json.get("baseUrl").asText());
+            com.fasterxml.jackson.databind.JsonNode json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(r.body());
+            Assertions.assertTrue(json.get("tokenPresent").asBoolean());
+            Assertions.assertEquals(RuntimeFlags.applyChangesEnabled(), json.get("applyChanges").asBoolean());
+            Assertions.assertEquals(RuntimeFlags.skipSignatureVerification(), json.get("skipSignatureVerify").asBoolean());
+            Assertions.assertEquals(base, json.get("baseUrl").asText());
+        } finally {
+            RequestContext.configureWorkspaceFallback(false);
+        }
     }
 
     private static int randomPort() throws IOException {

@@ -23,6 +23,8 @@ import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.security.PooledDatabaseTokenStore;
 import com.example.rules.security.JwtVerifier;
 import com.example.rules.security.JwksBasedKeySource;
+import com.example.rules.security.PlatformAuthFilter;
+import com.example.rules.security.ScopedPlatformAuthFilter;
 import com.example.rules.web.RequestContext;
 import com.clockify.addon.sdk.logging.LoggingContext;
 import com.example.rules.health.ReadinessHandler;
@@ -31,6 +33,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -68,6 +71,7 @@ public class RulesApp {
 
     public static void main(String[] args) throws Exception {
         RulesConfiguration config = RulesConfiguration.fromEnvironment();
+        RequestContext.configureWorkspaceFallback("dev".equalsIgnoreCase(config.environment()));
         WebhookIdempotencyCache.configureTtl(config.webhookDeduplicationTtlMillis());
         String baseUrl = config.baseUrl();
         int port = config.port();
@@ -229,7 +233,7 @@ public class RulesApp {
         // Cache endpoints: GET /rules/api/cache?workspaceId=... (summary), POST /rules/api/cache/refresh?workspaceId=...
         addon.registerCustomEndpoint("/api/cache", request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String ws = request.getParameter("workspaceId");
+                String ws = RequestContext.resolveWorkspaceId(request);
                 if (ws == null || ws.isBlank()) {
                     return workspaceRequired(request);
                 }
@@ -250,7 +254,7 @@ public class RulesApp {
         });
         addon.registerCustomEndpoint("/api/cache/refresh", request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String ws = request.getParameter("workspaceId");
+                String ws = RequestContext.resolveWorkspaceId(request);
                 if (ws == null || ws.isBlank()) {
                     return workspaceRequired(request);
                 }
@@ -270,7 +274,7 @@ public class RulesApp {
         // GET /rules/api/cache/data?workspaceId=... — expanded snapshot for autocompletes
         addon.registerCustomEndpoint("/api/cache/data", request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String ws = request.getParameter("workspaceId");
+                String ws = RequestContext.resolveWorkspaceId(request);
                 if (ws == null || ws.isBlank()) {
                     return workspaceRequired(request);
                 }
@@ -349,7 +353,7 @@ public class RulesApp {
         // GET /rules/status — runtime status (token present, modes)
         addon.registerCustomEndpoint("/status", request -> {
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String ws = request.getParameter("workspaceId");
+                String ws = RequestContext.resolveWorkspaceId(request);
                 if (ws != null && !ws.isBlank()) {
                     RequestContext.attachWorkspace(request, ctx, ws);
                 }
@@ -443,6 +447,19 @@ public class RulesApp {
             logger.info("WorkspaceContextFilter registered with JWT verification");
         }
 
+        if (jwtVerifier != null) {
+            server.addFilter(new ScopedPlatformAuthFilter(
+                    new PlatformAuthFilter(jwtVerifier),
+                    Set.of("/status"),
+                    List.of("/api")
+            ));
+            logger.info("PlatformAuthFilter registered for /api/** and /status endpoints");
+        } else if (!"dev".equalsIgnoreCase(envLabel)) {
+            throw new IllegalStateException("JWT verifier must be configured when ENV=" + envLabel);
+        } else {
+            logger.warn("PlatformAuthFilter disabled (no JWT verifier); API access permitted only because ENV='dev'");
+        }
+
         // Always add basic security headers; configure frame-ancestors via ADDON_FRAME_ANCESTORS
         server.addFilter(new SecurityHeadersFilter());
         server.addFilter(new SensitiveHeaderFilter());
@@ -467,14 +484,15 @@ public class RulesApp {
 
         String storageMode = (rulesStore instanceof com.example.rules.store.DatabaseRulesStore) ? "Database" : "In-Memory";
         logger.info(
-                "Rules Add-on starting | baseUrl={} | port={} | contextPath={} | storage={} | env={} | applyChanges={} | skipSignature={}",
+                "Rules Add-on starting | baseUrl={} | port={} | contextPath={} | storage={} | env={} | applyChanges={} | skipSignature={} | workspaceFallback={}",
                 baseUrl,
                 port,
                 contextPath,
                 storageMode,
                 envLabel,
                 RuntimeFlags.applyChangesEnabled(),
-                RuntimeFlags.skipSignatureVerification());
+                RuntimeFlags.skipSignatureVerification(),
+                RequestContext.workspaceFallbackAllowed());
         logger.info("Endpoints: manifest={} settings={} simple={} ifttt={} lifecycleInstall={} lifecycleDelete={} webhook={} health={} rulesApi={}",
                 baseUrl + "/manifest.json",
                 baseUrl + "/settings",
@@ -591,9 +609,15 @@ public class RulesApp {
             return null;
         }
         RulesConfiguration.JwtBootstrapConfig jwtConfig = jwtConfigOpt.get();
+        String expectedIssuer = jwtConfig.expectedIssuer()
+                .filter(value -> !value.isBlank())
+                .orElse("clockify");
+        String expectedAudience = jwtConfig.expectedAudience()
+                .filter(value -> !value.isBlank())
+                .orElse(config.addonKey());
         JwtVerifier.Constraints constraints = new JwtVerifier.Constraints(
-                jwtConfig.expectedIssuer().orElse(null),
-                jwtConfig.expectedAudience().orElse(null),
+                expectedIssuer,
+                expectedAudience,
                 jwtConfig.leewaySeconds(),
                 Set.of("RS256")
         );
@@ -631,11 +655,13 @@ public class RulesApp {
                         constraints.clockSkewSeconds());
                 return verifier;
             }
-            logger.warn("JWT bootstrap configuration present but no key material provided");
-            return null;
+            String msg = "JWT bootstrap configuration present but no key material provided";
+            logger.error(msg);
+            throw new IllegalStateException(msg);
         } catch (Exception e) {
-            logger.error("Failed to initialize JWT verifier: {}", e.getMessage());
-            return null;
+            String msg = "Failed to initialize JWT verifier: " + e.getMessage();
+            logger.error(msg, e);
+            throw new IllegalStateException(msg, e);
         }
     }
 
@@ -671,7 +697,10 @@ public class RulesApp {
     }
 
     private static HttpResponse workspaceRequired(HttpServletRequest request) {
-        return ErrorResponse.of(400, "RULES.WORKSPACE_REQUIRED", "workspaceId is required", request, false);
+        String hint = RequestContext.workspaceFallbackAllowed()
+                ? "workspaceId is required"
+                : "workspaceId is required (Authorization bearer token missing or expired)";
+        return ErrorResponse.of(400, "RULES.WORKSPACE_REQUIRED", hint, request, false);
     }
 
     private static HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {

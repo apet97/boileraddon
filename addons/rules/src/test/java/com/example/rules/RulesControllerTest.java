@@ -10,8 +10,10 @@ import com.example.rules.engine.Condition;
 import com.example.rules.engine.OpenApiCallConfig;
 import com.example.rules.engine.Rule;
 import com.example.rules.store.RulesStore;
+import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.rules.security.PlatformAuthFilter;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,11 +59,12 @@ class RulesControllerTest {
         controller = new RulesController(store, addon);
         mapper = new ObjectMapper();
         request = Mockito.mock(HttpServletRequest.class);
+        RequestContext.configureWorkspaceFallback(false);
     }
 
     @Test
     void testListRules_empty() throws Exception {
-        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(request, "workspace-1");
 
         HttpResponse response = controller.listRules().handle(request);
 
@@ -76,7 +79,7 @@ class RulesControllerTest {
         Rule rule = createTestRule("rule-1", "Test Rule");
         store.save("workspace-1", rule);
 
-        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(request, "workspace-1");
 
         HttpResponse response = controller.listRules().handle(request);
 
@@ -89,7 +92,7 @@ class RulesControllerTest {
 
     @Test
     void testListRules_missingWorkspaceId() throws Exception {
-        when(request.getParameter("workspaceId")).thenReturn(null);
+        stubWorkspace(request, null);
 
         HttpResponse response = controller.listRules().handle(request);
 
@@ -114,7 +117,7 @@ class RulesControllerTest {
             """;
 
         setupRequestWithBody(ruleJson);
-        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(request, "workspace-1");
 
         HttpResponse response = controller.saveRule().handle(request);
 
@@ -148,7 +151,7 @@ class RulesControllerTest {
             """.formatted(eventName);
 
         setupRequestWithBody(ruleJson);
-        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(request, "workspace-1");
 
         HttpResponse response = controller.saveRule().handle(request);
 
@@ -169,7 +172,7 @@ class RulesControllerTest {
             """;
 
         setupRequestWithBody(ruleJson);
-        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(request, "workspace-1");
 
         HttpResponse response = controller.saveRule().handle(request);
 
@@ -206,7 +209,7 @@ class RulesControllerTest {
             """;
 
         setupRequestWithBody(ruleJson);
-        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(request, "workspace-1");
 
         HttpResponse response = controller.saveRule().handle(request);
         assertEquals(200, response.getStatusCode());
@@ -243,12 +246,12 @@ class RulesControllerTest {
             """;
 
         setupRequestWithBody(ruleJson);
-        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(request, "workspace-1");
         HttpResponse saveResponse = controller.saveRule().handle(request);
         assertEquals(200, saveResponse.getStatusCode());
 
         HttpServletRequest listRequest = Mockito.mock(HttpServletRequest.class);
-        when(listRequest.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(listRequest, "workspace-1");
         HttpResponse listResponse = controller.listRules().handle(listRequest);
         Rule[] rules = mapper.readValue(listResponse.getBody(), Rule[].class);
         assertEquals(1, rules.length);
@@ -289,7 +292,7 @@ class RulesControllerTest {
         Rule rule = createTestRule("rule-1", "Test Rule");
         store.save("workspace-1", rule);
 
-        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(request, "workspace-1");
         when(request.getPathInfo()).thenReturn("/api/rules/rule-1");
 
         HttpResponse response = controller.deleteRule().handle(request);
@@ -304,7 +307,7 @@ class RulesControllerTest {
 
     @Test
     void testDeleteRule_notFound() throws Exception {
-        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+        stubWorkspace(request, "workspace-1");
         when(request.getPathInfo()).thenReturn("/api/rules/non-existent");
 
         HttpResponse response = controller.deleteRule().handle(request);
@@ -399,5 +402,9 @@ class RulesControllerTest {
                 Collections.singletonList(new Action("add_tag", Collections.singletonMap("tag", "test"))),
                 null,
                 0);
+    }
+
+    private void stubWorkspace(HttpServletRequest req, String workspaceId) {
+        when(req.getAttribute(PlatformAuthFilter.ATTR_WORKSPACE_ID)).thenReturn(workspaceId);
     }
 }
