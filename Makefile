@@ -1,4 +1,4 @@
-.PHONY: help setup validate build build-template build-auto-tag-assistant build-rules run-auto-tag-assistant run-rules docker-run dev clean test briefings-open briefings-verify
+.PHONY: help setup validate build build-template build-auto-tag-assistant build-rules run-auto-tag-assistant run-rules docker-build docker-run dev clean test briefings-open briefings-verify
 
 TEMPLATE ?= _template-addon
 ADDON_PORT ?= 8080
@@ -18,6 +18,7 @@ help:
 	@echo "  build-overtime             - Build only the overtime addon"
 	@echo "  dev                        - Build and run the template add-on using .env"
 	@echo "  docker-run                 - Build and run an add-on inside Docker (override TEMPLATE=...)"
+	@echo "  docker-build               - Build the Docker image only (override TEMPLATE=...)"
 	@echo "  test                       - Run all tests"
 	@echo "  smoke                      - Run smoke tests (/health, /metrics)"
 	@echo "  run-auto-tag-assistant     - Run the auto-tag-assistant addon locally"
@@ -184,6 +185,14 @@ docker-run:
                 -e JAVA_OPTS="$(JAVA_OPTS)" \
                 -p $(ADDON_PORT):$(ADDON_PORT) \
                 $(DOCKER_IMAGE)
+
+docker-build:
+	@echo "Building Docker image for $(TEMPLATE)..."
+	docker build \
+                --build-arg ADDON_DIR=addons/$(TEMPLATE) \
+                --build-arg DEFAULT_BASE_URL=$(ADDON_BASE_URL) \
+                -t $(DOCKER_IMAGE) .
+	@echo "✓ Docker image built: $(DOCKER_IMAGE)"
 
 dev: build-template
 	@if [ ! -f .env ]; then \

@@ -8,7 +8,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Centralizes environment-driven feature flags (apply changes, signature skip, etc.).
- * Ensures we only honor risky toggles when running in a dev environment.
+ * Reads {@link System#getenv(String)} directly so toggles can flip without recreating
+ * {@link com.example.rules.config.RulesConfiguration}, but guards dangerous flags to dev environments only.
  */
 public final class RuntimeFlags {
     private static final Logger logger = LoggerFactory.getLogger(RuntimeFlags.class);

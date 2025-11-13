@@ -2,6 +2,7 @@ package com.example.rules;
 
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
+import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
 import com.example.rules.config.RuntimeFlags;
 import com.example.rules.web.Nonce;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,11 +13,8 @@ import jakarta.servlet.http.HttpServletRequest;
  */
 public class SimpleSettingsController implements RequestHandler {
 
+    // Base URL is injected from RulesConfiguration; keeps env lookups out of runtime paths.
     private final String baseUrl;
-
-    public SimpleSettingsController() {
-        this(System.getenv().getOrDefault("ADDON_BASE_URL", ""));
-    }
 
     public SimpleSettingsController(String baseUrl) {
         this.baseUrl = baseUrl == null ? "" : baseUrl;
@@ -30,7 +28,10 @@ public class SimpleSettingsController implements RequestHandler {
                 : (RuntimeFlags.isDevEnvironment() ? "OFF" : "LOCKED");
         String envLabel = RuntimeFlags.environmentLabel();
         String base = this.baseUrl;
-        String nonce = Nonce.create();
+        String nonce = (String) request.getAttribute(SecurityHeadersFilter.CSP_NONCE_ATTR);
+        if (nonce == null) {
+            nonce = Nonce.create();
+        }
 
         String html = """
 <!DOCTYPE html>

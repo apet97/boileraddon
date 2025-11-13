@@ -25,15 +25,8 @@ public class SettingsController implements RequestHandler {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final JwtVerifier jwtVerifier;
+    // Force base URL injection so runtime config always flows through RulesConfiguration.
     private final String baseUrl;
-
-    public SettingsController() {
-        this(null, System.getenv().getOrDefault("ADDON_BASE_URL", ""));
-    }
-
-    public SettingsController(JwtVerifier jwtVerifier) {
-        this(jwtVerifier, System.getenv().getOrDefault("ADDON_BASE_URL", ""));
-    }
 
     public SettingsController(JwtVerifier jwtVerifier, String baseUrl) {
         this.jwtVerifier = jwtVerifier;

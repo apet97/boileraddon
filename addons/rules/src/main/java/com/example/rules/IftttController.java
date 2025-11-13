@@ -23,11 +23,8 @@ import jakarta.servlet.http.HttpServletRequest;
  */
 public class IftttController implements RequestHandler {
 
+    // Resolved by RulesConfiguration at app bootstrap; tests inject explicitly.
     private final String baseUrl;
-
-    public IftttController() {
-        this(System.getenv().getOrDefault("ADDON_BASE_URL", ""));
-    }
 
     public IftttController(String baseUrl) {
         this.baseUrl = baseUrl == null ? "" : baseUrl;

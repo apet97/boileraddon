@@ -339,23 +339,6 @@ public final class JwtVerifier {
             return new Constraints(null, null, 60, Set.of("RS256"));
         }
 
-        public static Constraints fromEnvironment() {
-            String iss = normalize(System.getenv("CLOCKIFY_JWT_EXPECT_ISS"));
-            String aud = normalize(System.getenv("CLOCKIFY_JWT_EXPECT_AUD"));
-            long skew = parseLong(System.getenv("CLOCKIFY_JWT_LEEWAY_SECONDS"), 60);
-            return new Constraints(iss, aud, skew, Set.of("RS256"));
-        }
-    }
-
-    private static long parseLong(String raw, long fallback) {
-        if (raw == null || raw.isBlank()) {
-            return fallback;
-        }
-        try {
-            return Long.parseLong(raw.trim());
-        } catch (NumberFormatException e) {
-            return fallback;
-        }
     }
 
     public static class JwtVerificationException extends Exception {
@@ -368,19 +351,4 @@ public final class JwtVerifier {
         }
     }
 
-    public static JwtVerifier fromEnvironment() throws Exception {
-        Constraints constraints = Constraints.fromEnvironment();
-        String keyMapJson = System.getenv("CLOCKIFY_JWT_PUBLIC_KEY_MAP");
-        if (keyMapJson != null && !keyMapJson.isBlank()) {
-            Map<String, String> pemByKid = OBJECT_MAPPER.readValue(
-                    keyMapJson, new TypeReference<Map<String, String>>() {});
-            String defaultKid = normalize(System.getenv("CLOCKIFY_JWT_DEFAULT_KID"));
-            return fromPemMap(pemByKid, defaultKid, constraints);
-        }
-        String pem = System.getenv("CLOCKIFY_JWT_PUBLIC_KEY");
-        if (pem == null || pem.isBlank()) {
-            throw new IllegalStateException("CLOCKIFY_JWT_PUBLIC_KEY is required when key map is not provided");
-        }
-        return fromPem(pem, constraints);
-    }
 }

@@ -36,16 +36,6 @@ public class DatabaseRulesStore implements RulesStoreSPI {
         ensureSchema();
     }
 
-    public static DatabaseRulesStore fromEnvironment() {
-        String url = getenvOr("RULES_DB_URL", getenvOr("DB_URL", null));
-        if (url == null || url.isBlank()) {
-            throw new IllegalStateException("Missing RULES_DB_URL or DB_URL");
-        }
-        String user = getenvOr("RULES_DB_USERNAME", getenvOr("DB_USER", System.getenv("DB_USERNAME")));
-        String pass = getenvOr("RULES_DB_PASSWORD", System.getenv("DB_PASSWORD"));
-        return new DatabaseRulesStore(url, user, pass);
-    }
-
     @Override
     public Rule save(String workspaceId, Rule rule) {
         if (workspaceId == null || rule == null) throw new IllegalArgumentException("workspaceId and rule are required");
@@ -238,8 +228,4 @@ public class DatabaseRulesStore implements RulesStoreSPI {
         }
     }
 
-    private static String getenvOr(String key, String fallback) {
-        String v = System.getenv(key);
-        return (v == null || v.isBlank()) ? fallback : v;
-    }
 }

@@ -14,7 +14,8 @@ import static org.mockito.Mockito.*;
 
 class SettingsControllerTest {
 
-    private final SettingsController controller = new SettingsController();
+    private final SettingsController controller =
+            new SettingsController(null, "http://localhost/rules");
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test

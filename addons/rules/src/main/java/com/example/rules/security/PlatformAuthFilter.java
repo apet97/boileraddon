@@ -66,7 +66,11 @@ public final class PlatformAuthFilter implements Filter {
     return null;
   }
 
-  // Factory for dev
+  /**
+   * DEV-ONLY helper for standalone experiments. Production code wires PlatformAuthFilter
+   * via {@link com.example.rules.config.RulesConfiguration} and should not read System
+   * environment variables directly.
+   */
   public static PlatformAuthFilter devFromEnv() throws Exception {
     JwtVerifier.Constraints c = new JwtVerifier.Constraints(
         System.getenv("CLOCKIFY_JWT_EXPECT_ISS"),
