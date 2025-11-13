@@ -6,7 +6,6 @@ import com.clockify.addon.sdk.logging.LoggingContext;
 import com.example.rules.api.ErrorResponse;
 import com.example.rules.cache.WorkspaceCache;
 import com.example.rules.engine.OpenApiCallConfig;
-import com.example.rules.security.PermissionChecker;
 import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,12 +54,6 @@ public class ProjectsController {
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
-                // Check read permissions
-                if (!PermissionChecker.canReadProjects(workspaceId)) {
-                    return ErrorResponse.of(403, "PROJECTS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to read projects", request, false);
-                }
-
                 boolean archived = Boolean.parseBoolean(request.getParameter("archived"));
                 ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
                 JsonNode projects = workspaceClient.getProjects(workspaceId, archived);
@@ -83,12 +76,6 @@ public class ProjectsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteProjects(workspaceId)) {
-                    return ErrorResponse.of(403, "PROJECTS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to create projects", request, false);
-                }
 
                 JsonNode body = parseRequestBody(request);
 
@@ -149,12 +136,6 @@ public class ProjectsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteProjects(workspaceId)) {
-                    return ErrorResponse.of(403, "PROJECTS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to update projects", request, false);
-                }
 
                 String projectId = extractProjectId(request);
                 if (projectId == null) {
@@ -220,12 +201,6 @@ public class ProjectsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteProjects(workspaceId)) {
-                    return ErrorResponse.of(403, "PROJECTS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to delete projects", request, false);
-                }
 
                 String projectId = extractProjectId(request);
                 if (projectId == null) {

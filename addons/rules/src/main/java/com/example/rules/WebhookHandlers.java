@@ -485,18 +485,27 @@ public class WebhookHandlers {
                     case "add_tag": {
                         String tagName = args != null ? args.getOrDefault("tag", args.get("name")) : null;
                         if (tagName == null || tagName.isBlank()) break;
-                        String tagId = tagsByNorm.get(tagName.trim().toLowerCase(java.util.Locale.ROOT));
+                        String norm = ClockifyClient.normalizeTagName(tagName);
+                        String tagId = tagsByNorm.get(norm);
+                        if (tagId == null) {
+                            // create tag then map it (async path was missing this!)
+                            var created = api.createTag(workspaceId, tagName);
+                            tagId = created.has("id") ? created.get("id").asText() : null;
+                            if (tagId != null) tagsByNorm.put(norm, tagId);
+                        }
                         if (tagId != null) {
-                            patchHasTags = true;
-                            ArrayNode current = (ArrayNode) entry.path("tagIds");
-                            boolean exists = false;
-                            for (JsonNode n : current) {
-                                String id = n.asText();
-                                if (!patchTagIds.toString().contains(id)) patchTagIds.add(id);
-                                if (id.equals(tagId)) exists = true;
+                            // ensure tagIds array; gather from current entry or patch-in-progress
+                            java.util.Set<String> current = new java.util.LinkedHashSet<>();
+                            if (entry.has("tagIds") && entry.get("tagIds").isArray()) {
+                                entry.get("tagIds").forEach(n -> { if (n.isTextual()) current.add(n.asText()); });
                             }
-                            if (!exists) {
-                                patchTagIds.add(tagId);
+                            if (!patchHasTags && patch.has("tagIds")) {
+                                patch.get("tagIds").forEach(n -> { if (n.isTextual()) current.add(n.asText()); });
+                            }
+                            if (current.add(tagId)) {
+                                patchTagIds.removeAll();
+                                current.forEach(patchTagIds::add);
+                                patchHasTags = true;
                                 changed = true;
                             }
                         }
@@ -505,36 +514,41 @@ public class WebhookHandlers {
                     case "remove_tag": {
                         String tagName = args != null ? args.getOrDefault("tag", args.get("name")) : null;
                         if (tagName == null || tagName.isBlank()) break;
-                        String tagId = tagsByNorm.get(tagName.trim().toLowerCase(java.util.Locale.ROOT));
+                        String norm = ClockifyClient.normalizeTagName(tagName);
+                        String tagId = tagsByNorm.get(norm);
                         if (tagId != null) {
-                            patchHasTags = true;
-                            ArrayNode current = (ArrayNode) entry.path("tagIds");
-                            for (JsonNode n : current) {
-                                String id = n.asText();
-                                if (!id.equals(tagId)) patchTagIds.add(id);
+                            java.util.Set<String> current = new java.util.LinkedHashSet<>();
+                            if (entry.has("tagIds") && entry.get("tagIds").isArray()) {
+                                entry.get("tagIds").forEach(n -> { if (n.isTextual()) current.add(n.asText()); });
                             }
-                            changed = true;
-                        }
-                        break;
-                    }
-                    case "set_description": {
-                        String desc = args != null ? args.get("description") : null;
-                        if (desc != null) {
-                            String currentDesc = entry.path("description").asText("");
-                            if (!desc.equals(currentDesc)) {
-                                patch.put("description", desc);
+                            if (!patchHasTags && patch.has("tagIds")) {
+                                patch.get("tagIds").forEach(n -> { if (n.isTextual()) current.add(n.asText()); });
+                            }
+                            if (current.remove(tagId)) {
+                                patchTagIds.removeAll();
+                                current.forEach(patchTagIds::add);
+                                patch.set("tagIds", patchTagIds);
+                                patchHasTags = true;
                                 changed = true;
                             }
                         }
                         break;
                     }
+                    case "set_description": {
+                        String value = args != null ? args.get("value") : null;
+                        if (value != null && !value.equals(entry.path("description").asText())) {
+                            patch.put("description", value);
+                            changed = true;
+                        }
+                        break;
+                    }
                     case "set_billable": {
-                        String val = args != null ? args.get("billable") : null;
-                        if (val != null) {
-                            boolean billable = val.equalsIgnoreCase("true");
+                        String value = args != null ? args.get("value") : null;
+                        if (value != null) {
+                            boolean desired = "true".equalsIgnoreCase(value) || "1".equals(value);
                             boolean current = entry.path("billable").asBoolean(false);
-                            if (billable != current) {
-                                patch.put("billable", billable);
+                            if (desired != current) {
+                                patch.put("billable", desired);
                                 changed = true;
                             }
                         }
@@ -553,10 +567,10 @@ public class WebhookHandlers {
                         break;
                     }
                     case "set_project_by_name": {
-                        String projectName = args != null ? args.get("project") : null;
-                        if (projectName != null && !projectName.isBlank()) {
-                            String pnorm = projectName.trim().toLowerCase(java.util.Locale.ROOT);
-                            String projectId = snap.projectsByNameNorm.get(pnorm);
+                        String name = args != null ? args.get("name") : null;
+                        if (name != null && !name.isBlank()) {
+                            String norm = name.trim().toLowerCase(java.util.Locale.ROOT);
+                            String projectId = snap.projectsByNameNorm.get(norm);
                             if (projectId != null) {
                                 String current = entry.path("projectId").asText("");
                                 if (!projectId.equals(current)) {
@@ -580,7 +594,7 @@ public class WebhookHandlers {
                         break;
                     }
                     case "set_task_by_name": {
-                        String tname = args != null ? args.get("task") : null;
+                        String tname = args != null ? args.get("name") : null;
                         if (tname != null && !tname.isBlank()) {
                             String taskId = null;
                             String projectName = null;

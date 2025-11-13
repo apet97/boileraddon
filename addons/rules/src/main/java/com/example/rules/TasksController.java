@@ -6,7 +6,6 @@ import com.clockify.addon.sdk.logging.LoggingContext;
 import com.example.rules.api.ErrorResponse;
 import com.example.rules.cache.WorkspaceCache;
 import com.example.rules.engine.OpenApiCallConfig;
-import com.example.rules.security.PermissionChecker;
 import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,12 +54,6 @@ public class TasksController {
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
-                // Check read permissions
-                if (!PermissionChecker.canReadTasks(workspaceId)) {
-                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to read tasks", request, false);
-                }
-
                 String projectId = getProjectId(request);
                 if (projectId == null) {
                     return ErrorResponse.of(400, "TASKS.PROJECT_ID_REQUIRED", "projectId is required", request, false);
@@ -87,12 +80,6 @@ public class TasksController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteTasks(workspaceId)) {
-                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to create tasks", request, false);
-                }
 
                 String projectId = getProjectId(request);
                 if (projectId == null) {
@@ -153,12 +140,6 @@ public class TasksController {
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
-                // Check write permissions
-                if (!PermissionChecker.canWriteTasks(workspaceId)) {
-                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to update tasks", request, false);
-                }
-
                 String taskId = extractTaskId(request);
                 if (taskId == null) {
                     return ErrorResponse.of(400, "TASKS.TASK_ID_REQUIRED", "taskId is required", request, false);
@@ -218,12 +199,6 @@ public class TasksController {
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
-                // Check write permissions
-                if (!PermissionChecker.canWriteTasks(workspaceId)) {
-                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to delete tasks", request, false);
-                }
-
                 String taskId = extractTaskId(request);
                 if (taskId == null) {
                     return ErrorResponse.of(400, "TASKS.TASK_ID_REQUIRED", "taskId is required", request, false);
@@ -264,12 +239,6 @@ public class TasksController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions for bulk operations
-                if (!PermissionChecker.canWriteTasks(workspaceId)) {
-                    return ErrorResponse.of(403, "TASKS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to perform bulk task operations", request, false);
-                }
 
                 JsonNode body = parseRequestBody(request);
 

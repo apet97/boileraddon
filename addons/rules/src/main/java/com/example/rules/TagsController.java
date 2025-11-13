@@ -6,7 +6,6 @@ import com.clockify.addon.sdk.logging.LoggingContext;
 import com.example.rules.api.ErrorResponse;
 import com.example.rules.cache.WorkspaceCache;
 import com.example.rules.engine.OpenApiCallConfig;
-import com.example.rules.security.PermissionChecker;
 import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,12 +54,6 @@ public class TagsController {
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
-                // Check read permissions
-                if (!PermissionChecker.canReadTags(workspaceId)) {
-                    return ErrorResponse.of(403, "TAGS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to read tags", request, false);
-                }
-
                 ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
                 JsonNode tags = workspaceClient.getTags(workspaceId);
                 return HttpResponse.ok(tags.toString(), MEDIA_JSON);
@@ -82,12 +75,6 @@ public class TagsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteTags(workspaceId)) {
-                    return ErrorResponse.of(403, "TAGS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to create tags", request, false);
-                }
 
                 JsonNode body = parseRequestBody(request);
 
@@ -125,12 +112,6 @@ public class TagsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteTags(workspaceId)) {
-                    return ErrorResponse.of(403, "TAGS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to update tags", request, false);
-                }
 
                 String tagId = extractTagId(request);
                 if (tagId == null) {
@@ -181,12 +162,6 @@ public class TagsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteTags(workspaceId)) {
-                    return ErrorResponse.of(403, "TAGS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to delete tags", request, false);
-                }
 
                 String tagId = extractTagId(request);
                 if (tagId == null) {

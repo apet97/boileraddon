@@ -6,7 +6,6 @@ import com.clockify.addon.sdk.logging.LoggingContext;
 import com.example.rules.api.ErrorResponse;
 import com.example.rules.cache.WorkspaceCache;
 import com.example.rules.engine.OpenApiCallConfig;
-import com.example.rules.security.PermissionChecker;
 import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,12 +54,6 @@ public class ClientsController {
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
-                // Check read permissions
-                if (!PermissionChecker.canReadClients(workspaceId)) {
-                    return ErrorResponse.of(403, "CLIENTS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to read clients", request, false);
-                }
-
                 boolean archived = Boolean.parseBoolean(request.getParameter("archived"));
                 ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
                 JsonNode clients = workspaceClient.getClients(workspaceId, archived);
@@ -83,12 +76,6 @@ public class ClientsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteClients(workspaceId)) {
-                    return ErrorResponse.of(403, "CLIENTS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to create clients", request, false);
-                }
 
                 JsonNode body = parseRequestBody(request);
 
@@ -143,12 +130,6 @@ public class ClientsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteClients(workspaceId)) {
-                    return ErrorResponse.of(403, "CLIENTS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to update clients", request, false);
-                }
 
                 String clientId = extractClientId(request);
                 if (clientId == null) {
@@ -208,12 +189,6 @@ public class ClientsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
-
-                // Check write permissions
-                if (!PermissionChecker.canWriteClients(workspaceId)) {
-                    return ErrorResponse.of(403, "CLIENTS.INSUFFICIENT_PERMISSIONS",
-                        "Insufficient permissions to delete clients", request, false);
-                }
 
                 String clientId = extractClientId(request);
                 if (clientId == null) {

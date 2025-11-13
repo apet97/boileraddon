@@ -53,6 +53,12 @@ public class RulesApp {
     private static final Logger logger = LoggerFactory.getLogger(RulesApp.class);
     private static final String MEDIA_JSON = "application/json";
 
+    /**
+     * Static reference to the rules store used by the application.
+     * Accessible for health checks and monitoring.
+     */
+    private static RulesStoreSPI rulesStore;
+
     public static void main(String[] args) throws Exception {
         // Read and validate configuration from environment
         String baseUrl = ConfigValidator.validateUrl(
@@ -98,7 +104,7 @@ public class RulesApp {
         ClockifyAddon addon = new ClockifyAddon(manifest);
 
         // Initialize stores
-        RulesStoreSPI rulesStore = selectRulesStore();
+        rulesStore = selectRulesStore();
         RulesController rulesController = new RulesController(rulesStore);
 
         // Initialize Clockify client for Projects/Clients/Tasks CRUD operations
@@ -401,12 +407,12 @@ public class RulesApp {
 
         // Register health checks
         HealthCheck health = new HealthCheck("rules", "0.1.0");
-        if (dbUrl != null && !dbUrl.isBlank() && dbUser != null && !dbUser.isBlank()) {
+        if (rulesStore instanceof com.example.rules.store.DatabaseRulesStore) {
             health.addHealthCheckProvider(new HealthCheck.HealthCheckProvider() {
                 @Override public String getName() { return "database"; }
                 @Override public HealthCheck.HealthCheckResult check() {
                     try {
-                        DatabaseRulesStore dbStore = new DatabaseRulesStore(dbUrl, dbUser, dbPassword);
+                        DatabaseRulesStore dbStore = (DatabaseRulesStore) rulesStore;
                         int n = dbStore.getAll("health-probe").size();
                         return new HealthCheck.HealthCheckResult("database", true, "Connected", n);
                     } catch (Exception e) {
@@ -513,17 +519,43 @@ public class RulesApp {
         server.start(port);
     }
 
+    /**
+     * Selects the appropriate rules store based on environment configuration.
+     *
+     * FAIL-FAST: If database URL is configured but connection fails, throws an exception
+     * rather than silently falling back to in-memory storage. This prevents subtle data
+     * loss bugs where the operator thinks persistence is enabled but rules are lost on restart.
+     *
+     * @return DatabaseRulesStore if configured and reachable, otherwise in-memory RulesStore
+     * @throws IllegalStateException if database is configured but initialization fails
+     */
     private static RulesStoreSPI selectRulesStore() {
         // Prefer RULES_DB_URL if present; fallback to DB_URL; else in-memory
         String rulesDbUrl = System.getenv("RULES_DB_URL");
         String dbUrl = System.getenv("DB_URL");
-        if ((rulesDbUrl != null && !rulesDbUrl.isBlank()) || (dbUrl != null && !dbUrl.isBlank())) {
+        boolean dbConfigured = (rulesDbUrl != null && !rulesDbUrl.isBlank()) || (dbUrl != null && !dbUrl.isBlank());
+
+        if (dbConfigured) {
             try {
-                return DatabaseRulesStore.fromEnvironment();
+                DatabaseRulesStore store = DatabaseRulesStore.fromEnvironment();
+                logger.info("✓ Rules storage initialized with database persistence");
+                return store;
             } catch (Exception e) {
-                logger.warn("Failed to init DatabaseRulesStore: {}. Falling back to in-memory store.", e.getMessage());
+                // Database was explicitly configured but failed - this is a deployment error
+                String msg = String.format(
+                    "FATAL: Rules database storage is configured but unavailable. " +
+                    "URL: %s | Error: %s | " +
+                    "To fix: verify database credentials in environment variables (DB_URL, DB_USER, DB_PASSWORD, " +
+                    "RULES_DB_URL) and ensure database is running and accessible.",
+                    dbUrl != null && !dbUrl.isBlank() ? dbUrl : rulesDbUrl,
+                    e.getMessage()
+                );
+                logger.error(msg, e);
+                throw new IllegalStateException(msg, e);
             }
         }
+
+        logger.info("✓ Rules storage initialized with in-memory persistence (ephemeral, recommended for dev only)");
         return new RulesStore();
     }
 
