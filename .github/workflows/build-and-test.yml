@@ -25,6 +25,13 @@ jobs:
 
           python3 tools/check_briefing_links.py _briefings || true
           python3 tools/validate-manifest.py
+      - name: Cache OWASP Dependency Check data
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            dependency-check-${{ runner.os }}-
       - name: Build and test
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
