@@ -23,8 +23,12 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Handles Clockify webhook events for time entries.
@@ -39,19 +43,29 @@ public class WebhookHandlers {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final int ASYNC_ACTION_THRESHOLD = 5;
 
-    // ExecutorService for async webhook processing (prevents timeout on complex rules)
-    private static final ExecutorService executorService = Executors.newFixedThreadPool(
-        Math.max(2, Runtime.getRuntime().availableProcessors()),
-        r -> {
-            Thread t = new Thread(r);
-            t.setName("webhook-processor-" + t.getId());
-            t.setDaemon(true);
-            return t;
-        }
-    );
+    private static final String EXECUTOR_CORE_SIZE_PROP = "com.example.rules.webhook.executor.corePoolSize";
+    private static final String EXECUTOR_MAX_SIZE_PROP = "com.example.rules.webhook.executor.maxPoolSize";
+    private static final String EXECUTOR_QUEUE_CAPACITY_PROP = "com.example.rules.webhook.executor.queueCapacity";
+    private static final long EXECUTOR_KEEP_ALIVE_SECONDS = 60L;
+    private static final AtomicInteger EXECUTOR_THREAD_COUNTER = new AtomicInteger();
+
+    // Executor for async webhook processing (prevents timeout on complex rules)
+    private static volatile ThreadPoolExecutor executorService = createExecutor();
 
     private static com.example.rules.store.RulesStoreSPI rulesStore;
     private static Evaluator evaluator;
+
+    static ThreadPoolExecutor getAsyncExecutor() {
+        return executorService;
+    }
+
+    static void resetAsyncExecutorForTesting() {
+        ThreadPoolExecutor previous = executorService;
+        executorService = createExecutor();
+        if (previous != null) {
+            previous.shutdownNow();
+        }
+    }
 
     @FunctionalInterface
     public interface ClientFactory { ClockifyClient create(String baseUrl, String token); }
@@ -149,15 +163,12 @@ public class WebhookHandlers {
                         String finalWorkspaceId = workspaceId;
                         JsonNode finalTimeEntry = timeEntry;
                         String finalEventType = eventType;
-                        executorService.submit(() -> {
-                            try (LoggingContext asyncContext = LoggingContext.create()) {
-                                asyncContext.workspace(finalWorkspaceId);
-                                applyActionsAsync(finalWorkspaceId, finalTimeEntry, actionsToApply, finalEventType);
-                            } catch (Exception e) {
-                                logger.error("Async action processing failed for workspace {}", finalWorkspaceId, e);
-                            }
-                        });
-                        return createResponse(eventType, "scheduled", actionsToApply);
+                        if (scheduleAsyncProcessing(finalWorkspaceId, finalTimeEntry, actionsToApply, finalEventType)) {
+                            return createResponse(eventType, "scheduled", actionsToApply);
+                        }
+                        logger.warn(
+                                "Async webhook executor saturated for workspace {} (event: {}). Processing synchronously.",
+                                workspaceId, eventType);
                     }
 
                     // Apply actions idempotently using SDK HTTP client
@@ -417,6 +428,70 @@ public class WebhookHandlers {
         response.set("actions", actionsArray);
 
         return HttpResponse.ok(response.toString(), "application/json");
+    }
+
+    private static ThreadPoolExecutor createExecutor() {
+        int available = Math.max(2, Runtime.getRuntime().availableProcessors());
+        int coreSize = positiveOrDefault(EXECUTOR_CORE_SIZE_PROP, available, 1);
+        int maxDefault = Math.max(coreSize, available * 4);
+        int maxSize = positiveOrDefault(EXECUTOR_MAX_SIZE_PROP, maxDefault, coreSize);
+        int queueCapacity = positiveOrDefault(EXECUTOR_QUEUE_CAPACITY_PROP, maxSize * 8, 1);
+
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                coreSize,
+                maxSize,
+                EXECUTOR_KEEP_ALIVE_SECONDS,
+                TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(queueCapacity),
+                webhookThreadFactory(),
+                new ThreadPoolExecutor.AbortPolicy()
+        );
+        executor.allowCoreThreadTimeOut(false);
+        return executor;
+    }
+
+    private static ThreadFactory webhookThreadFactory() {
+        return runnable -> {
+            Thread t = new Thread(runnable);
+            t.setName("webhook-processor-" + EXECUTOR_THREAD_COUNTER.incrementAndGet());
+            t.setDaemon(true);
+            return t;
+        };
+    }
+
+    private static int positiveOrDefault(String key, int defaultValue, int minValue) {
+        Integer value = Integer.getInteger(key);
+        if (value != null && value >= minValue) {
+            return value;
+        }
+        return Math.max(defaultValue, minValue);
+    }
+
+    private static boolean scheduleAsyncProcessing(String workspaceId,
+                                                   JsonNode timeEntry,
+                                                   List<Action> actions,
+                                                   String eventType) {
+        ThreadPoolExecutor executor = executorService;
+        List<Action> snapshot = List.copyOf(actions);
+        Runnable task = () -> {
+            try (LoggingContext asyncContext = LoggingContext.create()) {
+                asyncContext.workspace(workspaceId);
+                applyActionsAsync(workspaceId, timeEntry, snapshot, eventType);
+            } catch (Exception e) {
+                logger.error("Async action processing failed for workspace {}", workspaceId, e);
+            }
+        };
+        try {
+            executor.execute(task);
+            return true;
+        } catch (RejectedExecutionException rejected) {
+            int queued = executor.getQueue().size();
+            int capacity = queued + executor.getQueue().remainingCapacity();
+            logger.warn(
+                    "Webhook async executor rejected task (workspace: {}, event: {}, active: {}, queued: {}, capacity: {}).",
+                    workspaceId, eventType, executor.getActiveCount(), queued, capacity);
+            return false;
+        }
     }
 
     private static JsonNode parseRequestBody(HttpServletRequest request) throws Exception {
