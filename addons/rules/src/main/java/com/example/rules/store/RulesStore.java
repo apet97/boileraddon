@@ -43,8 +43,10 @@ public class RulesStore implements RulesStoreSPI {
             throw new IllegalArgumentException("Rule name is required");
         }
 
-        if (rule.getConditions() == null || rule.getConditions().isEmpty()) {
-            throw new IllegalArgumentException("Rule must have at least one condition");
+        boolean hasConditions = rule.getConditions() != null && !rule.getConditions().isEmpty();
+        boolean hasTriggerMetadata = rule.getTrigger() != null && !rule.getTrigger().isEmpty();
+        if (!hasConditions && !hasTriggerMetadata) {
+            throw new IllegalArgumentException("Rule must have at least one condition or trigger metadata");
         }
 
         if (rule.getActions() == null || rule.getActions().isEmpty()) {
