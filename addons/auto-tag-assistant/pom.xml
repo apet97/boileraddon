@@ -26,6 +26,7 @@
       <groupId>com.clockify.boilerplate</groupId>
       <artifactId>addon-sdk</artifactId>
       <version>0.1.0</version>
+      <type>test-jar</type>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
