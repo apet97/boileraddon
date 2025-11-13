@@ -41,12 +41,11 @@
     </properties>
 
     <modules>
-        
-        
-        <module>addons/_template-addon</module>
-
-        
+        <!-- Build addon-sdk FIRST - it's a dependency for all other addons -->
         <module>addons/addon-sdk</module>
+
+        <!-- All addon modules that depend on addon-sdk -->
+        <module>addons/_template-addon</module>
         <module>addons/auto-tag-assistant</module>
         <module>addons/rules</module>
         <module>addons/overtime</module>
