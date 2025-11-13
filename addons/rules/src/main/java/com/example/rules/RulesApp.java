@@ -386,24 +386,18 @@ public class RulesApp {
         String dbUser = System.getenv().getOrDefault("DB_USER", System.getenv("DB_USERNAME"));
         String dbPassword = System.getenv("DB_PASSWORD");
 
-        PooledDatabaseTokenStore tokenStore = null;
         String envLabel = RuntimeFlags.environmentLabel();
         boolean persistentTokens =
                 Boolean.parseBoolean(System.getenv().getOrDefault("ENABLE_DB_TOKEN_STORE",
                         String.valueOf("prod".equalsIgnoreCase(envLabel))));
-        if (persistentTokens && dbUrl != null && !dbUrl.isBlank()) {
-            try {
-                tokenStore = new PooledDatabaseTokenStore(dbUrl, dbUser, dbPassword);
-                com.clockify.addon.sdk.security.TokenStore.configurePersistence(tokenStore);
-                logger.info("Persistent token store enabled (PostgreSQL)");
-            } catch (Exception e) {
-                logger.error("Failed to initialize persistent token store: {}", e.getMessage());
-                tokenStore = null;
-            }
-        } else {
-            logger.info("Using in-memory token store (ENV={}, DB_URL configured={})",
-                    envLabel, dbUrl != null && !dbUrl.isBlank());
-        }
+        PooledDatabaseTokenStore tokenStore = initializeTokenStore(
+                persistentTokens,
+                envLabel,
+                dbUrl,
+                dbUser,
+                dbPassword,
+                () -> new PooledDatabaseTokenStore(dbUrl, dbUser, dbPassword)
+        );
 
         // Register health checks
         HealthCheck health = new HealthCheck("rules", "0.1.0");
@@ -557,6 +551,43 @@ public class RulesApp {
 
         logger.info("✓ Rules storage initialized with in-memory persistence (ephemeral, recommended for dev only)");
         return new RulesStore();
+    }
+
+    static PooledDatabaseTokenStore initializeTokenStore(
+            boolean persistentTokens,
+            String envLabel,
+            String dbUrl,
+            String dbUser,
+            String dbPassword,
+            TokenStoreSupplier supplier
+    ) {
+        boolean hasDbUrl = dbUrl != null && !dbUrl.isBlank();
+        if (!persistentTokens || !hasDbUrl) {
+            logger.info("Using in-memory token store (ENV={}, DB_URL configured={})", envLabel, hasDbUrl);
+            return null;
+        }
+
+        try {
+            PooledDatabaseTokenStore tokenStore = supplier.get();
+            com.clockify.addon.sdk.security.TokenStore.configurePersistence(tokenStore);
+            logger.info("Persistent token store enabled (PostgreSQL)");
+            return tokenStore;
+        } catch (Exception e) {
+            String msg = String.format(
+                    "FATAL: Rules database storage is configured but unavailable. URL: %s | Error: %s | " +
+                    "To fix: verify database credentials in environment variables (DB_URL, DB_USER, DB_PASSWORD, RULES_DB_URL) " +
+                    "and ensure database is running and accessible.",
+                    dbUrl,
+                    e.getMessage()
+            );
+            logger.error(msg, e);
+            throw new IllegalStateException(msg, e);
+        }
+    }
+
+    @FunctionalInterface
+    interface TokenStoreSupplier {
+        PooledDatabaseTokenStore get() throws Exception;
     }
 
     private static JwtVerifier initializeJwtVerifier() {
