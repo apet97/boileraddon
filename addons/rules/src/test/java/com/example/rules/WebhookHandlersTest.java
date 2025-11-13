@@ -3,6 +3,7 @@ package com.example.rules;
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.HttpResponse;
+import com.example.rules.ClockifyClient;
 import com.example.rules.engine.Action;
 import com.example.rules.engine.Condition;
 import com.example.rules.engine.Rule;
@@ -11,6 +12,7 @@ import com.clockify.addon.sdk.testutil.SignatureTestUtil;
 import com.example.rules.store.RulesStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
@@ -21,8 +23,16 @@ import org.mockito.Mockito;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -32,6 +42,10 @@ class WebhookHandlersTest {
     private RulesStore store;
     private ObjectMapper mapper;
     private HttpServletRequest request;
+
+    private static final String EXECUTOR_CORE_PROP = "com.example.rules.webhook.executor.corePoolSize";
+    private static final String EXECUTOR_MAX_PROP = "com.example.rules.webhook.executor.maxPoolSize";
+    private static final String EXECUTOR_QUEUE_PROP = "com.example.rules.webhook.executor.queueCapacity";
 
     @BeforeEach
     void setUp() {
@@ -44,6 +58,12 @@ class WebhookHandlersTest {
         System.setProperty("ADDON_ACCEPT_JWT_SIGNATURE", "true");
         System.setProperty("ADDON_AUTH_COMPAT", "HMAC");
         System.setProperty("ENV", "dev");
+        System.clearProperty("RULES_APPLY_CHANGES");
+        System.clearProperty(EXECUTOR_CORE_PROP);
+        System.clearProperty(EXECUTOR_MAX_PROP);
+        System.clearProperty(EXECUTOR_QUEUE_PROP);
+        WebhookHandlers.setClientFactory(null);
+        WebhookHandlers.resetAsyncExecutorForTesting();
     }
 
     @AfterEach
@@ -54,6 +74,12 @@ class WebhookHandlersTest {
         System.clearProperty("ENV");
         System.clearProperty("CLOCKIFY_JWT_PUBLIC_KEY");
         System.clearProperty("CLOCKIFY_JWT_EXPECT_ISS");
+        System.clearProperty("RULES_APPLY_CHANGES");
+        System.clearProperty(EXECUTOR_CORE_PROP);
+        System.clearProperty(EXECUTOR_MAX_PROP);
+        System.clearProperty(EXECUTOR_QUEUE_PROP);
+        WebhookHandlers.setClientFactory(null);
+        WebhookHandlers.resetAsyncExecutorForTesting();
     }
 
     @Test
@@ -278,6 +304,90 @@ class WebhookHandlersTest {
         when(request.getReader()).thenReturn(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(bytes))));
     }
 
+    @Test
+    void asyncExecutorUsesBoundedQueueWhenConfigured() {
+        System.setProperty(EXECUTOR_CORE_PROP, "1");
+        System.setProperty(EXECUTOR_MAX_PROP, "2");
+        System.setProperty(EXECUTOR_QUEUE_PROP, "3");
+        WebhookHandlers.resetAsyncExecutorForTesting();
+
+        ThreadPoolExecutor executor = WebhookHandlers.getAsyncExecutor();
+        assertEquals(1, executor.getCorePoolSize());
+        assertEquals(2, executor.getMaximumPoolSize());
+        assertTrue(executor.getQueue() instanceof ArrayBlockingQueue);
+        int capacity = executor.getQueue().size() + executor.getQueue().remainingCapacity();
+        assertEquals(3, capacity);
+    }
+
+    @Test
+    void oversizedWorkloadsFallbackToSynchronousWhenQueueSaturated() throws Exception {
+        String workspaceId = "workspace-async";
+        String authToken = "token";
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, authToken, "https://api.clockify.me/api");
+
+        System.setProperty("RULES_APPLY_CHANGES", "true");
+        System.setProperty(EXECUTOR_CORE_PROP, "1");
+        System.setProperty(EXECUTOR_MAX_PROP, "1");
+        System.setProperty(EXECUTOR_QUEUE_PROP, "1");
+        WebhookHandlers.resetAsyncExecutorForTesting();
+
+        ThreadPoolExecutor executor = WebhookHandlers.getAsyncExecutor();
+        CountDownLatch blocker = new CountDownLatch(1);
+        CountDownLatch running = new CountDownLatch(1);
+
+        executor.execute(() -> {
+            running.countDown();
+            awaitUninterruptibly(blocker);
+        });
+        try {
+            assertTrue(running.await(5, TimeUnit.SECONDS));
+            executor.execute(() -> awaitUninterruptibly(blocker));
+            awaitQueueSize(executor, 1);
+
+            List<Action> actions = new ArrayList<>();
+            for (int i = 0; i < 6; i++) {
+                actions.add(new Action("set_description", Map.of("value", "desc-" + i)));
+            }
+            Condition condition = new Condition("descriptionContains", Condition.Operator.CONTAINS, "trigger", null);
+            Rule rule = new Rule("async-rule", "Async rule", true, "AND",
+                    Collections.singletonList(condition), actions, null, 0);
+            store.save(workspaceId, rule);
+
+            String payload = """
+                {
+                    "workspaceId": "workspace-async",
+                    "event": "NEW_TIME_ENTRY",
+                    "timeEntry": {
+                        "id": "entry-async",
+                        "description": "trigger action",
+                        "tagIds": []
+                    }
+                }
+                """;
+            setupWebhookRequestJwt(payload, workspaceId);
+
+            RecordingClockifyClient fake = new RecordingClockifyClient();
+            WebhookHandlers.setClientFactory((base, token) -> fake);
+
+            ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+                    .key("rules").name("Rules").description("Test")
+                    .baseUrl("http://localhost:8080/rules")
+                    .minimalSubscriptionPlan("FREE")
+                    .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE"})
+                    .build();
+            ClockifyAddon addon = new ClockifyAddon(manifest);
+            WebhookHandlers.register(addon, store);
+
+            HttpResponse response = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
+            assertEquals(200, response.getStatusCode());
+            JsonNode json = mapper.readTree(response.getBody());
+            assertEquals("actions_applied", json.get("status").asText());
+            assertTrue(fake.getUpdateCount() >= 1, "Expected synchronous update invocation");
+        } finally {
+            blocker.countDown();
+        }
+    }
+
     private void setupWebhookRequestJwt(String payload, String workspaceId) throws Exception {
         // Generate a temporary RSA keypair for signing a JWT used by the validator
         var key = SignatureTestUtil.RsaFixture.generate("kid-webhook");
@@ -310,6 +420,69 @@ class WebhookHandlersTest {
         };
         when(request.getInputStream()).thenReturn(inputStream);
         when(request.getReader()).thenReturn(new BufferedReader(new InputStreamReader(new ByteArrayInputStream(bytes))));
+    }
+
+    private void awaitQueueSize(ThreadPoolExecutor executor, int expected) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (executor.getQueue().size() < expected) {
+            if (System.nanoTime() > deadline) {
+                fail("Executor queue did not reach expected size: " + expected);
+            }
+            Thread.sleep(10);
+        }
+    }
+
+    private void awaitUninterruptibly(CountDownLatch latch) {
+        boolean interrupted = false;
+        try {
+            while (true) {
+                try {
+                    latch.await();
+                    return;
+                } catch (InterruptedException e) {
+                    interrupted = true;
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    private static final class RecordingClockifyClient extends ClockifyClient {
+        private final ObjectMapper om = new ObjectMapper();
+        private final AtomicInteger updates = new AtomicInteger();
+
+        RecordingClockifyClient() {
+            super("http://localhost", "token");
+        }
+
+        @Override
+        public ObjectNode getTimeEntry(String workspaceId, String timeEntryId) {
+            ObjectNode node = om.createObjectNode();
+            node.put("id", timeEntryId);
+            node.put("description", "original");
+            node.set("tagIds", om.createArrayNode());
+            return node;
+        }
+
+        @Override
+        public JsonNode getTags(String workspaceId) {
+            return om.createArrayNode();
+        }
+
+        @Override
+        public ObjectNode updateTimeEntry(String workspaceId, String timeEntryId, ObjectNode patch) {
+            updates.incrementAndGet();
+            ObjectNode node = om.createObjectNode();
+            node.put("id", timeEntryId);
+            return node;
+        }
+
+        int getUpdateCount() {
+            return updates.get();
+        }
     }
 
     @Test
