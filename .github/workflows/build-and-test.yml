@@ -103,7 +103,6 @@ jobs:
               delta = `${sign}${d}`;
             }
             const body = `🧪 Coverage: ${cur === 'N/A' ? 'N/A' : cur + '%'} \nBaseline (main): ${base === 'N/A' ? 'N/A' : base + '%'}${delta === 'N/A' ? '' : ` \nDelta: ${delta} pp`}`;
-            const { context, github } = require('@actions/github');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

@@ -144,7 +144,6 @@ jobs:
 
             const body = `## 🔬 Performance Benchmarks\n\n${summary}\n\n*Note: Benchmarks are currently experiencing compilation issues and need to be fixed.*`;
 
-            const { context, github } = require('@actions/github');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
