@@ -50,6 +50,50 @@ Clockify Event → Webhook → Tag Detection → (Optional) Auto-Tag → API Upd
 - **SDK TokenStore** – In‑memory demo storage for workspace credentials. For production, implement a persistent store.
 - **`sdk/` package** – Inline, dependency-free request routing utilities (no external SDK needed).
 
+## Security Features
+
+### JWT Verification for Lifecycle Events
+
+The Auto-Tag Assistant implements **RS256 JWT signature verification** for lifecycle events (`INSTALLED`/`DELETED`):
+
+- **Lifecycle Handler Verification** – `LifecycleHandlers.java` verifies the JWT signature of `INSTALLED` and `DELETED` events
+- **Workspace Context Extraction** – `SettingsController.java` decodes JWT tokens to extract workspace and user context
+- **Key Rotation Support** – Automatic key rotation via `CLOCKIFY_JWT_PUBLIC_KEY_MAP`
+
+Configure environment variables:
+```bash
+CLOCKIFY_JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+CLOCKIFY_JWT_EXPECTED_ISS="clockify"
+```
+
+See: [JWT Verification Guide](../../docs/JWT_VERIFICATION_GUIDE.md) for complete setup and troubleshooting.
+
+### Persistent Token Storage with DatabaseTokenStore
+
+For production, configure **DatabaseTokenStore** to persist workspace tokens across service restarts:
+
+```bash
+# Required environment variables
+DB_URL="jdbc:postgresql://localhost:5432/clockify_addons"
+DB_USER="postgres"
+DB_PASSWORD="your-secure-password"
+```
+
+**Setup Steps**:
+1. Create database: `createdb clockify_addons`
+2. Load schema: `psql clockify_addons < extras/sql/token_store.sql`
+3. Set environment variables above
+4. Restart addon - logs should confirm: `✓ TokenStore configured with database persistence`
+
+See: [Database Token Store Guide](../../docs/DATABASE_TOKEN_STORE.md) for setup, migration, and production tuning.
+
+### Webhook Signature Verification
+
+The SDK's `WebhookSignatureValidator` automatically verifies webhook requests using the installation token:
+- HMAC-SHA256 signature validation
+- Timestamp verification
+- Prevents replay attacks
+
 ## Prerequisites
 
 Install the following tools:

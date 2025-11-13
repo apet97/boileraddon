@@ -63,6 +63,31 @@ export CLOCKIFY_JWT_LEEWAY_SECONDS=60
 - **Addon-level** (current pattern): When addons have different trust domains, key management, or security policies
 - **SDK-level** (future consideration): When all addons share identical JWT verification requirements and key infrastructure
 
+### Persistent Token Storage with DatabaseTokenStore
+
+For production deployments, configure **DatabaseTokenStore** to persist workspace tokens across service restarts:
+
+```bash
+# Required environment variables
+export DB_URL="jdbc:postgresql://localhost:5432/clockify_addons"
+export DB_USER="postgres"
+export DB_PASSWORD="your-secure-password"
+```
+
+**Setup**:
+1. Create database: `createdb clockify_addons`
+2. Load schema: `psql clockify_addons < extras/sql/token_store.sql`
+3. Set environment variables above
+4. Restart Rules addon - logs should show: `✓ TokenStore configured with database persistence`
+
+**Migration from InMemoryTokenStore**:
+1. Set database environment variables
+2. Restart addon
+3. Reinstall addon in each workspace (triggers new `INSTALLED` lifecycle event)
+4. Tokens will be persisted in database going forward
+
+See: [Database Token Store Guide](../../docs/DATABASE_TOKEN_STORE.md) for complete setup, troubleshooting, and production tuning.
+
 ### Workspace Cache (ID ↔ Name)
 
 Rules preloads workspace entities after install so rules and UI can map names to IDs:

@@ -168,11 +168,31 @@ This boilerplate includes **comprehensive enterprise security hardening** and is
   - All CRUD endpoints tested with permission validation
 - ✅ **Documentation**: Complete production deployment and security guides
 
-### 🎯 Recent Updates (November 2025)
-- ✅ Fixed CSRF bypass timing issues in integration tests (static flag approach)
-- ✅ Module-scoped test documentation (avoid Surefire `-am` flag issues)
-- ✅ Comprehensive permission checker validation for all CRUD endpoints
-- ✅ Request ID propagation verified across error paths and security headers
+### 🎯 Recent Security Enhancements (November 2025)
+
+**JWT Verification for Lifecycle Handlers** 🔐
+- ✅ RS256 signature verification for all `INSTALLED` and `DELETED` events
+- ✅ Workspace context extraction in settings UI (JWT payload parsing)
+- ✅ Automatic key rotation support with `CLOCKIFY_JWT_PUBLIC_KEY_MAP`
+- ✅ Comprehensive JWT testing patterns with `SignatureTestUtil`
+
+**Persistent Token Storage with DatabaseTokenStore** 💾
+- ✅ Tokens survive service restarts, container crashes, and pod evictions
+- ✅ PostgreSQL/MySQL support with automatic schema management
+- ✅ HikariCP connection pooling for production-grade reliability
+- ✅ Graceful fallback to in-memory storage if database unavailable
+
+**CI/CD & Build Improvements** 🚀
+- ✅ Fixed Maven reactor dependency resolution (verify phase instead of test)
+- ✅ Integrated OWASP dependency check with NVD database caching
+- ✅ Optimized build performance (13+ minutes → 1-3 minutes on cached runs)
+- ✅ All 16 tests in auto-tag-assistant now pass with JWT verification
+
+**Comprehensive Documentation**
+- 📖 [JWT Verification Guide](docs/JWT_VERIFICATION_GUIDE.md) - Complete setup and troubleshooting
+- 📖 [Database Token Store Guide](docs/DATABASE_TOKEN_STORE.md) - Persistence and migration
+- 📖 [Security Guide](docs/SECURITY.md) - All 24 security features explained
+- 📖 [Testing Guide](docs/TESTING.md) - 5-layer testing architecture
 
 **See**: [Security Guide](docs/SECURITY.md) | [Testing Guide](docs/TESTING.md) | [Production Deployment Guide](docs/PRODUCTION-DEPLOYMENT.md) | [CHANGELOG](CHANGELOG.md)
 
