@@ -140,4 +140,9 @@ public class InMemoryRulesStore implements RulesStoreSPI {
     public void clear() {
         workspaceRules.clear();
     }
+
+    @Override
+    public List<String> listWorkspaces() {
+        return new ArrayList<>(workspaceRules.keySet());
+    }
 }

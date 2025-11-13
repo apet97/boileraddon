@@ -95,7 +95,7 @@ class CrudEndpointsSmokeIT {
         // Register all CRUD endpoints from RulesApp
         // For smoke testing, use an in-memory rules store
         RulesStoreSPI rulesStore = new InMemoryRulesStore();
-        RulesController rulesController = new RulesController(rulesStore);
+        RulesController rulesController = new RulesController(rulesStore, addon);
 
         // Mock ClockifyClient for CRUD operations
         ClockifyClient clockifyClient = new ClockifyClient("https://api.clockify.me/api", "test-token");

@@ -18,5 +18,9 @@ public interface RulesStoreSPI {
     boolean exists(String workspaceId, String ruleId);
     int count(String workspaceId);
     void clear();
+
+    default List<String> listWorkspaces() {
+        return List.of();
+    }
 }
 

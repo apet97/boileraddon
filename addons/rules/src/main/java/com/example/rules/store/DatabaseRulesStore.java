@@ -199,6 +199,27 @@ public class DatabaseRulesStore implements RulesStoreSPI {
         });
     }
 
+    @Override
+    public List<String> listWorkspaces() {
+        return DatabaseMetrics.recordOperation("listWorkspaces", null, "rule", () -> {
+            List<String> workspaces = new ArrayList<>();
+            try (Connection c = conn();
+                 PreparedStatement ps = c.prepareStatement("SELECT DISTINCT workspace_id FROM rules")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String workspaceId = rs.getString(1);
+                        if (workspaceId != null && !workspaceId.isBlank()) {
+                            workspaces.add(workspaceId);
+                        }
+                    }
+                }
+                return workspaces;
+            } catch (SQLException e) {
+                throw new RuntimeException("Failed to list workspaces", e);
+            }
+        });
+    }
+
     private Connection conn() throws SQLException {
         return (username == null || username.isBlank())
                 ? DriverManager.getConnection(url)

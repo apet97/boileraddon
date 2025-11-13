@@ -1,5 +1,7 @@
 package com.example.rules;
 
+import com.clockify.addon.sdk.ClockifyAddon;
+import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.HttpResponse;
 import com.example.rules.engine.Action;
 import com.example.rules.engine.Condition;
@@ -27,11 +29,21 @@ class RulesControllerTest {
     private RulesStore store;
     private ObjectMapper mapper;
     private HttpServletRequest request;
+    private ClockifyAddon addon;
 
     @BeforeEach
     void setUp() {
         store = new RulesStore();
-        controller = new RulesController(store);
+        ClockifyManifest manifest = ClockifyManifest
+                .v1_3Builder()
+                .key("rules-test")
+                .name("Rules Test")
+                .baseUrl("http://localhost/rules")
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{})
+                .build();
+        addon = new ClockifyAddon(manifest);
+        controller = new RulesController(store, addon);
         mapper = new ObjectMapper();
         request = Mockito.mock(HttpServletRequest.class);
     }
@@ -102,6 +114,37 @@ class RulesControllerTest {
 
         // Verify it was saved
         assertEquals(1, store.count("workspace-1"));
+    }
+
+    @Test
+    void testSaveRuleRegistersDynamicEvent() throws Exception {
+        String eventName = "RULES_CONTROLLER_TEST_EVENT";
+        String ruleJson = """
+            {
+                "name": "Trigger Rule",
+                "enabled": true,
+                "combinator": "AND",
+                "conditions": [
+                    {"type": "descriptionContains", "operator": "CONTAINS", "value": "alert"}
+                ],
+                "actions": [
+                    {"type": "add_tag", "args": {"tag": "ops"}}
+                ],
+                "trigger": {
+                    "event": "%s"
+                }
+            }
+            """.formatted(eventName);
+
+        setupRequestWithBody(ruleJson);
+        when(request.getParameter("workspaceId")).thenReturn("workspace-1");
+
+        HttpResponse response = controller.saveRule().handle(request);
+
+        assertEquals(200, response.getStatusCode());
+        assertTrue(addon.getWebhookPathsByEvent().containsKey(eventName));
+        assertTrue(addon.getManifest().getWebhooks().stream()
+                .anyMatch(endpoint -> eventName.equals(endpoint.getEvent())));
     }
 
     @Test

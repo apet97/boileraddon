@@ -65,16 +65,26 @@ public class DynamicWebhookHandlers {
         }
 
         logger.info("Registered {} common webhook events for dynamic handling", commonEvents.length);
+
+        int restored = registerExistingRuleEvents(addon);
+        if (restored > 0) {
+            logger.info("Registered {} persisted webhook events for dynamic handling", restored);
+        } else {
+            logger.debug("No persisted dynamic webhook events required registration");
+        }
     }
 
-    public static void registerEvent(ClockifyAddon addon, String eventName) {
+    public static boolean registerEvent(ClockifyAddon addon, String eventName) {
+        if (addon == null || eventName == null || eventName.isBlank()) {
+            return false;
+        }
         // Never override legacy time-entry events — leave them to WebhookHandlers
         if ("NEW_TIME_ENTRY".equals(eventName) || "TIME_ENTRY_UPDATED".equals(eventName)) {
             logger.info("Skipping dynamic registration for time-entry event {} (handled by legacy handler)", eventName);
-            return;
+            return false;
         }
-        if (registeredEvents.contains(eventName)) {
-            return; // Already registered
+        if (registeredEvents.contains(eventName) && addon.getWebhookPathsByEvent().containsKey(eventName)) {
+            return false; // Already registered for this addon
         }
 
         addon.registerWebhookHandler(eventName, request -> {
@@ -179,6 +189,65 @@ public class DynamicWebhookHandlers {
 
         registeredEvents.add(eventName);
         logger.debug("Registered dynamic webhook handler for event: {}", eventName);
+        return true;
+    }
+
+    public static boolean registerTriggerEvent(ClockifyAddon addon, Rule rule) {
+        if (addon == null || rule == null || !rule.isEnabled()) {
+            return false;
+        }
+        Map<String, Object> trigger = rule.getTrigger();
+        if (trigger == null || trigger.isEmpty()) {
+            return false;
+        }
+        Object eventValue = trigger.get("event");
+        if (!(eventValue instanceof String event)) {
+            return false;
+        }
+        String trimmed = event.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
+        return registerEvent(addon, trimmed);
+    }
+
+    private static int registerExistingRuleEvents(ClockifyAddon addon) {
+        if (addon == null || rulesStore == null) {
+            return 0;
+        }
+        List<String> workspaceIds;
+        try {
+            workspaceIds = rulesStore.listWorkspaces();
+        } catch (UnsupportedOperationException e) {
+            logger.debug("Rules store does not support listing workspaces: {}", e.getMessage());
+            return 0;
+        } catch (Exception e) {
+            logger.warn("Failed to enumerate workspaces for dynamic event registration", e);
+            return 0;
+        }
+
+        if (workspaceIds == null || workspaceIds.isEmpty()) {
+            return 0;
+        }
+
+        int registrations = 0;
+        for (String workspaceId : workspaceIds) {
+            if (workspaceId == null || workspaceId.isBlank()) {
+                continue;
+            }
+            try {
+                List<Rule> enabledRules = rulesStore.getEnabled(workspaceId);
+                for (Rule rule : enabledRules) {
+                    if (registerTriggerEvent(addon, rule)) {
+                        registrations++;
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to register dynamic webhook events for workspace {}", workspaceId, e);
+            }
+        }
+
+        return registrations;
     }
 
     /**
