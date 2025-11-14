@@ -3,6 +3,7 @@ package com.example.overtime;
 import com.clockify.addon.sdk.AddonServlet;
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.DefaultManifestController;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.ConfigValidator;
 import com.clockify.addon.sdk.EmbeddedServer;
