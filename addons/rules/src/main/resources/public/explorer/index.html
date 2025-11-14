@@ -38,9 +38,71 @@
       min-height: 100vh;
     }
     .app {
-      max-width: 1200px;
+      max-width: 1280px;
       margin: 0 auto;
       padding: 24px 20px 48px;
+    }
+    .layout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+    .sidebar {
+      width: 240px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      position: sticky;
+      top: 24px;
+      align-self: flex-start;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.08);
+    }
+    .sidebar h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+    .sidebar p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .nav-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .nav-list button {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      padding: 10px 14px;
+      border-radius: 12px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+    .nav-list button.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--text);
+      box-shadow: 0 3px 10px rgba(37,99,235,0.2);
+    }
+    .sidebar-note {
+      margin-top: 18px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .main {
+      flex: 1;
+      min-width: 0;
     }
     .hero {
       display: flex;
@@ -74,31 +136,6 @@
     }
     .status-card strong { display:block; font-size:14px; margin-bottom:4px; }
     .status-card p { margin:0; color:var(--muted); font-size:13px; }
-    .tabs {
-      display: inline-flex;
-      background: rgba(37,99,235,0.08);
-      border-radius: 999px;
-      padding: 4px;
-      gap: 4px;
-      margin-bottom: 20px;
-      overflow-x:auto;
-    }
-    .tabs button {
-      border: none;
-      background: transparent;
-      padding: 8px 16px;
-      border-radius: 999px;
-      font-size: 13px;
-      color: var(--muted);
-      cursor: pointer;
-      transition: background 0.2s ease, color 0.2s ease;
-    }
-    .tabs button.active {
-      background: var(--card);
-      color: var(--text);
-      font-weight: 600;
-      box-shadow: 0 2px 8px rgba(15,23,42,0.12);
-    }
     .panel { display: none; }
     .panel.active { display: block; }
     .card {
@@ -126,6 +163,56 @@
     .summary-card h2 { margin: 12px 0 4px; font-size: 28px; }
     .summary-card .label { text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
     .panel-controls { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+    .panel-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      align-items: flex-end;
+    }
+    .panel-toolbar .panel-controls {
+      flex: 1 1 60%;
+      margin: 0;
+    }
+    .panel-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .panel-actions label {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .preset-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px dashed rgba(37,99,235,0.3);
+      background: rgba(37,99,235,0.05);
+    }
+    .preset-bar label {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .preset-bar select {
+      min-width: 160px;
+    }
+    .preset-bar button {
+      font-size: 12px;
+      padding: 6px 12px;
+    }
     .panel-controls input,
     .panel-controls select {
       padding: 8px 12px;
@@ -187,63 +274,166 @@
     .muted { color: var(--muted); }
     .small { font-size: 12px; }
     .snapshot-card { margin-top: 20px; }
-    .snapshot-controls { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
-    .snapshot-controls label { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
+    .snapshot-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .snapshot-controls {
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap:16px;
+      margin-bottom:12px;
+    }
+    .snapshot-column label {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:13px;
+      color:var(--muted);
+    }
+    .snapshot-column.snapshot-limits label {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+    .snapshot-column.snapshot-limits input,
+    .snapshot-column.snapshot-limits select {
+      width: 100%;
+    }
     .snapshot-summary-table { width:100%; border-collapse: collapse; margin-top:12px; font-size:13px; }
     .snapshot-summary-table th,
     .snapshot-summary-table td { padding:8px; border:1px solid var(--border); text-align:left; }
     .snapshot-summary-table th { background: var(--accent-soft); color: var(--text); }
-    .link-button { display:inline-flex; align-items:center; padding:6px 12px; border-radius:999px; border:1px solid var(--border); font-size:12px; text-decoration:none; color:var(--accent); margin-top:6px; }
-    .link-button:hover { border-color: var(--accent); }
+    .snapshot-progress { margin-top: 12px; }
+    .progress-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .progress-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .progress-list li.done {
+      color: var(--success);
+      font-weight: 600;
+    }
+    .link-button {
+      display:inline-flex;
+      align-items:center;
+      padding:6px 12px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      font-size:12px;
+      text-decoration:none;
+      color:var(--accent);
+      margin-top:6px;
+      background: transparent;
+      cursor: pointer;
+      gap: 6px;
+    }
+    .link-button:hover { border-color: var(--accent); color: var(--accent); }
+    .link-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .list-actions {
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+    .state-card {
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(15,23,42,0.02);
+    }
+    .state-card.error {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 8px;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
     .section-note { margin:0 0 12px 0; color:var(--muted); font-size:13px; }
     .badge.critical { background: rgba(220,38,38,0.12); color: var(--danger); }
     .list-item .meta { display:flex; gap:8px; flex-wrap:wrap; }
+    @media (max-width: 1024px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; position: static; }
+      .nav-list { flex-direction: row; flex-wrap: wrap; }
+      .nav-list button { flex: 1 1 45%; text-align: center; }
+    }
     @media (max-width: 640px) {
       .status-card { flex-direction: column; align-items: flex-start; }
       .card { padding: 16px; }
       .snapshot-controls { flex-direction:column; align-items:flex-start; }
+      .panel-toolbar { flex-direction: column; align-items: stretch; }
+      .panel-actions { width: 100%; justify-content: space-between; }
     }
   </style>
 </head>
 <body class="{{BODY_CLASS}}">
   <div class="app">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Rules Workspace Explorer</p>
-        <h1>Understand your Clockify workspace instantly</h1>
-        <p>Everything you need to audit users, projects, tags, clients, and time in one secure view.</p>
-      </div>
-      <div class="hero-badges">
-        <span class="badge" data-runtime-pill="env">Env: —</span>
-        <span class="badge" data-runtime-pill="mode">Mode: —</span>
-        <span class="badge" data-runtime-pill="signature">Signature: —</span>
-      </div>
-    </header>
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>Workspace Explorer</h2>
+        <p>Navigate every dataset without leaving this secure iframe.</p>
+        <ul class="nav-list" role="tablist">
+          <li><button type="button" class="active" data-panel-trigger="overview">Overview</button></li>
+          <li><button type="button" data-panel-trigger="time-entries">Time Entries</button></li>
+          <li><button type="button" data-panel-trigger="users">Users</button></li>
+          <li><button type="button" data-panel-trigger="projects">Projects</button></li>
+          <li><button type="button" data-panel-trigger="clients">Clients</button></li>
+          <li><button type="button" data-panel-trigger="tags">Tags</button></li>
+          <li><button type="button" data-panel-trigger="time-off">Time Off</button></li>
+          <li><button type="button" data-panel-trigger="webhooks">Webhooks</button></li>
+          <li><button type="button" data-panel-trigger="custom-fields">Custom Fields</button></li>
+          <li><button type="button" data-panel-trigger="invoices">Invoices</button></li>
+        </ul>
+        <p class="sidebar-note">Saved filters &amp; presets stay in this browser only. Switch panels anytime—data fetches are scoped to the selected dataset.</p>
+      </aside>
+      <div class="main">
+        <header class="hero">
+          <div>
+            <p class="eyebrow">Rules Workspace Explorer</p>
+            <h1>Understand your Clockify workspace instantly</h1>
+            <p>Everything you need to audit users, projects, tags, clients, and time in one secure view.</p>
+          </div>
+          <div class="hero-badges">
+            <span class="badge" data-runtime-pill="env">Env: —</span>
+            <span class="badge" data-runtime-pill="mode">Mode: —</span>
+            <span class="badge" data-runtime-pill="signature">Signature: —</span>
+          </div>
+        </header>
 
-    <div class="status-card">
-      <div>
-        <strong>Base URL</strong>
-        <p data-runtime-pill="base">—</p>
-      </div>
-      <div>
-        <strong>Workspace</strong>
-        <p data-runtime-pill="workspace">Waiting for auth…</p>
-      </div>
-      <button type="button" class="ghost" id="btn-open-ifttt">Open IFTTT Builder</button>
-    </div>
-
-    <nav class="tabs" role="tablist">
-      <button class="active" data-panel-trigger="overview">Overview</button>
-      <button data-panel-trigger="users">Users</button>
-      <button data-panel-trigger="projects">Projects</button>
-      <button data-panel-trigger="clients">Clients</button>
-      <button data-panel-trigger="tags">Tags</button>
-      <button data-panel-trigger="time-entries">Time Entries</button>
-      <button data-panel-trigger="time-off">Time Off</button>
-      <button data-panel-trigger="webhooks">Webhooks</button>
-      <button data-panel-trigger="custom-fields">Custom Fields</button>
-      <button data-panel-trigger="invoices">Invoices</button>
-    </nav>
+        <div class="status-card">
+          <div>
+            <strong>Base URL</strong>
+            <p data-runtime-pill="base">—</p>
+          </div>
+          <div>
+            <strong>Workspace</strong>
+            <p data-runtime-pill="workspace">Waiting for auth…</p>
+          </div>
+          <button type="button" class="ghost" id="btn-open-ifttt">Open IFTTT Builder</button>
+        </div>
 
     <section class="panel active" id="panel-overview" data-panel="overview">
       <div class="summary-grid">
@@ -277,19 +467,51 @@
       </div>
       <div class="card snapshot-card">
         <div class="card-header">
-          <h3>Fetch Workspace Snapshot</h3>
-          <button type="button" class="ghost" id="btn-run-snapshot">Fetch snapshot</button>
+          <h3>Workspace Snapshot</h3>
+          <div class="snapshot-actions">
+            <button type="button" class="ghost" id="btn-run-snapshot">Run snapshot</button>
+            <button type="button" class="ghost" id="btn-download-snapshot" disabled>Download JSON</button>
+          </div>
         </div>
-        <p class="section-note">Generates a one-time JSON snapshot of key datasets. Use sparingly in production.</p>
+        <p class="section-note">Generates a one-time JSON snapshot of selected datasets. Use sparingly on large workspaces to avoid rate limits.</p>
         <div class="snapshot-controls">
-          <label><input type="checkbox" data-snapshot-toggle="includeTimeOff" /> Time Off</label>
-          <label><input type="checkbox" data-snapshot-toggle="includeWebhooks" /> Webhooks</label>
-          <label><input type="checkbox" data-snapshot-toggle="includeCustomFields" /> Custom fields</label>
-          <label><input type="checkbox" data-snapshot-toggle="includeInvoices" /> Invoices</label>
+          <div class="snapshot-column">
+            <p class="muted small">Core datasets</p>
+            <label><input type="checkbox" data-snapshot-toggle="includeUsers" /> Users</label>
+            <label><input type="checkbox" data-snapshot-toggle="includeProjects" /> Projects</label>
+            <label><input type="checkbox" data-snapshot-toggle="includeClients" /> Clients</label>
+            <label><input type="checkbox" data-snapshot-toggle="includeTags" /> Tags</label>
+            <label><input type="checkbox" data-snapshot-toggle="includeTimeEntries" /> Time entries</label>
+          </div>
+          <div class="snapshot-column">
+            <p class="muted small">Extended datasets</p>
+            <label><input type="checkbox" data-snapshot-toggle="includeTimeOff" /> Time off</label>
+            <label><input type="checkbox" data-snapshot-toggle="includeWebhooks" /> Webhooks</label>
+            <label><input type="checkbox" data-snapshot-toggle="includeCustomFields" /> Custom fields</label>
+            <label><input type="checkbox" data-snapshot-toggle="includeInvoices" /> Invoices</label>
+          </div>
+          <div class="snapshot-column snapshot-limits">
+            <p class="muted small">Limits &amp; lookback</p>
+            <label>Page size (5–100)
+              <input type="number" min="5" max="100" step="5" data-snapshot-input="pageSizePerDataset" />
+            </label>
+            <label>Max pages (1–20)
+              <input type="number" min="1" max="20" step="1" data-snapshot-input="maxPagesPerDataset" />
+            </label>
+            <label>Time entry lookback
+              <select data-snapshot-input="timeEntryLookbackDays">
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </label>
+          </div>
         </div>
-        <div id="snapshot-status" class="muted small">No snapshot generated yet.</div>
+        <div id="snapshot-status" class="muted small" aria-live="polite">No snapshot generated yet.</div>
+        <div id="snapshot-progress" class="snapshot-progress">
+          <div class="state-card">Select datasets and run a snapshot to see progress.</div>
+        </div>
         <div id="snapshot-summary"></div>
-        <button type="button" class="ghost" id="btn-download-snapshot" style="display:none;">Download JSON</button>
       </div>
     </section>
 
@@ -299,14 +521,36 @@
           <h3>Workspace Users</h3>
           <button type="button" class="ghost" data-refresh="users">Refresh</button>
         </div>
-        <div class="panel-controls">
-          <input type="search" name="search" placeholder="Search name or email" data-filter="users" />
-          <select name="status" data-filter="users">
-            <option value="">Status: All</option>
-            <option value="ACTIVE">Active</option>
-            <option value="PENDING">Pending</option>
-            <option value="INACTIVE">Inactive</option>
-          </select>
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <input type="search" name="search" placeholder="Search name or email" data-filter="users" />
+            <select name="status" data-filter="users">
+              <option value="">Status: All</option>
+              <option value="ACTIVE">Active</option>
+              <option value="PENDING">Pending</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="users">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="users">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="users">
+          <label>Presets
+            <select data-preset-select="users">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="users">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="users">Delete preset</button>
         </div>
         <div id="users-list" class="list"></div>
       </div>
@@ -318,19 +562,41 @@
           <h3>Projects</h3>
           <button type="button" class="ghost" data-refresh="projects">Refresh</button>
         </div>
-        <div class="panel-controls">
-          <input type="search" name="search" placeholder="Search by name" data-filter="projects" />
-          <select name="archived" data-filter="projects">
-            <option value="">Archive: All</option>
-            <option value="false">Active</option>
-            <option value="true">Archived</option>
-          </select>
-          <select name="billable" data-filter="projects">
-            <option value="">Billable: All</option>
-            <option value="true">Billable</option>
-            <option value="false">Non-billable</option>
-          </select>
-          <input type="search" name="clientId" placeholder="Client ID" data-filter="projects" />
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <input type="search" name="search" placeholder="Search by name" data-filter="projects" />
+            <select name="archived" data-filter="projects">
+              <option value="">Archive: All</option>
+              <option value="false">Active</option>
+              <option value="true">Archived</option>
+            </select>
+            <select name="billable" data-filter="projects">
+              <option value="">Billable: All</option>
+              <option value="true">Billable</option>
+              <option value="false">Non-billable</option>
+            </select>
+            <input type="search" name="clientId" placeholder="Client ID" data-filter="projects" />
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="projects">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="projects">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="projects">
+          <label>Presets
+            <select data-preset-select="projects">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="projects">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="projects">Delete preset</button>
         </div>
         <div id="projects-list" class="list"></div>
       </div>
@@ -342,13 +608,35 @@
           <h3>Clients</h3>
           <button type="button" class="ghost" data-refresh="clients">Refresh</button>
         </div>
-        <div class="panel-controls">
-          <input type="search" name="search" placeholder="Search by name" data-filter="clients" />
-          <select name="archived" data-filter="clients">
-            <option value="">Archive: All</option>
-            <option value="false">Active</option>
-            <option value="true">Archived</option>
-          </select>
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <input type="search" name="search" placeholder="Search by name" data-filter="clients" />
+            <select name="archived" data-filter="clients">
+              <option value="">Archive: All</option>
+              <option value="false">Active</option>
+              <option value="true">Archived</option>
+            </select>
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="clients">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="clients">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="clients">
+          <label>Presets
+            <select data-preset-select="clients">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="clients">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="clients">Delete preset</button>
         </div>
         <div id="clients-list" class="list"></div>
       </div>
@@ -360,13 +648,35 @@
           <h3>Tags</h3>
           <button type="button" class="ghost" data-refresh="tags">Refresh</button>
         </div>
-        <div class="panel-controls">
-          <input type="search" name="search" placeholder="Search by name" data-filter="tags" />
-          <select name="archived" data-filter="tags">
-            <option value="">Archive: All</option>
-            <option value="false">Active</option>
-            <option value="true">Archived</option>
-          </select>
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <input type="search" name="search" placeholder="Search by name" data-filter="tags" />
+            <select name="archived" data-filter="tags">
+              <option value="">Archive: All</option>
+              <option value="false">Active</option>
+              <option value="true">Archived</option>
+            </select>
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="tags">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="tags">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="tags">
+          <label>Presets
+            <select data-preset-select="tags">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="tags">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="tags">Delete preset</button>
         </div>
         <div id="tags-list" class="list"></div>
       </div>
@@ -378,15 +688,38 @@
           <h3>Time Entries</h3>
           <button type="button" class="ghost" data-refresh="time-entries">Refresh</button>
         </div>
-        <div class="panel-controls">
-          <select name="range" data-filter="time-entries">
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="1">Today</option>
-          </select>
-          <input type="search" name="userId" placeholder="User ID" data-filter="time-entries" />
-          <input type="search" name="projectId" placeholder="Project ID" data-filter="time-entries" />
-          <input type="search" name="tagIds" placeholder="Tag IDs comma separated" data-filter="time-entries" />
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <select name="range" data-filter="time-entries">
+              <option value="1">Today</option>
+              <option value="7" selected>Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+            <input type="search" name="userId" placeholder="User ID" data-filter="time-entries" />
+            <input type="search" name="projectId" placeholder="Project ID" data-filter="time-entries" />
+            <input type="search" name="tagIds" placeholder="Tag IDs comma separated" data-filter="time-entries" />
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="time-entries">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="time-entries">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="time-entries">
+          <label>Presets
+            <select data-preset-select="time-entries">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="time-entries">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="time-entries">Delete preset</button>
         </div>
         <div id="time-entries-list" class="list"></div>
       </div>
@@ -399,21 +732,42 @@
           <button type="button" class="ghost" data-refresh="time-off">Refresh</button>
         </div>
         <p class="section-note">Switch between requests, policies, or balances to inspect PTO usage.</p>
-        <div class="panel-controls">
-          <select name="view" data-filter="time-off">
-            <option value="requests">Requests</option>
-            <option value="policies">Policies</option>
-            <option value="balances">Balances</option>
-          </select>
-          <select name="status" data-filter="time-off">
-            <option value="">Status: All</option>
-            <option value="PENDING">Pending</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-          </select>
-          <input type="search" name="userId" placeholder="User ID" data-filter="time-off" />
-          <input type="search" name="groupId" placeholder="Group ID" data-filter="time-off" />
-          <input type="search" name="policyId" placeholder="Policy ID" data-filter="time-off" />
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <select name="view" data-filter="time-off">
+              <option value="requests">Requests</option>
+              <option value="policies">Policies</option>
+              <option value="balances">Balances</option>
+            </select>
+            <select name="status" data-filter="time-off">
+              <option value="">Status: All</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+            <input type="search" name="userId" placeholder="User ID" data-filter="time-off" />
+            <input type="search" name="groupId" placeholder="Group ID" data-filter="time-off" />
+            <input type="search" name="policyId" placeholder="Policy ID" data-filter="time-off" />
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="time-off">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="time-off">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="time-off">
+          <label>Presets
+            <select data-preset-select="time-off">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="time-off">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="time-off">Delete preset</button>
         </div>
         <div id="time-off-list" class="list"></div>
       </div>
@@ -425,20 +779,41 @@
           <h3>Webhooks</h3>
           <button type="button" class="ghost" data-refresh="webhooks">Refresh</button>
         </div>
-        <div class="panel-controls">
-          <select name="type" data-filter="webhooks">
-            <option value="">Type: All</option>
-            <option value="USER_CREATED">User events</option>
-            <option value="SYSTEM">System</option>
-            <option value="ADDON">Add-on</option>
-          </select>
-          <input type="search" name="event" placeholder="Event name" data-filter="webhooks" />
-          <select name="enabled" data-filter="webhooks">
-            <option value="">Status: All</option>
-            <option value="true">Enabled</option>
-            <option value="false">Disabled</option>
-          </select>
-          <input type="search" name="search" placeholder="Search target URL" data-filter="webhooks" />
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <select name="type" data-filter="webhooks">
+              <option value="">Type: All</option>
+              <option value="USER_CREATED">User events</option>
+              <option value="SYSTEM">System</option>
+              <option value="ADDON">Add-on</option>
+            </select>
+            <input type="search" name="event" placeholder="Event name" data-filter="webhooks" />
+            <select name="enabled" data-filter="webhooks">
+              <option value="">Status: All</option>
+              <option value="true">Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+            <input type="search" name="search" placeholder="Search target URL" data-filter="webhooks" />
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="webhooks">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="webhooks">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="webhooks">
+          <label>Presets
+            <select data-preset-select="webhooks">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="webhooks">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="webhooks">Delete preset</button>
         </div>
         <div id="webhooks-list" class="list"></div>
       </div>
@@ -450,20 +825,41 @@
           <h3>Custom Fields</h3>
           <button type="button" class="ghost" data-refresh="custom-fields">Refresh</button>
         </div>
-        <div class="panel-controls">
-          <input type="search" name="search" placeholder="Search by name" data-filter="custom-fields" />
-          <select name="status" data-filter="custom-fields">
-            <option value="">Visibility: All</option>
-            <option value="VISIBLE">Visible</option>
-            <option value="INVISIBLE">Hidden</option>
-            <option value="INACTIVE">Inactive</option>
-          </select>
-          <select name="entityType" data-filter="custom-fields">
-            <option value="">Entity: All</option>
-            <option value="TIMEENTRY">Time entry</option>
-            <option value="USER">User</option>
-            <option value="PROJECT">Project</option>
-          </select>
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <input type="search" name="search" placeholder="Search by name" data-filter="custom-fields" />
+            <select name="status" data-filter="custom-fields">
+              <option value="">Visibility: All</option>
+              <option value="VISIBLE">Visible</option>
+              <option value="INVISIBLE">Hidden</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+            <select name="entityType" data-filter="custom-fields">
+              <option value="">Entity: All</option>
+              <option value="TIMEENTRY">Time entry</option>
+              <option value="USER">User</option>
+              <option value="PROJECT">Project</option>
+            </select>
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="custom-fields">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="custom-fields">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="custom-fields">
+          <label>Presets
+            <select data-preset-select="custom-fields">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="custom-fields">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="custom-fields">Delete preset</button>
         </div>
         <div id="custom-fields-list" class="list"></div>
       </div>
@@ -475,33 +871,56 @@
           <h3>Invoices</h3>
           <button type="button" class="ghost" data-refresh="invoices">Refresh</button>
         </div>
-        <div class="panel-controls">
-          <select name="status" data-filter="invoices" multiple size="4">
-            <option value="UNSENT">Unsent</option>
-            <option value="SENT">Sent</option>
-            <option value="PAID">Paid</option>
-            <option value="PARTIALLY_PAID">Partially paid</option>
-            <option value="OVERDUE">Overdue</option>
-            <option value="VOID">Void</option>
-          </select>
-          <select name="sort" data-filter="invoices">
-            <option value="">Sort: Default</option>
-            <option value="CLIENT">Client</option>
-            <option value="DUE_ON">Due date</option>
-            <option value="ISSUE_DATE">Issue date</option>
-            <option value="AMOUNT">Amount</option>
-            <option value="BALANCE">Balance</option>
-          </select>
-          <select name="sortOrder" data-filter="invoices">
-            <option value="">Order: Asc</option>
-            <option value="ASCENDING">Ascending</option>
-            <option value="DESCENDING">Descending</option>
-          </select>
-          <input type="search" name="clientId" placeholder="Client ID" data-filter="invoices" />
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <select name="status" data-filter="invoices" multiple size="4">
+              <option value="UNSENT">Unsent</option>
+              <option value="SENT">Sent</option>
+              <option value="PAID">Paid</option>
+              <option value="PARTIALLY_PAID">Partially paid</option>
+              <option value="OVERDUE">Overdue</option>
+              <option value="VOID">Void</option>
+            </select>
+            <select name="sort" data-filter="invoices">
+              <option value="">Sort: Default</option>
+              <option value="CLIENT">Client</option>
+              <option value="DUE_ON">Due date</option>
+              <option value="ISSUE_DATE">Issue date</option>
+              <option value="AMOUNT">Amount</option>
+              <option value="BALANCE">Balance</option>
+            </select>
+            <select name="sortOrder" data-filter="invoices">
+              <option value="">Order: Asc</option>
+              <option value="ASCENDING">Ascending</option>
+              <option value="DESCENDING">Descending</option>
+            </select>
+            <input type="search" name="clientId" placeholder="Client ID" data-filter="invoices" />
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="invoices">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="invoices">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="invoices">
+          <label>Presets
+            <select data-preset-select="invoices">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="invoices">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="invoices">Delete preset</button>
         </div>
         <div id="invoices-list" class="list"></div>
       </div>
     </section>
+      </div>
+    </div>
   </div>
 
   <script nonce="{{NONCE}}">window.__RULES_BOOTSTRAP__ = {{BOOTSTRAP_JSON}}; window.__RULES_RUNTIME__ = {{RUNTIME_JSON}};</script>
@@ -514,26 +933,53 @@
       const workspaceId = runtime.workspaceId || bootstrap.workspaceId || '';
       const STORAGE_KEY = 'rulesExplorer.filters';
       const SNAPSHOT_KEY = 'rulesExplorer.snapshotOptions';
+      const PRESETS_KEY = 'rulesExplorer.presets';
       const defaultFilters = {
-        users: { search: '', status: '' },
-        projects: { search: '', archived: '', billable: '', clientId: '' },
-        clients: { search: '', archived: '' },
-        tags: { search: '', archived: '' },
-        'time-entries': { range: '7', userId: '', projectId: '', tagIds: '' },
-        'time-off': { view: 'requests', status: '', userId: '', groupId: '', policyId: '' },
-        webhooks: { type: '', event: '', enabled: '', search: '' },
-        'custom-fields': { search: '', status: '', entityType: '' },
-        invoices: { status: '', sort: '', sortOrder: '', clientId: '' }
+        users: { search: '', status: '', pageSize: '25' },
+        projects: { search: '', archived: '', billable: '', clientId: '', pageSize: '25' },
+        clients: { search: '', archived: '', pageSize: '25' },
+        tags: { search: '', archived: '', pageSize: '25' },
+        'time-entries': { range: '7', userId: '', projectId: '', tagIds: '', pageSize: '25' },
+        'time-off': { view: 'requests', status: '', userId: '', groupId: '', policyId: '', pageSize: '25' },
+        webhooks: { type: '', event: '', enabled: '', search: '', pageSize: '25' },
+        'custom-fields': { search: '', status: '', entityType: '', pageSize: '25' },
+        invoices: { status: '', sort: '', sortOrder: '', clientId: '', pageSize: '25' }
       };
-      const defaultSnapshotOptions = { includeTimeOff: false, includeWebhooks: false, includeCustomFields: false, includeInvoices: false };
+      const defaultSnapshotOptions = {
+        includeUsers: true,
+        includeProjects: true,
+        includeClients: true,
+        includeTags: true,
+        includeTimeEntries: true,
+        includeTimeOff: false,
+        includeWebhooks: false,
+        includeCustomFields: false,
+        includeInvoices: false,
+        pageSizePerDataset: 25,
+        maxPagesPerDataset: 3,
+        timeEntryLookbackDays: 30
+      };
+      const SNAPSHOT_DATASETS = [
+        { option: 'includeUsers', label: 'Users' },
+        { option: 'includeProjects', label: 'Projects' },
+        { option: 'includeClients', label: 'Clients' },
+        { option: 'includeTags', label: 'Tags' },
+        { option: 'includeTimeEntries', label: 'Time entries' },
+        { option: 'includeTimeOff', label: 'Time off' },
+        { option: 'includeWebhooks', label: 'Webhooks' },
+        { option: 'includeCustomFields', label: 'Custom fields' },
+        { option: 'includeInvoices', label: 'Invoices' }
+      ];
 
       const state = {
         loaded: {},
         filters: clone(defaultFilters),
+        presets: loadPresets(),
         snapshot: {
           options: loadSnapshotOptions(),
           busy: false,
-          data: null
+          data: null,
+          progress: []
         }
       };
 
@@ -544,6 +990,7 @@
       loadSavedFilters();
       applyFiltersToInputs();
       applySnapshotOptionsToControls();
+      Object.keys(defaultFilters).forEach(populatePresetDropdown);
 
       const runtimeMap = {
         env: runtime.env || 'unknown',
@@ -618,6 +1065,46 @@
         input.addEventListener('change', handler);
       });
 
+      document.querySelectorAll('[data-reset]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const section = btn.getAttribute('data-reset');
+          resetFilters(section);
+        });
+      });
+
+      document.querySelectorAll('[data-preset-select]').forEach(select => {
+        const section = select.getAttribute('data-preset-select');
+        select.addEventListener('change', () => {
+          const presetName = select.value;
+          syncPresetControls(section, presetName);
+          if (presetName) {
+            applyPreset(section, presetName);
+          }
+        });
+      });
+
+      document.querySelectorAll('[data-preset-save]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const section = btn.getAttribute('data-preset-save');
+          promptPresetSave(section);
+        });
+      });
+
+      document.querySelectorAll('[data-preset-delete]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const section = btn.getAttribute('data-preset-delete');
+          deletePreset(section);
+        });
+      });
+
+      document.addEventListener('click', event => {
+        const button = event.target.closest('[data-copy-seed]');
+        if (!button) return;
+        const payload = button.getAttribute('data-copy-seed');
+        if (!payload) return;
+        copySeed(button, payload);
+      });
+
       bindSnapshotControls();
 
       const secureHeaders = (headers = {}) => {
@@ -668,7 +1155,7 @@
       function loadCollection(panelId, path, renderer) {
         const list = document.getElementById(`${panelId}-list`);
         if (list) {
-          list.innerHTML = `<div class="loading">Loading ${panelId.replace('-', ' ')}…</div>`;
+          list.innerHTML = stateCard(`Loading ${panelId.replace('-', ' ')}…`, 'loading');
         }
         const filters = state.filters[panelId] || {};
         const params = { ...filters };
@@ -687,9 +1174,7 @@
         return request(path, params)
           .then(data => renderer(data))
           .catch(err => {
-            if (list) {
-              list.innerHTML = `<div class="error-banner">${escapeHtml(err.message || 'Request failed')}</div>`;
-            }
+            renderErrorState(list, err.message || 'Request failed', panelId);
           });
       }
 
@@ -745,10 +1230,12 @@
         renderList('projects-list', data, project => {
           const archived = project.archived ? '<span class="pill warning">Archived</span>' : '';
           const client = project.clientName ? `Client: ${escapeHtml(project.clientName)}` : 'No client';
+          const actions = buildActionRow([buildProjectRuleLink(project)]);
           return `<div class="list-item">
             <div>
               <h4>${escapeHtml(project.name || 'Untitled project')}</h4>
               <p>${client}</p>
+              ${actions}
             </div>
             <div>
               <span class="pill ${project.billable ? 'success' : ''}">${project.billable ? 'Billable' : 'Non-billable'}</span>
@@ -774,10 +1261,12 @@
 
       function renderTags(data) {
         renderList('tags-list', data, tag => {
+          const actions = buildActionRow([buildTagRuleLink(tag)]);
           return `<div class="list-item">
             <div>
               <h4>${escapeHtml(tag.name || 'Unnamed tag')}</h4>
               <p>ID: ${escapeHtml(tag.id || 'n/a')}</p>
+              ${actions}
             </div>
             <div>
               <span class="pill" style="background:${escapeHtml(tag.color || '#eef2ff')}; color:#0f172a;">${tag.archived ? 'Archived' : 'Active'}</span>
@@ -792,12 +1281,17 @@
           const project = escapeHtml(entry?.project?.name || 'No project');
           const user = escapeHtml(entry?.user?.name || 'Unknown user');
           const duration = formatDuration(entry?.timeInterval?.duration || 0);
-          const ruleLink = buildRuleLink(entry);
+          const when = formatDate(entry?.timeInterval?.start);
+          const tags = getEntryTags(entry);
+          const tagsMarkup = tags.length ? `<div class="meta">${tags.map(tag => `<span class="pill">${escapeHtml(tag)}</span>`).join('')}</div>` : '';
+          const actionsMarkup = buildActionRow([buildRuleLink(entry), buildCopySeedButton(entry)]);
           return `<div class="list-item">
             <div>
               <h4>${desc}</h4>
               <p>${project}</p>
-              ${ruleLink ? `<div class="meta">${ruleLink}</div>` : ''}
+              <p class="muted small">${when}</p>
+              ${tagsMarkup}
+              ${actionsMarkup}
             </div>
             <div>
               <span class="pill">${duration}</span>
@@ -904,7 +1398,7 @@
         if (!target) return;
         const items = (data && data.items) || [];
         if (!items.length) {
-          target.innerHTML = `<div class="empty">${emptyText}</div>`;
+          target.innerHTML = stateCard(emptyText, 'empty');
           return;
         }
         target.innerHTML = items.map(renderer).join('');
@@ -913,11 +1407,37 @@
       function setTimelineState(message, isError) {
         const target = document.getElementById('recent-time-entries');
         if (!target) return;
-        target.innerHTML = `<div class="${isError ? 'error-banner' : 'empty'}">${escapeHtml(message)}</div>`;
+        target.innerHTML = stateCard(message, isError ? 'error' : 'empty');
+      }
+
+      function renderErrorState(target, message, panelId) {
+        if (!target) return;
+        const retry = panelId ? `<button type="button" class="link-button" data-error-retry="${panelId}">Retry</button>` : '';
+        target.innerHTML = `<div class="state-card error"><p>${escapeHtml(message)}</p>${retry}</div>`;
+        if (panelId) {
+          const btn = target.querySelector('[data-error-retry]');
+          if (btn) {
+            btn.addEventListener('click', () => loadPanel(panelId));
+          }
+        }
+      }
+
+      function stateCard(message, variant) {
+        const isError = variant === 'error';
+        const isLoading = variant === 'loading';
+        const spinner = isLoading ? '<div class="spinner" aria-hidden="true"></div>' : '';
+        return `<div class="state-card ${isError ? 'error' : ''}">${spinner}<p>${escapeHtml(message)}</p></div>`;
+      }
+
+      function buildActionRow(links) {
+        const items = (links || []).filter(Boolean);
+        if (!items.length) {
+          return '';
+        }
+        return `<div class="list-actions">${items.join('')}</div>`;
       }
 
       function buildRuleLink(entry) {
-        if (!baseUrl) return '';
         const params = new URLSearchParams();
         if (entry.description) {
           params.set('prefillDescription', entry.description);
@@ -928,6 +1448,10 @@
         if (entry?.user?.id) {
           params.set('prefillUserId', entry.user.id);
         }
+        const tagIds = getEntryTagIds(entry);
+        if (tagIds.length) {
+          params.set('prefillTagIds', tagIds.join(','));
+        }
         if (!params.toString()) {
           return '';
         }
@@ -935,39 +1459,164 @@
           ? `Explorer rule: ${entry.description.slice(0, 32)}`
           : 'Explorer derived rule';
         params.set('ruleName', ruleLabel);
-        const url = `${baseUrl.replace(/\/$/, '')}/simple?${params.toString()}`;
-        return `<a class="link-button" href="${escapeHtml(url)}" target="_blank" rel="noopener">Create rule like this</a>`;
+        return makeRuleLink(params, 'Create rule like this');
+      }
+
+      function buildProjectRuleLink(project) {
+        if (!project?.id) return '';
+        const params = new URLSearchParams();
+        params.set('prefillProjectId', project.id);
+        params.set('ruleName', `Project: ${(project.name || project.id).slice(0, 48)}`);
+        return makeRuleLink(params, 'Rule for this project');
+      }
+
+      function buildTagRuleLink(tag) {
+        if (!tag?.id) return '';
+        const params = new URLSearchParams();
+        params.set('prefillTagIds', tag.id);
+        params.set('ruleName', `Tag: ${(tag.name || tag.id).slice(0, 48)}`);
+        return makeRuleLink(params, 'Rule for this tag');
+      }
+
+      function makeRuleLink(params, label) {
+        if (!baseUrl || !params.toString()) {
+          return '';
+        }
+        const url = `${baseUrl}/simple?${params.toString()}`;
+        return `<a class="link-button" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label || 'Open builder')}</a>`;
+      }
+
+      function getEntryTagIds(entry) {
+        const ids = new Set();
+        if (Array.isArray(entry?.tagIds)) {
+          entry.tagIds.forEach(id => {
+            if (id) ids.add(id);
+          });
+        }
+        if (Array.isArray(entry?.tags)) {
+          entry.tags.forEach(tag => {
+            if (tag && tag.id) {
+              ids.add(tag.id);
+            }
+          });
+        }
+        return Array.from(ids);
+      }
+
+      function getEntryTags(entry) {
+        if (Array.isArray(entry?.tags) && entry.tags.length) {
+          return entry.tags.map(tag => tag?.name || tag?.id).filter(Boolean);
+        }
+        return getEntryTagIds(entry);
+      }
+
+      function buildCopySeedButton(entry) {
+        const payload = {
+          ruleName: entry.description ? `Explorer rule: ${entry.description.slice(0, 48)}` : 'Explorer derived rule',
+          description: entry.description || '',
+          projectId: entry?.project?.id || '',
+          userId: entry?.user?.id || '',
+          tagIds: getEntryTagIds(entry)
+        };
+        const encoded = encodeURIComponent(JSON.stringify(payload, null, 2));
+        return `<button type="button" class="link-button" data-copy-seed="${encoded}">Copy rule seed</button>`;
       }
       function runSnapshot() {
         if (state.snapshot.busy) return;
+        const sanitized = sanitizeSnapshotOptions(state.snapshot.options);
+        state.snapshot.options = sanitized;
+        saveSnapshotOptions();
+        applySnapshotOptionsToControls();
+        const selected = SNAPSHOT_DATASETS.filter(ds => sanitized[ds.option]);
+        if (!selected.length) {
+          updateSnapshotStatus('Select at least one dataset before running a snapshot.', true);
+          markSnapshotProgressError('Select at least one dataset to snapshot.', false);
+          return;
+        }
+        state.snapshot.data = null;
+        const downloadBtn = document.getElementById('btn-download-snapshot');
+        if (downloadBtn) {
+          downloadBtn.disabled = true;
+        }
         state.snapshot.busy = true;
+        disableSnapshotForm(true);
         updateSnapshotStatus('Fetching snapshot…');
-        const opts = state.snapshot.options;
+        renderSnapshotProgress(sanitized);
         const params = {
-          includeUsers: true,
-          includeProjects: true,
-          includeClients: true,
-          includeTags: true,
-          includeTimeEntries: true,
-          includeTimeOff: opts.includeTimeOff,
-          includeWebhooks: opts.includeWebhooks,
-          includeCustomFields: opts.includeCustomFields,
-          includeInvoices: opts.includeInvoices,
-          pageSizePerDataset: 25,
-          maxPagesPerDataset: 3
+          includeUsers: sanitized.includeUsers,
+          includeProjects: sanitized.includeProjects,
+          includeClients: sanitized.includeClients,
+          includeTags: sanitized.includeTags,
+          includeTimeEntries: sanitized.includeTimeEntries,
+          includeTimeOff: sanitized.includeTimeOff,
+          includeWebhooks: sanitized.includeWebhooks,
+          includeCustomFields: sanitized.includeCustomFields,
+          includeInvoices: sanitized.includeInvoices,
+          pageSizePerDataset: sanitized.pageSizePerDataset,
+          maxPagesPerDataset: sanitized.maxPagesPerDataset,
+          timeEntryLookbackDays: sanitized.timeEntryLookbackDays
         };
         request('/snapshot', params)
           .then(data => {
             state.snapshot.data = data;
             renderSnapshotSummary(data);
-            updateSnapshotStatus('Snapshot ready.');
+            markSnapshotProgressComplete();
+            updateSnapshotStatus('Snapshot ready. Download below.');
           })
           .catch(err => {
             updateSnapshotStatus(err.message || 'Snapshot failed', true);
+            markSnapshotProgressError(err.message);
           })
           .finally(() => {
             state.snapshot.busy = false;
+            disableSnapshotForm(false);
           });
+      }
+
+      function disableSnapshotForm(disabled) {
+        document.querySelectorAll('[data-snapshot-toggle], [data-snapshot-input]').forEach(el => {
+          el.disabled = disabled;
+        });
+        const runBtn = document.getElementById('btn-run-snapshot');
+        if (runBtn) {
+          runBtn.disabled = disabled;
+        }
+      }
+
+      function renderSnapshotProgress(options) {
+        const container = document.getElementById('snapshot-progress');
+        if (!container) return;
+        const selected = SNAPSHOT_DATASETS.filter(ds => options[ds.option]);
+        if (!selected.length) {
+          container.innerHTML = stateCard('Select at least one dataset to snapshot.', 'empty');
+          return;
+        }
+        container.innerHTML = `<ul class="progress-list">
+          ${selected.map(ds => `<li data-progress="${ds.option}">
+            <div class="spinner" aria-hidden="true"></div>${escapeHtml(ds.label)}
+          </li>`).join('')}
+        </ul>`;
+      }
+
+      function markSnapshotProgressComplete() {
+        const container = document.getElementById('snapshot-progress');
+        if (!container) return;
+        const rows = container.querySelectorAll('[data-progress]');
+        rows.forEach((row, index) => {
+          const key = row.getAttribute('data-progress');
+          const dataset = SNAPSHOT_DATASETS.find(ds => ds.option === key);
+          const label = dataset ? dataset.label : row.textContent.trim();
+          setTimeout(() => {
+            row.classList.add('done');
+            row.innerHTML = `<span>✓</span>${escapeHtml(label)}`;
+          }, index * 120);
+        });
+      }
+
+      function markSnapshotProgressError(message, isError = true) {
+        const container = document.getElementById('snapshot-progress');
+        if (!container) return;
+        container.innerHTML = stateCard(message || 'Snapshot failed', isError ? 'error' : 'empty');
       }
 
       function renderSnapshotSummary(data) {
@@ -975,8 +1624,8 @@
         const downloadBtn = document.getElementById('btn-download-snapshot');
         if (!summaryDiv) return;
         if (!data || !data.summary) {
-          summaryDiv.innerHTML = '<div class="empty">No snapshot captured yet.</div>';
-          if (downloadBtn) downloadBtn.style.display = 'none';
+          summaryDiv.innerHTML = stateCard('No snapshot captured yet.', 'empty');
+          if (downloadBtn) downloadBtn.disabled = true;
           return;
         }
         const rows = Object.entries(data.summary).map(([key, stats]) => {
@@ -992,7 +1641,7 @@
           <tbody>${rows}</tbody>
         </table>`;
         if (downloadBtn) {
-          downloadBtn.style.display = 'inline-flex';
+          downloadBtn.disabled = false;
         }
       }
 
@@ -1058,6 +1707,84 @@
         } catch (_) {}
       }
 
+      function loadPresets() {
+        try {
+          const raw = localStorage.getItem(PRESETS_KEY);
+          if (!raw) return {};
+          const parsed = JSON.parse(raw);
+          return typeof parsed === 'object' && parsed ? parsed : {};
+        } catch (_) {
+          return {};
+        }
+      }
+
+      function persistPresets() {
+        try {
+          localStorage.setItem(PRESETS_KEY, JSON.stringify(state.presets));
+        } catch (_) {}
+      }
+
+      function populatePresetDropdown(section) {
+        const select = document.querySelector(`[data-preset-select="${section}"]`);
+        if (!select) return;
+        const presets = state.presets[section] || {};
+        const names = Object.keys(presets).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+        const current = select.value;
+        const options = ['<option value="">Choose preset…</option>']
+          .concat(names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`));
+        select.innerHTML = options.join('');
+        const nextValue = names.includes(current) ? current : '';
+        select.value = nextValue;
+        syncPresetControls(section, nextValue);
+      }
+
+      function syncPresetControls(section, selectedName) {
+        const deleteBtn = document.querySelector(`[data-preset-delete="${section}"]`);
+        if (deleteBtn) {
+          deleteBtn.disabled = !selectedName;
+        }
+      }
+
+      function applyPreset(section, name) {
+        if (!section || !name) return;
+        const preset = state.presets?.[section]?.[name];
+        if (!preset) return;
+        state.filters[section] = { ...state.filters[section], ...preset };
+        persistFilters(section);
+        applyFiltersToInputs(section);
+        loadPanel(section);
+      }
+
+      function promptPresetSave(section) {
+        if (!section) return;
+        const rawName = window.prompt('Name this preset', '');
+        if (!rawName) return;
+        const name = rawName.trim().slice(0, 60);
+        if (!name) return;
+        state.presets[section] = state.presets[section] || {};
+        state.presets[section][name] = { ...state.filters[section] };
+        persistPresets();
+        populatePresetDropdown(section);
+        const select = document.querySelector(`[data-preset-select="${section}"]`);
+        if (select) {
+          select.value = name;
+          syncPresetControls(section, name);
+        }
+      }
+
+      function deletePreset(section) {
+        if (!section || !state.presets[section]) return;
+        const select = document.querySelector(`[data-preset-select="${section}"]`);
+        const name = select ? select.value : '';
+        if (!name) return;
+        delete state.presets[section][name];
+        if (!Object.keys(state.presets[section]).length) {
+          delete state.presets[section];
+        }
+        persistPresets();
+        populatePresetDropdown(section);
+      }
+
       function persistFilters(section) {
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
@@ -1067,8 +1794,19 @@
         } catch (_) {}
       }
 
-      function applyFiltersToInputs() {
-        document.querySelectorAll('[data-filter]').forEach(input => {
+      function resetFilters(section) {
+        if (!section || !defaultFilters[section]) return;
+        state.filters[section] = clone(defaultFilters[section]);
+        persistFilters(section);
+        applyFiltersToInputs(section);
+        loadPanel(section);
+      }
+
+      function applyFiltersToInputs(section) {
+        const selector = section
+          ? `[data-panel="${section}"] [data-filter]`
+          : '[data-filter]';
+        document.querySelectorAll(selector).forEach(input => {
           const panel = input.closest('.panel');
           const target = panel ? panel.getAttribute('data-panel') : null;
           if (!target || !state.filters[target]) return;
@@ -1084,11 +1822,11 @@
       function loadSnapshotOptions() {
         try {
           const raw = localStorage.getItem(SNAPSHOT_KEY);
-          if (!raw) return clone(defaultSnapshotOptions);
+          if (!raw) return sanitizeSnapshotOptions({});
           const parsed = JSON.parse(raw);
-          return { ...defaultSnapshotOptions, ...parsed };
+          return sanitizeSnapshotOptions(parsed);
         } catch (_) {
-          return clone(defaultSnapshotOptions);
+          return sanitizeSnapshotOptions({});
         }
       }
 
@@ -1101,7 +1839,16 @@
       function applySnapshotOptionsToControls() {
         document.querySelectorAll('[data-snapshot-toggle]').forEach(toggle => {
           const key = toggle.getAttribute('data-snapshot-toggle');
+          if (!key) return;
           toggle.checked = !!state.snapshot.options[key];
+        });
+        document.querySelectorAll('[data-snapshot-input]').forEach(input => {
+          const key = input.getAttribute('data-snapshot-input');
+          if (!key) return;
+          const value = state.snapshot.options[key];
+          if (value !== undefined && value !== null) {
+            input.value = value;
+          }
         });
       }
 
@@ -1117,10 +1864,86 @@
         document.querySelectorAll('[data-snapshot-toggle]').forEach(toggle => {
           toggle.addEventListener('change', () => {
             const key = toggle.getAttribute('data-snapshot-toggle');
-            state.snapshot.options[key] = toggle.checked;
+            if (!key) return;
+            state.snapshot.options[key] = !!toggle.checked;
             saveSnapshotOptions();
           });
         });
+        document.querySelectorAll('[data-snapshot-input]').forEach(input => {
+          input.addEventListener('change', () => {
+            const key = input.getAttribute('data-snapshot-input');
+            if (!key) return;
+            const value = input.type === 'number' ? Number(input.value) : input.value;
+            setSnapshotOption(key, value);
+          });
+        });
+      }
+
+      function setSnapshotOption(key, value) {
+        if (!key) return;
+        const updated = sanitizeSnapshotOptions({ ...state.snapshot.options, [key]: value });
+        state.snapshot.options = updated;
+        saveSnapshotOptions();
+        applySnapshotOptionsToControls();
+      }
+
+      function sanitizeSnapshotOptions(options) {
+        const normalized = { ...defaultSnapshotOptions, ...options };
+        normalized.pageSizePerDataset = clampNumber(Number(normalized.pageSizePerDataset) || 25, 5, 100);
+        normalized.maxPagesPerDataset = clampNumber(Number(normalized.maxPagesPerDataset) || 3, 1, 20);
+        normalized.timeEntryLookbackDays = clampNumber(Number(normalized.timeEntryLookbackDays) || 30, 1, 90);
+        return normalized;
+      }
+
+      function clampNumber(value, min, max) {
+        if (Number.isNaN(value)) {
+          return min;
+        }
+        return Math.min(Math.max(value, min), max);
+      }
+
+      async function copySeed(button, encodedPayload) {
+        try {
+          const text = decodeURIComponent(encodedPayload);
+          await writeClipboard(text);
+          flashCopyMessage(button, 'Copied!');
+        } catch (err) {
+          console.warn('Copy failed', err);
+          flashCopyMessage(button, 'Copy blocked');
+        }
+      }
+
+      async function writeClipboard(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          return;
+        }
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (!success) {
+          throw new Error('Copy not supported');
+        }
+      }
+
+      function flashCopyMessage(button, message) {
+        if (!button) return;
+        const original = button.dataset.originalText || button.textContent;
+        if (!button.dataset.originalText) {
+          button.dataset.originalText = original;
+        }
+        button.textContent = message;
+        button.disabled = true;
+        setTimeout(() => {
+          button.textContent = button.dataset.originalText;
+          button.disabled = false;
+        }, 1600);
       }
 
       function formatDuration(seconds) {

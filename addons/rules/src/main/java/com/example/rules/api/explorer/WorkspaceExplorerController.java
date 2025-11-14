@@ -236,6 +236,7 @@ public class WorkspaceExplorerController {
         boolean includeInvoices = parseBoolean(request.getParameter("includeInvoices"), false);
         int pageSize = parseInt(request.getParameter("pageSizePerDataset"), 25, 5, 100);
         int maxPages = parseInt(request.getParameter("maxPagesPerDataset"), 3, 1, 20);
+        int lookbackDays = parseInt(request.getParameter("timeEntryLookbackDays"), 30, 1, 90);
         return new WorkspaceExplorerService.SnapshotRequest(
                 includeUsers,
                 includeProjects,
@@ -247,7 +248,8 @@ public class WorkspaceExplorerController {
                 includeCustomFields,
                 includeInvoices,
                 pageSize,
-                maxPages
+                maxPages,
+                lookbackDays
         );
     }
 

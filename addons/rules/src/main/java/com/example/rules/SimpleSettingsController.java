@@ -870,6 +870,13 @@ public class SimpleSettingsController implements RequestHandler {
       if (projectPrefill) {
         addCondition('projectIdEquals', projectPrefill);
       }
+      const tagPrefill = urlParams.get('prefillTagIds');
+      if (tagPrefill) {
+        tagPrefill.split(',')
+          .map(tagId => tagId.trim())
+          .filter(Boolean)
+          .forEach(tagId => addCondition('hasTag', tagId));
+      }
     });
   </script>
 </body>

@@ -112,7 +112,7 @@ public class WorkspaceExplorerService {
         Map<String, String> timeEntryFilters = new LinkedHashMap<>();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         timeEntryFilters.put("end", now.toString());
-        timeEntryFilters.put("start", now.minusDays(30).toString());
+        timeEntryFilters.put("start", now.minusDays(effective.timeEntryLookbackDays()).toString());
         Map<String, String> timeOffFilters = Map.of("view", "policies", "status", "ACTIVE");
 
         if (effective.includeUsers()) {
@@ -419,13 +419,16 @@ public class WorkspaceExplorerService {
             boolean includeCustomFields,
             boolean includeInvoices,
             int pageSizePerDataset,
-            int maxPagesPerDataset
+            int maxPagesPerDataset,
+            int timeEntryLookbackDays
     ) {
         public SnapshotRequest {
             int normalizedPageSize = Math.min(Math.max(pageSizePerDataset, 5), 100);
             int normalizedPages = Math.min(Math.max(maxPagesPerDataset, 1), 20);
+            int normalizedLookback = Math.min(Math.max(timeEntryLookbackDays, 1), 90);
             pageSizePerDataset = normalizedPageSize;
             maxPagesPerDataset = normalizedPages;
+            timeEntryLookbackDays = normalizedLookback;
         }
 
         public static SnapshotRequest defaults() {
@@ -440,7 +443,8 @@ public class WorkspaceExplorerService {
                     false,
                     false,
                     25,
-                    3
+                    3,
+                    30
             );
         }
     }

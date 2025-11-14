@@ -16,11 +16,11 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 `/settings` now renders an interactive workspace explorer that stays entirely within the secured add-on surface. The iframe:
 
 - Bootstraps via the signed `auth_token` JWT and never calls Clockify APIs directly from the browser.
-- Surfaces summaries plus drill-down tabs for users, projects, clients, tags, and recent time entries.
+- Uses a left-hand navigation rail plus dataset-aware toolbars (search, filters, page-size selector, reset) so admins always know where they are.
 - Streams data from backend routes under `/api/rules/explorer/**`, which wrap the Clockify OpenAPI GET endpoints using the installation token.
-- Includes tabs for users, projects, clients, tags, time entries, time off, webhooks, custom fields, and invoices with saved filters (per section) stored in `localStorage`.
-- Adds a “Fetch everything” snapshot button that calls the new `/snapshot` endpoint, shows per-dataset stats, and exposes a JSON download.
-- Provides a contextual “Create rule like this” deep link on time entries that opens the simple builder with `ruleName`, `prefillDescription`, and `prefillProjectId` query params to pre-seed the first condition and action.
+- Adds per-section presets that live in `localStorage`—each browser can save multiple named filters per dataset and reload them later.
+- Upgrades the snapshot workspace with dataset toggles (users through invoices), configurable page size/max pages (5–100 × 1–20), and a selectable time-entry lookback (7/30/90 days). Progress is rendered inline and the JSON download is enabled in-place once a run finishes.
+- Provides contextual “Create rule from this” actions on time entries (with copy-to-clipboard rule seeds) and quick project/tag shortcuts into the simple builder via `ruleName`, `prefillDescription`, `prefillProjectId`, and `prefillTagIds` query params.
 
 ### Explorer API (backend-only)
 
@@ -38,9 +38,18 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 | `GET /api/rules/explorer/invoices` | Invoice list | `page`, `pageSize`, `status` (CSV of `UNSENT\|SENT\|PAID\|PARTIALLY_PAID\|VOID\|OVERDUE`), `sort` (`ID\|CLIENT\|DUE_ON\|ISSUE_DATE\|AMOUNT\|BALANCE`), `sortOrder` (`ASCENDING\|DESCENDING`), `clientId` |
 | `GET /api/rules/explorer/snapshot` | On-demand aggregate snapshot | `include{Users|Projects|Clients|Tags|TimeEntries|TimeOff|Webhooks|CustomFields|Invoices}`, `pageSizePerDataset` (5–100), `maxPagesPerDataset` (1–20) |
 
-Snapshots clamp each dataset to the specified `pageSizePerDataset`/`maxPagesPerDataset` bounds (defaults 25 × 3) and stop early if pagination stops advancing. Time entries always use a 30‑day lookback window and time-off snapshots reuse the active `policies` view to avoid hammering PTO APIs. Webhook `event`/`enabled`/`search` filters are applied after fetching the workspace inventory, and the pagination metadata now reflects the filtered subset so `hasMore`/`totalItems` stay accurate.
+Snapshots clamp each dataset to the specified `pageSizePerDataset`/`maxPagesPerDataset` bounds (defaults 25 × 3) and stop early if pagination stops advancing. Time entries default to a 30‑day lookback but honor the `timeEntryLookbackDays` input (clamped 1–90) so you can zoom into smaller ranges before exporting. Time-off snapshots reuse the active `policies` view to avoid hammering PTO APIs. Webhook `event`/`enabled`/`search` filters are applied after fetching the workspace inventory, and the pagination metadata now reflects the filtered subset so `hasMore`/`totalItems` stay accurate.
 
 All requests inherit workspace context from `PlatformAuthFilter`. When running in local dev mode you can still provide `workspaceId` as a query parameter, but production traffic **must** rely on the signed JWT headers.
+
+### QA on developer.clockify.me
+
+1. Build and run the Rules add-on locally (`make dev-rules`) or via Docker, expose it through ngrok, and install the manifest under **Admin → Add-ons → Install Custom Add-on** with the HTTPS base URL.
+2. Open the Rules sidebar inside the Clockify workspace. Confirm the hero badges match your `ENV` label, base URL, and signature mode.
+3. Click through every dataset on the left nav. For each section, exercise the toolbar (search, filters, page-size selector), save at least one preset, reload the iframe, and ensure the presets remain available.
+4. Run a snapshot with small limits (`pageSizePerDataset=10`, `maxPagesPerDataset=1`) while only selecting one or two datasets. Watch the inline progress list update, then rerun with more datasets and a different lookback (7/30/90 days). Use the download button and inspect the JSON to ensure each requested dataset is present.
+5. From the Time Entries tab, pick any entry with a project/tags and click “Create rule from this.” The simple builder should open with the name, description, project, and tags pre-filled. Use the “Copy rule seed” action if you prefer to start from raw JSON.
+6. Confirm snapshot and explorer requests succeed only when the Clockify iframe passes a valid `auth_token` (try opening the iframe URL directly in a new tab to verify `PlatformAuthFilter` rejects unauthenticated calls).
 
 ## Quick Start  
 
