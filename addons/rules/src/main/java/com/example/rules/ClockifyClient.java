@@ -286,9 +286,13 @@ public class ClockifyClient {
                 ? (ArrayNode) root.get("webhooks")
                 : om.createArrayNode();
         ArrayNode filtered = filterWebhooks(raw, sanitized);
-        long total = root.has("workspaceWebhookCount")
+        boolean clientFiltered = sanitized.containsKey("event")
+                || sanitized.containsKey("enabled")
+                || sanitized.containsKey("search");
+        long totalFromApi = root.has("workspaceWebhookCount")
                 ? root.get("workspaceWebhookCount").asLong(filtered.size())
                 : filtered.size();
+        long total = clientFiltered ? filtered.size() : totalFromApi;
         ArrayNode slice = sliceArray(filtered, page, pageSize);
         Pagination pagination = paginationFromTotal(total, page, pageSize, slice.size());
         return new PageResult(slice, pagination);

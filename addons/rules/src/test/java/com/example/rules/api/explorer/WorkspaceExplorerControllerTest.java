@@ -96,6 +96,62 @@ class WorkspaceExplorerControllerTest {
         assertTrue(snapshot.includeWebhooks());
     }
 
+    @Test
+    void timeOffRequestStatusesAreNormalized() throws Exception {
+        HttpServletRequest request = requestWithParams(Map.of(
+                "workspaceId", new String[]{"ws-4"},
+                "status", new String[]{"pending", "APPROVED", "ignored"}
+        ));
+        when(service.getTimeOff(eq("ws-4"), any())).thenReturn(emptyResponse());
+
+        controller.timeOff().handle(request);
+
+        ArgumentCaptor<WorkspaceExplorerService.ExplorerQuery> captor =
+                ArgumentCaptor.forClass(WorkspaceExplorerService.ExplorerQuery.class);
+        verify(service).getTimeOff(eq("ws-4"), captor.capture());
+        assertEquals("PENDING,APPROVED", captor.getValue().filters().get("statuses"));
+    }
+
+    @Test
+    void timeOffPoliciesDropInvalidStatusValues() throws Exception {
+        HttpServletRequest request = requestWithParams(Map.of(
+                "workspaceId", new String[]{"ws-5"},
+                "view", new String[]{"policies"},
+                "status", new String[]{"approved"}
+        ));
+        when(service.getTimeOff(eq("ws-5"), any())).thenReturn(emptyResponse());
+
+        controller.timeOff().handle(request);
+
+        ArgumentCaptor<WorkspaceExplorerService.ExplorerQuery> captor =
+                ArgumentCaptor.forClass(WorkspaceExplorerService.ExplorerQuery.class);
+        verify(service).getTimeOff(eq("ws-5"), captor.capture());
+        Map<String, String> filters = captor.getValue().filters();
+        assertTrue(filters.containsKey("view"));
+        assertTrue(!filters.containsKey("status"));
+    }
+
+    @Test
+    void invoiceFiltersNormalizeStatusesAndSortOptions() throws Exception {
+        HttpServletRequest request = requestWithParams(Map.of(
+                "workspaceId", new String[]{"ws-6"},
+                "status", new String[]{"paid", "sent", "noop"},
+                "sort", new String[]{"balance"},
+                "sortOrder", new String[]{"descending"}
+        ));
+        when(service.getInvoices(eq("ws-6"), any())).thenReturn(emptyResponse());
+
+        controller.invoices().handle(request);
+
+        ArgumentCaptor<WorkspaceExplorerService.ExplorerQuery> captor =
+                ArgumentCaptor.forClass(WorkspaceExplorerService.ExplorerQuery.class);
+        verify(service).getInvoices(eq("ws-6"), captor.capture());
+        Map<String, String> filters = captor.getValue().filters();
+        assertEquals("PAID,SENT", filters.get("statuses"));
+        assertEquals("BALANCE", filters.get("sort-column"));
+        assertEquals("DESCENDING", filters.get("sort-order"));
+    }
+
     private ObjectNode emptyResponse() {
         ObjectNode node = OM.createObjectNode();
         node.set("items", OM.createArrayNode());

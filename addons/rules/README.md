@@ -20,7 +20,7 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 - Streams data from backend routes under `/api/rules/explorer/**`, which wrap the Clockify OpenAPI GET endpoints using the installation token.
 - Includes tabs for users, projects, clients, tags, time entries, time off, webhooks, custom fields, and invoices with saved filters (per section) stored in `localStorage`.
 - Adds a “Fetch everything” snapshot button that calls the new `/snapshot` endpoint, shows per-dataset stats, and exposes a JSON download.
-- Provides a contextual “Create rule like this” deep link on time entries that opens the simple builder with prefilled conditions/actions.
+- Provides a contextual “Create rule like this” deep link on time entries that opens the simple builder with `ruleName`, `prefillDescription`, and `prefillProjectId` query params to pre-seed the first condition and action.
 
 ### Explorer API (backend-only)
 
@@ -32,11 +32,13 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 | `GET /api/rules/explorer/clients` | Paginated clients | `page`, `pageSize`, `search`, `archived` |
 | `GET /api/rules/explorer/tags` | Paginated tags | `page`, `pageSize`, `search`, `archived` |
 | `GET /api/rules/explorer/time-entries` | Recent time entries (hydrated) | `page`, `pageSize`, `from`, `to`, `userId`, `projectId`, `tagIds` |
-| `GET /api/rules/explorer/time-off` | PTO requests/policies/balances | `page`, `pageSize`, `view` (`requests\|policies\|balances`), `status`, `userId`, `groupId`, `policyId` |
-| `GET /api/rules/explorer/webhooks` | Workspace webhook inventory | `page`, `pageSize`, `type`, `event`, `enabled`, `search` |
+| `GET /api/rules/explorer/time-off` | PTO requests/policies/balances | `page`, `pageSize`, `view` (`requests\|policies\|balances`). Requests view: `status` (`PENDING\|APPROVED\|REJECTED\|ALL`), `userId`, `groupId`, `from`, `to`. Policies view: `status` (`ACTIVE\|ARCHIVED\|ALL`). Balances view: `policyId` or `userId` (required), `sort` (`USER\|POLICY\|USED\|BALANCE\|TOTAL`), `sortOrder` (`ASCENDING\|DESCENDING`). |
+| `GET /api/rules/explorer/webhooks` | Workspace webhook inventory | `page`, `pageSize`, `type` (server-side), `event`, `enabled`, `search` (client-side filters on the fetched payload) |
 | `GET /api/rules/explorer/custom-fields` | Custom field registry | `page`, `pageSize`, `search`, `status`, `entityType` |
-| `GET /api/rules/explorer/invoices` | Invoice list | `page`, `pageSize`, `status` (CSV), `sort`, `sortOrder`, `clientId` |
-| `GET /api/rules/explorer/snapshot` | On-demand aggregate snapshot | `include{Users|Projects|…}`, `pageSizePerDataset`, `maxPagesPerDataset` |
+| `GET /api/rules/explorer/invoices` | Invoice list | `page`, `pageSize`, `status` (CSV of `UNSENT\|SENT\|PAID\|PARTIALLY_PAID\|VOID\|OVERDUE`), `sort` (`ID\|CLIENT\|DUE_ON\|ISSUE_DATE\|AMOUNT\|BALANCE`), `sortOrder` (`ASCENDING\|DESCENDING`), `clientId` |
+| `GET /api/rules/explorer/snapshot` | On-demand aggregate snapshot | `include{Users|Projects|Clients|Tags|TimeEntries|TimeOff|Webhooks|CustomFields|Invoices}`, `pageSizePerDataset` (5–100), `maxPagesPerDataset` (1–20) |
+
+Snapshots clamp each dataset to the specified `pageSizePerDataset`/`maxPagesPerDataset` bounds (defaults 25 × 3) and stop early if pagination stops advancing. Time entries always use a 30‑day lookback window and time-off snapshots reuse the active `policies` view to avoid hammering PTO APIs. Webhook `event`/`enabled`/`search` filters are applied after fetching the workspace inventory, and the pagination metadata now reflects the filtered subset so `hasMore`/`totalItems` stay accurate.
 
 All requests inherit workspace context from `PlatformAuthFilter`. When running in local dev mode you can still provide `workspaceId` as a query parameter, but production traffic **must** rely on the signed JWT headers.
 

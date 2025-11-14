@@ -13,8 +13,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -23,6 +26,12 @@ import java.util.function.Function;
 public class WorkspaceExplorerController {
     private static final Logger logger = LoggerFactory.getLogger(WorkspaceExplorerController.class);
     private static final String MEDIA_JSON = "application/json";
+    private static final Set<String> TIME_OFF_REQUEST_STATUSES = Set.of("PENDING", "APPROVED", "REJECTED", "ALL");
+    private static final Set<String> TIME_OFF_POLICY_STATUSES = Set.of("ACTIVE", "ARCHIVED", "ALL");
+    private static final Set<String> TIME_OFF_BALANCE_SORTS = Set.of("USER", "POLICY", "USED", "BALANCE", "TOTAL");
+    private static final Set<String> SORT_ORDERS = Set.of("ASCENDING", "DESCENDING");
+    private static final Set<String> INVOICE_STATUSES = Set.of("UNSENT", "SENT", "PAID", "PARTIALLY_PAID", "VOID", "OVERDUE");
+    private static final Set<String> INVOICE_SORT_COLUMNS = Set.of("ID", "CLIENT", "DUE_ON", "ISSUE_DATE", "AMOUNT", "BALANCE");
 
     private final WorkspaceExplorerService service;
 
@@ -347,7 +356,7 @@ public class WorkspaceExplorerController {
                 if (search != null) {
                     filters.put("name", search);
                 }
-                String status = trim(request.getParameter("status"));
+                String status = normalizeEnum(request.getParameter("status"), TIME_OFF_POLICY_STATUSES);
                 if (status != null) {
                     filters.put("status", status);
                 }
@@ -361,17 +370,17 @@ public class WorkspaceExplorerController {
                 if (userId != null) {
                     filters.put("userId", userId);
                 }
-                String sort = trim(request.getParameter("sort"));
+                String sort = normalizeEnum(request.getParameter("sort"), TIME_OFF_BALANCE_SORTS);
                 if (sort != null) {
                     filters.put("sort", sort);
                 }
-                String sortOrder = trim(request.getParameter("sortOrder"));
+                String sortOrder = normalizeEnum(request.getParameter("sortOrder"), SORT_ORDERS);
                 if (sortOrder != null) {
                     filters.put("sort-order", sortOrder);
                 }
             }
             default -> {
-                String statuses = joinMulti(request, "status");
+                String statuses = filterCsvValues(joinMulti(request, "status"), TIME_OFF_REQUEST_STATUSES);
                 if (statuses != null) {
                     filters.put("statuses", statuses);
                 }
@@ -436,15 +445,15 @@ public class WorkspaceExplorerController {
 
     private Map<String, String> invoiceFilters(HttpServletRequest request) {
         Map<String, String> filters = new LinkedHashMap<>();
-        String statuses = joinMulti(request, "status");
+        String statuses = filterCsvValues(joinMulti(request, "status"), INVOICE_STATUSES);
         if (statuses != null) {
             filters.put("statuses", statuses);
         }
-        String sort = trim(request.getParameter("sort"));
+        String sort = normalizeEnum(request.getParameter("sort"), INVOICE_SORT_COLUMNS);
         if (sort != null) {
             filters.put("sort-column", sort);
         }
-        String sortOrder = trim(request.getParameter("sortOrder"));
+        String sortOrder = normalizeEnum(request.getParameter("sortOrder"), SORT_ORDERS);
         if (sortOrder != null) {
             filters.put("sort-order", sortOrder);
         }
@@ -503,6 +512,39 @@ public class WorkspaceExplorerController {
             case "policies", "balances" -> normalized;
             default -> "requests";
         };
+    }
+
+    private static String normalizeEnum(String value, Set<String> allowed) {
+        if (value == null || value.isBlank() || allowed == null || allowed.isEmpty()) {
+            return null;
+        }
+        String upper = value.trim().toUpperCase(Locale.ROOT);
+        return allowed.contains(upper) ? upper : null;
+    }
+
+    private static String filterCsvValues(String rawCsv, Set<String> allowed) {
+        if (rawCsv == null || rawCsv.isBlank() || allowed == null || allowed.isEmpty()) {
+            return null;
+        }
+        String[] tokens = rawCsv.split(",");
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String token : tokens) {
+            if (token == null) {
+                continue;
+            }
+            String trimmed = token.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            String upper = trimmed.toUpperCase(Locale.ROOT);
+            if (allowed.contains(upper)) {
+                normalized.add(upper);
+            }
+        }
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        return String.join(",", normalized);
     }
 
     private static String trim(String value) {
