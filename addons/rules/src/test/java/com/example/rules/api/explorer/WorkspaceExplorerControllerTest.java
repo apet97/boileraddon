@@ -74,10 +74,34 @@ class WorkspaceExplorerControllerTest {
     }
 
     @Test
+    void tasksEndpointPassesFilters() throws Exception {
+        HttpServletRequest request = requestWithParams(Map.of(
+                "workspaceId", new String[]{"ws-7"},
+                "projectId", new String[]{"proj-1"},
+                "search", new String[]{"design"},
+                "archived", new String[]{"true"},
+                "clientId", new String[]{"client-9"}
+        ));
+        when(service.getTasks(eq("ws-7"), any())).thenReturn(emptyResponse());
+
+        controller.tasks().handle(request);
+
+        ArgumentCaptor<WorkspaceExplorerService.ExplorerQuery> captor =
+                ArgumentCaptor.forClass(WorkspaceExplorerService.ExplorerQuery.class);
+        verify(service).getTasks(eq("ws-7"), captor.capture());
+        Map<String, String> filters = captor.getValue().filters();
+        assertEquals("proj-1", filters.get("projectId"));
+        assertEquals("design", filters.get("search"));
+        assertEquals("true", filters.get("archived"));
+        assertEquals("client-9", filters.get("clientId"));
+    }
+
+    @Test
     void snapshotParsesIncludeFlags() throws Exception {
         HttpServletRequest request = requestWithParams(Map.of(
                 "workspaceId", new String[]{"ws-3"},
                 "includeTimeOff", new String[]{"true"},
+                "includeTasks", new String[]{"true"},
                 "includeWebhooks", new String[]{"1"},
                 "pageSizePerDataset", new String[]{"10"},
                 "maxPagesPerDataset", new String[]{"2"},
@@ -95,6 +119,7 @@ class WorkspaceExplorerControllerTest {
         assertEquals(2, snapshot.maxPagesPerDataset());
         assertEquals(45, snapshot.timeEntryLookbackDays());
         assertTrue(snapshot.includeTimeOff());
+        assertTrue(snapshot.includeTasks());
         assertTrue(snapshot.includeWebhooks());
     }
 

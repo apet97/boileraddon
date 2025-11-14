@@ -2,6 +2,7 @@ package com.example.rules.api.explorer;
 
 import com.clockify.addon.sdk.security.TokenStore;
 import com.example.rules.ClockifyClient;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -88,6 +90,11 @@ public class WorkspaceExplorerService {
         return toResponse(gateway.fetch(workspaceId, ExplorerDataset.TAGS, query));
     }
 
+    public ObjectNode getTasks(String workspaceId, ExplorerQuery query) throws ExplorerException {
+        ExplorerQuery effective = query == null ? new ExplorerQuery(1, 25, Map.of()) : query;
+        return toResponse(gateway.fetch(workspaceId, ExplorerDataset.TASKS, effective));
+    }
+
     public ObjectNode getTimeOff(String workspaceId, ExplorerQuery query) throws ExplorerException {
         ExplorerQuery effective = query == null ? new ExplorerQuery(1, 25, Map.of()) : query;
         return toResponse(gateway.fetch(workspaceId, ExplorerDataset.TIME_OFF, effective));
@@ -141,6 +148,11 @@ public class WorkspaceExplorerService {
             SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.TAGS, Map.of(), effective);
             summary.set("tags", dataset.summary());
             datasets.set("tags", dataset.items());
+        }
+        if (effective.includeTasks()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.TASKS, Map.of(), effective);
+            summary.set("tasks", dataset.summary());
+            datasets.set("tasks", dataset.items());
         }
         if (effective.includeTimeEntries()) {
             SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.TIME_ENTRIES, timeEntryFilters, effective);
@@ -274,6 +286,7 @@ public class WorkspaceExplorerService {
         PROJECTS,
         CLIENTS,
         TAGS,
+        TASKS,
         TIME_ENTRIES,
         TIME_OFF,
         WEBHOOKS,
@@ -330,6 +343,10 @@ public class WorkspaceExplorerService {
     }
 
     public static class ClockifyExplorerGateway implements ExplorerGateway {
+        private static final int PROJECT_PAGE_SIZE = 50;
+        private static final int TASK_PAGE_SIZE = 200;
+        private static final int MAX_TASK_SCAN = 5000;
+
         @Override
         public ClockifyClient.PageResult fetch(String workspaceId, ExplorerDataset dataset, ExplorerQuery query) throws ExplorerException {
             ClockifyClient client = resolve(workspaceId);
@@ -339,6 +356,7 @@ public class WorkspaceExplorerService {
                     case PROJECTS -> client.getProjectsPage(workspaceId, query.filters(), query.page(), query.pageSize());
                     case CLIENTS -> client.getClientsPage(workspaceId, query.filters(), query.page(), query.pageSize());
                     case TAGS -> client.getTagsPage(workspaceId, query.filters(), query.page(), query.pageSize());
+                    case TASKS -> fetchTasks(client, workspaceId, query);
                     case TIME_ENTRIES -> client.getTimeEntriesPage(workspaceId, query.filters(), query.page(), query.pageSize());
                     case TIME_OFF -> fetchTimeOff(client, workspaceId, query);
                     case WEBHOOKS -> client.getWebhooksPage(workspaceId, query.filters(), query.page(), query.pageSize());
@@ -350,6 +368,17 @@ public class WorkspaceExplorerService {
             } catch (Exception e) {
                 throw new ExplorerException(502, "EXPLORER.CLOCKIFY_ERROR", "Clockify API request failed", true, e);
             }
+        }
+
+        private ClockifyClient.PageResult fetchTasks(ClockifyClient client,
+                                                     String workspaceId,
+                                                     ExplorerQuery query) throws Exception {
+            Map<String, String> filters = new LinkedHashMap<>(query.filters());
+            String singleProject = cleanedId(filters.get("projectId"));
+            if (singleProject != null && !singleProject.isBlank()) {
+                return fetchProjectTasks(client, workspaceId, singleProject, filters, query.page(), query.pageSize());
+            }
+            return fetchWorkspaceTasks(client, workspaceId, filters, query.page(), query.pageSize());
         }
 
         private ClockifyClient.PageResult fetchTimeOff(ClockifyClient client,
@@ -392,6 +421,182 @@ public class WorkspaceExplorerService {
             var token = tokenOpt.get();
             return new ClockifyClient(token.apiBaseUrl(), token.token());
         }
+
+        private ClockifyClient.PageResult fetchProjectTasks(ClockifyClient client,
+                                                            String workspaceId,
+                                                            String projectId,
+                                                            Map<String, String> filters,
+                                                            int page,
+                                                            int pageSize) throws Exception {
+            String search = normalize(filters.get("search"));
+            ClockifyClient.PageResult result = client.getTasksPage(workspaceId, projectId, Map.of(), page, pageSize);
+            if (search == null) {
+                return result;
+            }
+            ArrayNode filtered = MAPPER.createArrayNode();
+            for (JsonNode node : result.items()) {
+                if (matchesSearch(node, search)) {
+                    filtered.add(node);
+                }
+            }
+            ClockifyClient.Pagination pagination = new ClockifyClient.Pagination(
+                    result.pagination().page(),
+                    result.pagination().pageSize(),
+                    result.pagination().hasMore(),
+                    result.pagination().nextPage(),
+                    result.pagination().totalItems()
+            );
+            return new ClockifyClient.PageResult(filtered, pagination);
+        }
+
+        private ClockifyClient.PageResult fetchWorkspaceTasks(ClockifyClient client,
+                                                              String workspaceId,
+                                                              Map<String, String> filters,
+                                                              int page,
+                                                              int pageSize) throws Exception {
+            int offset = Math.max(0, (page - 1) * pageSize);
+            int skipped = 0;
+            int produced = 0;
+            int scanned = 0;
+            ArrayNode items = MAPPER.createArrayNode();
+            String search = normalize(filters.get("search"));
+
+            Map<String, String> projectFilters = new LinkedHashMap<>();
+            String archived = normalize(filters.get("archived"));
+            if ("all".equals(archived)) {
+                // do not constrain archived flag
+            } else if ("true".equals(archived) || "false".equals(archived)) {
+                projectFilters.put("archived", archived);
+            } else {
+                projectFilters.put("archived", "false");
+            }
+            String clientFilter = cleanedId(filters.get("clientId"));
+            if (clientFilter != null) {
+                projectFilters.put("clients", clientFilter);
+            }
+
+            int projectPage = 1;
+            boolean moreData = false;
+
+            while (scanned < MAX_TASK_SCAN && produced < pageSize) {
+                ClockifyClient.PageResult projects = client.getProjectsPage(
+                        workspaceId,
+                        projectFilters,
+                        projectPage,
+                        PROJECT_PAGE_SIZE
+                );
+                ArrayNode projectItems = projects.items();
+                if (projectItems.isEmpty()) {
+                    break;
+                }
+                for (JsonNode project : projectItems) {
+                    if (!project.hasNonNull("id")) {
+                        continue;
+                    }
+                    String projectId = project.get("id").asText();
+                    String projectName = project.path("name").asText("");
+                    int taskPage = 1;
+                    boolean projectHasMore = true;
+                    while (projectHasMore && scanned < MAX_TASK_SCAN && produced < pageSize) {
+                        ClockifyClient.PageResult taskPageResult = client.getTasksPage(
+                                workspaceId,
+                                projectId,
+                                Map.of(),
+                                taskPage,
+                                TASK_PAGE_SIZE
+                        );
+                        ArrayNode tasks = taskPageResult.items();
+                        if (tasks.isEmpty()) {
+                            break;
+                        }
+                        for (JsonNode task : tasks) {
+                            scanned++;
+                            if (scanned >= MAX_TASK_SCAN) {
+                                moreData = true;
+                                break;
+                            }
+                            if (search != null && !matchesSearch(task, search)) {
+                                continue;
+                            }
+                            if (skipped < offset) {
+                                skipped++;
+                                continue;
+                            }
+                            if (produced < pageSize) {
+                                ObjectNode enriched;
+                                if (task.isObject()) {
+                                    enriched = (ObjectNode) task.deepCopy();
+                                } else {
+                                    enriched = MAPPER.createObjectNode();
+                                    enriched.set("value", task);
+                                }
+                                enriched.put("projectId", projectId);
+                                enriched.put("projectName", projectName);
+                                items.add(enriched);
+                                produced++;
+                            } else {
+                                moreData = true;
+                                break;
+                            }
+                        }
+                        if (produced >= pageSize || moreData) {
+                            break;
+                        }
+                        projectHasMore = taskPageResult.pagination().hasMore();
+                        if (projectHasMore) {
+                            taskPage = taskPageResult.pagination().nextPage();
+                        }
+                    }
+                    if (produced >= pageSize || moreData) {
+                        break;
+                    }
+                }
+                if (produced >= pageSize || moreData) {
+                    break;
+                }
+                if (projects.pagination().hasMore()) {
+                    projectPage = projects.pagination().nextPage();
+                } else {
+                    break;
+                }
+            }
+
+            ClockifyClient.Pagination pagination = new ClockifyClient.Pagination(
+                    page,
+                    pageSize,
+                    moreData,
+                    moreData ? page + 1 : page,
+                    -1
+            );
+            return new ClockifyClient.PageResult(items, pagination);
+        }
+
+        private String normalize(String value) {
+            if (value == null) {
+                return null;
+            }
+            String trimmed = value.trim();
+            if (trimmed.isEmpty()) {
+                return null;
+            }
+            return trimmed.toLowerCase(Locale.ROOT);
+        }
+
+        private boolean matchesSearch(JsonNode node, String search) {
+            if (search == null) {
+                return true;
+            }
+            String name = node.path("name").asText("");
+            return name.toLowerCase(Locale.ROOT).contains(search);
+        }
+
+        private String cleanedId(String value) {
+            if (value == null) {
+                return null;
+            }
+            String trimmed = value.trim();
+            return trimmed.isEmpty() ? null : trimmed;
+        }
     }
 
     public record ExplorerQuery(int page, int pageSize, Map<String, String> filters) {
@@ -420,6 +625,7 @@ public class WorkspaceExplorerService {
             boolean includeProjects,
             boolean includeClients,
             boolean includeTags,
+            boolean includeTasks,
             boolean includeTimeEntries,
             boolean includeTimeOff,
             boolean includeWebhooks,
@@ -444,6 +650,7 @@ public class WorkspaceExplorerService {
                     true,
                     true,
                     true,
+                    false,
                     true,
                     false,
                     false,

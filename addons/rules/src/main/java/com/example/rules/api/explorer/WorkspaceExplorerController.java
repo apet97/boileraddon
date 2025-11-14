@@ -100,6 +100,15 @@ public class WorkspaceExplorerController {
         );
     }
 
+    public RequestHandler tasks() {
+        return request -> handleCollection(
+                request,
+                25,
+                this::taskFilters,
+                WorkspaceExplorerService.ExplorerDataset.TASKS
+        );
+    }
+
     public RequestHandler timeEntries() {
         return request -> handleCollection(
                 request,
@@ -182,6 +191,7 @@ public class WorkspaceExplorerController {
                 case PROJECTS -> service.getProjects(workspaceId, query);
                 case CLIENTS -> service.getClients(workspaceId, query);
                 case TAGS -> service.getTags(workspaceId, query);
+                case TASKS -> service.getTasks(workspaceId, query);
                 case TIME_ENTRIES -> service.getTimeEntries(workspaceId, query);
                 case TIME_OFF -> service.getTimeOff(workspaceId, query);
                 case WEBHOOKS -> service.getWebhooks(workspaceId, query);
@@ -197,6 +207,7 @@ public class WorkspaceExplorerController {
                 case PROJECTS -> "EXPLORER.PROJECTS_FAILED";
                 case CLIENTS -> "EXPLORER.CLIENTS_FAILED";
                 case TAGS -> "EXPLORER.TAGS_FAILED";
+                case TASKS -> "EXPLORER.TASKS_FAILED";
                 case TIME_ENTRIES -> "EXPLORER.TIME_ENTRIES_FAILED";
                 case TIME_OFF -> "EXPLORER.TIME_OFF_FAILED";
                 case WEBHOOKS -> "EXPLORER.WEBHOOKS_FAILED";
@@ -208,6 +219,7 @@ public class WorkspaceExplorerController {
                 case PROJECTS -> "Failed to load workspace projects";
                 case CLIENTS -> "Failed to load workspace clients";
                 case TAGS -> "Failed to load workspace tags";
+                case TASKS -> "Failed to load workspace tasks";
                 case TIME_ENTRIES -> "Failed to load time entries";
                 case TIME_OFF -> "Failed to load time off data";
                 case WEBHOOKS -> "Failed to load webhooks";
@@ -229,6 +241,7 @@ public class WorkspaceExplorerController {
         boolean includeProjects = parseBoolean(request.getParameter("includeProjects"), true);
         boolean includeClients = parseBoolean(request.getParameter("includeClients"), true);
         boolean includeTags = parseBoolean(request.getParameter("includeTags"), true);
+        boolean includeTasks = parseBoolean(request.getParameter("includeTasks"), false);
         boolean includeTimeEntries = parseBoolean(request.getParameter("includeTimeEntries"), true);
         boolean includeTimeOff = parseBoolean(request.getParameter("includeTimeOff"), false);
         boolean includeWebhooks = parseBoolean(request.getParameter("includeWebhooks"), false);
@@ -242,6 +255,7 @@ public class WorkspaceExplorerController {
                 includeProjects,
                 includeClients,
                 includeTags,
+                includeTasks,
                 includeTimeEntries,
                 includeTimeOff,
                 includeWebhooks,
@@ -318,6 +332,27 @@ public class WorkspaceExplorerController {
         String archived = trim(request.getParameter("archived"));
         if (archived != null) {
             filters.put("archived", archived);
+        }
+        return filters;
+    }
+
+    private Map<String, String> taskFilters(HttpServletRequest request) {
+        Map<String, String> filters = new LinkedHashMap<>();
+        String projectId = trim(request.getParameter("projectId"));
+        if (projectId != null) {
+            filters.put("projectId", projectId);
+        }
+        String search = trim(request.getParameter("search"));
+        if (search != null) {
+            filters.put("search", search);
+        }
+        String archived = trim(request.getParameter("archived"));
+        if (archived != null) {
+            filters.put("archived", archived);
+        }
+        String clientId = trim(request.getParameter("clientId"));
+        if (clientId != null) {
+            filters.put("clientId", clientId);
         }
         return filters;
     }

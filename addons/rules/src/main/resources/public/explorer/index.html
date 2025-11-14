@@ -302,6 +302,26 @@
     .snapshot-summary-table td { padding:8px; border:1px solid var(--border); text-align:left; }
     .snapshot-summary-table th { background: var(--accent-soft); color: var(--text); }
     .snapshot-progress { margin-top: 12px; }
+    .snapshot-previews details {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--card);
+      margin-top: 12px;
+    }
+    .snapshot-previews summary {
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .snapshot-previews pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      overflow: auto;
+      font-size: 12px;
+    }
     .progress-list {
       list-style: none;
       padding: 0;
@@ -395,17 +415,18 @@
       <aside class="sidebar">
         <h2>Workspace Explorer</h2>
         <p>Navigate every dataset without leaving this secure iframe.</p>
-        <ul class="nav-list" role="tablist">
+    <ul class="nav-list" role="tablist">
           <li><button type="button" class="active" data-panel-trigger="overview">Overview</button></li>
           <li><button type="button" data-panel-trigger="time-entries">Time Entries</button></li>
-          <li><button type="button" data-panel-trigger="users">Users</button></li>
           <li><button type="button" data-panel-trigger="projects">Projects</button></li>
           <li><button type="button" data-panel-trigger="clients">Clients</button></li>
+          <li><button type="button" data-panel-trigger="users">Users</button></li>
           <li><button type="button" data-panel-trigger="tags">Tags</button></li>
+          <li><button type="button" data-panel-trigger="tasks">Tasks</button></li>
           <li><button type="button" data-panel-trigger="time-off">Time Off</button></li>
+          <li><button type="button" data-panel-trigger="invoices">Invoices</button></li>
           <li><button type="button" data-panel-trigger="webhooks">Webhooks</button></li>
           <li><button type="button" data-panel-trigger="custom-fields">Custom Fields</button></li>
-          <li><button type="button" data-panel-trigger="invoices">Invoices</button></li>
         </ul>
         <p class="sidebar-note">Saved filters &amp; presets stay in this browser only. Switch panels anytime—data fetches are scoped to the selected dataset.</p>
       </aside>
@@ -481,6 +502,7 @@
             <label><input type="checkbox" data-snapshot-toggle="includeProjects" /> Projects</label>
             <label><input type="checkbox" data-snapshot-toggle="includeClients" /> Clients</label>
             <label><input type="checkbox" data-snapshot-toggle="includeTags" /> Tags</label>
+            <label><input type="checkbox" data-snapshot-toggle="includeTasks" /> Tasks</label>
             <label><input type="checkbox" data-snapshot-toggle="includeTimeEntries" /> Time entries</label>
           </div>
           <div class="snapshot-column">
@@ -679,6 +701,48 @@
           <button type="button" class="ghost" data-preset-delete="tags">Delete preset</button>
         </div>
         <div id="tags-list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-tasks" data-panel="tasks">
+      <div class="card">
+        <div class="card-header">
+          <h3>Tasks</h3>
+          <button type="button" class="ghost" data-refresh="tasks">Refresh</button>
+        </div>
+        <div class="panel-toolbar">
+          <div class="panel-controls">
+            <input type="search" name="search" placeholder="Search by name" data-filter="tasks" />
+            <input type="search" name="projectId" placeholder="Project ID" data-filter="tasks" />
+            <input type="search" name="clientId" placeholder="Client ID" data-filter="tasks" />
+            <select name="archived" data-filter="tasks">
+              <option value="false" selected>Active projects</option>
+              <option value="true">Archived projects</option>
+              <option value="all">All projects</option>
+            </select>
+          </div>
+          <div class="panel-actions">
+            <label>Page size
+              <select name="pageSize" data-filter="tasks">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+            <button type="button" class="ghost" data-reset="tasks">Reset filters</button>
+          </div>
+        </div>
+        <div class="preset-bar" data-preset="tasks">
+          <label>Presets
+            <select data-preset-select="tasks">
+              <option value="">Choose preset…</option>
+            </select>
+          </label>
+          <button type="button" class="ghost" data-preset-save="tasks">Save preset</button>
+          <button type="button" class="ghost" data-preset-delete="tasks">Delete preset</button>
+        </div>
+        <div id="tasks-list" class="list"></div>
       </div>
     </section>
 
@@ -939,6 +1003,7 @@
         projects: { search: '', archived: '', billable: '', clientId: '', pageSize: '25' },
         clients: { search: '', archived: '', pageSize: '25' },
         tags: { search: '', archived: '', pageSize: '25' },
+        tasks: { search: '', projectId: '', clientId: '', archived: 'false', pageSize: '25' },
         'time-entries': { range: '7', userId: '', projectId: '', tagIds: '', pageSize: '25' },
         'time-off': { view: 'requests', status: '', userId: '', groupId: '', policyId: '', pageSize: '25' },
         webhooks: { type: '', event: '', enabled: '', search: '', pageSize: '25' },
@@ -950,6 +1015,7 @@
         includeProjects: true,
         includeClients: true,
         includeTags: true,
+        includeTasks: false,
         includeTimeEntries: true,
         includeTimeOff: false,
         includeWebhooks: false,
@@ -964,12 +1030,18 @@
         { option: 'includeProjects', label: 'Projects' },
         { option: 'includeClients', label: 'Clients' },
         { option: 'includeTags', label: 'Tags' },
+        { option: 'includeTasks', label: 'Tasks' },
         { option: 'includeTimeEntries', label: 'Time entries' },
         { option: 'includeTimeOff', label: 'Time off' },
         { option: 'includeWebhooks', label: 'Webhooks' },
         { option: 'includeCustomFields', label: 'Custom fields' },
         { option: 'includeInvoices', label: 'Invoices' }
       ];
+      const SNAPSHOT_SUMMARY_LABELS = SNAPSHOT_DATASETS.reduce((acc, ds) => {
+        const key = optionToSummaryKey(ds.option);
+        acc[key] = ds.label;
+        return acc;
+      }, {});
 
       const state = {
         loaded: {},
@@ -1032,6 +1104,7 @@
           projects: () => loadCollection('projects', '/projects', renderProjects),
           clients: () => loadCollection('clients', '/clients', renderClients),
           tags: () => loadCollection('tags', '/tags', renderTags),
+          tasks: () => loadCollection('tasks', '/tasks', renderTasks),
           'time-entries': () => loadCollection('time-entries', '/time-entries', renderTimeEntries),
           'time-off': () => loadCollection('time-off', '/time-off', renderTimeOff),
           webhooks: () => loadCollection('webhooks', '/webhooks', renderWebhooks),
@@ -1273,6 +1346,30 @@
             </div>
           </div>`;
         }, 'No tags found');
+      }
+
+      function renderTasks(data) {
+        renderList('tasks-list', data, task => {
+          const name = escapeHtml(task.name || 'Untitled task');
+          const projectName = escapeHtml(task.projectName || task.project?.name || 'No project');
+          const projectId = escapeHtml(task.projectId || task.project?.id || 'n/a');
+          const statusRaw = (task.status || (task.archived || task.isActive === false ? 'ARCHIVED' : 'ACTIVE')).toString().toUpperCase();
+          const statusClass = statusRaw === 'ARCHIVED' ? 'warning' : 'success';
+          const billable = task.billable === false ? 'Non-billable' : 'Billable';
+          const actions = buildActionRow([buildProjectRuleLink({ id: task.projectId || task.project?.id, name: task.projectName || task.project?.name })]);
+          return `<div class="list-item">
+            <div>
+              <h4>${name}</h4>
+              <p>Project: ${projectName}</p>
+              <p class="muted small">Task ID: ${projectId}</p>
+              ${actions}
+            </div>
+            <div>
+              <span class="pill ${statusClass}">${statusRaw}</span>
+              <span class="pill">${billable}</span>
+            </div>
+          </div>`;
+        }, 'No tasks found');
       }
 
       function renderTimeEntries(data) {
@@ -1543,6 +1640,7 @@
           includeProjects: sanitized.includeProjects,
           includeClients: sanitized.includeClients,
           includeTags: sanitized.includeTags,
+          includeTasks: sanitized.includeTasks,
           includeTimeEntries: sanitized.includeTimeEntries,
           includeTimeOff: sanitized.includeTimeOff,
           includeWebhooks: sanitized.includeWebhooks,
@@ -1621,6 +1719,23 @@
         container.innerHTML = stateCard(message || 'Snapshot failed', isError ? 'error' : 'empty');
       }
 
+      function optionToSummaryKey(option) {
+        if (!option || !option.startsWith('include')) {
+          return option;
+        }
+        const trimmed = option.slice('include'.length);
+        return trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+      }
+
+      function snapshotLabel(key) {
+        if (SNAPSHOT_SUMMARY_LABELS[key]) {
+          return SNAPSHOT_SUMMARY_LABELS[key];
+        }
+        return key
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^\w/, ch => ch.toUpperCase());
+      }
+
       function renderSnapshotSummary(data) {
         const summaryDiv = document.getElementById('snapshot-summary');
         const downloadBtn = document.getElementById('btn-download-snapshot');
@@ -1630,21 +1745,43 @@
           if (downloadBtn) downloadBtn.disabled = true;
           return;
         }
-        const rows = Object.entries(data.summary).map(([key, stats]) => {
+        const rows = Object.entries(data.summary)
+          .sort((a, b) => snapshotLabel(a[0]).localeCompare(snapshotLabel(b[0])))
+          .map(([key, stats]) => {
+          const label = snapshotLabel(key);
           return `<tr>
-            <td>${escapeHtml(key)}</td>
+            <td>${escapeHtml(label)}</td>
             <td>${stats.items ?? 0}</td>
             <td>${stats.pages ?? 0}</td>
             <td>${stats.hadMore ? 'Yes' : 'No'}</td>
           </tr>`;
         }).join('');
+        const previews = buildSnapshotPreviews(data.datasets);
         summaryDiv.innerHTML = `<table class="snapshot-summary-table">
           <thead><tr><th>Dataset</th><th>Items</th><th>Pages fetched</th><th>More available?</th></tr></thead>
           <tbody>${rows}</tbody>
-        </table>`;
+        </table>${previews}`;
         if (downloadBtn) {
           downloadBtn.disabled = false;
         }
+      }
+
+      function buildSnapshotPreviews(datasets) {
+        if (!datasets || typeof datasets !== 'object') {
+          return '';
+        }
+        const sections = Object.entries(datasets)
+          .sort((a, b) => snapshotLabel(a[0]).localeCompare(snapshotLabel(b[0])))
+          .map(([key, payload]) => {
+          const label = snapshotLabel(key);
+          const count = Array.isArray(payload) ? payload.length : 0;
+          const json = escapeHtml(JSON.stringify(payload, null, 2));
+          return `<details class="snapshot-preview">
+            <summary>${escapeHtml(label)} JSON (${count} records)</summary>
+            <pre>${json}</pre>
+          </details>`;
+        }).join('');
+        return sections ? `<div class="snapshot-previews">${sections}</div>` : '';
       }
 
       function downloadSnapshot() {

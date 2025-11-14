@@ -39,9 +39,9 @@ public class SimpleSettingsController implements RequestHandler {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'self'; style-src 'nonce-%s'; script-src 'nonce-%s'; base-uri 'self'; form-action 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'self'; style-src 'nonce-{{CSP_STYLE_NONCE}}'; script-src 'nonce-{{CSP_SCRIPT_NONCE}}'; base-uri 'self'; form-action 'self'" />
   <title>Rules Automation - Simple Builder</title>
-  <style nonce="%s">
+  <style nonce="{{STYLE_NONCE}}">
     :root {
       --primary: #1976d2;
       --primary-light: #e3f2fd;
@@ -194,6 +194,37 @@ public class SimpleSettingsController implements RequestHandler {
     .status-badge.warning { background: #fff3e0; color: var(--warning); }
     .status-badge.error { background: #ffebee; color: var(--error); }
 
+    .prefill-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border-left: 4px solid var(--primary);
+      background: var(--primary-light);
+      color: var(--primary);
+      margin-bottom: 16px;
+    }
+
+    .prefill-banner[hidden] { display: none; }
+
+    .prefill-banner p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .prefill-highlight {
+      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.15);
+      background: #f0f6ff;
+    }
+
+    .btn-compact {
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
     .rule-templates {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -301,10 +332,10 @@ public class SimpleSettingsController implements RequestHandler {
       <h1>🤖 Rules Automation</h1>
       <p>Create simple automation rules for your time entries</p>
       <div class="flex flex-wrap mt-16" style="gap: 12px;">
-        <span class="status-badge">Mode: %s</span>
-        <span class="status-badge">Signature: %s</span>
-        <span class="status-badge">Env: %s</span>
-        <span class="status-badge">Base: %s</span>
+        <span class="status-badge">Mode: {{APPLY_MODE}}</span>
+        <span class="status-badge">Signature: {{SIG_STATUS}}</span>
+        <span class="status-badge">Env: {{ENV_LABEL}}</span>
+        <span class="status-badge">Base: {{BASE_URL}}</span>
       </div>
     </div>
 
@@ -339,6 +370,15 @@ public class SimpleSettingsController implements RequestHandler {
 
     <div class="card">
       <h2>Create Rule</h2>
+      <div class="prefill-banner" id="prefillBanner" hidden>
+        <div>
+          <strong>Prefilled from explorer snapshot</strong>
+          <p id="prefillDetails">We carried over context from the workspace explorer.</p>
+        </div>
+        <button class="btn btn-secondary btn-compact" type="button" id="btnDismissPrefill">
+          Dismiss
+        </button>
+      </div>
 
       <div class="form-group">
         <label for="workspaceId">Workspace ID</label>
@@ -397,7 +437,7 @@ public class SimpleSettingsController implements RequestHandler {
     </div>
   </div>
 
-  <script nonce="%s">
+  <script nonce="{{SCRIPT_NONCE}}">
     const baseUrl = () => {
       const u = new URL(window.location.href);
       let p = u.pathname;
@@ -463,7 +503,9 @@ public class SimpleSettingsController implements RequestHandler {
       { value: 'set_billable', label: 'Set billable' }
     ];
 
-    function addCondition(type = 'descriptionContains', value = '') {
+    function addCondition(type = 'descriptionContains', value = '', options = {}) {
+      const config = options || {};
+      const highlight = Boolean(config.highlight);
       const div = document.createElement('div');
       div.className = 'condition-row';
       const select = document.createElement('select');
@@ -490,6 +532,15 @@ public class SimpleSettingsController implements RequestHandler {
 
       div.append(select, input, remove);
       document.getElementById('conditions').appendChild(div);
+      if (highlight) {
+        highlightRow(div);
+      }
+    }
+
+    function highlightRow(row) {
+      if (!row) return;
+      row.classList.add('prefill-highlight');
+      setTimeout(() => row.classList.remove('prefill-highlight'), 4000);
     }
 
     function addAction(type = 'add_tag', value = '') {
@@ -807,6 +858,21 @@ public class SimpleSettingsController implements RequestHandler {
       }, 10000); // Longer timeout for debug messages
     }
 
+    function showPrefillNotice(messages) {
+      const banner = document.getElementById('prefillBanner');
+      const details = document.getElementById('prefillDetails');
+      if (!banner || !details) return;
+      details.textContent = messages.join(' | ');
+      banner.hidden = false;
+    }
+
+    function hidePrefillNotice() {
+      const banner = document.getElementById('prefillBanner');
+      if (banner) {
+        banner.hidden = true;
+      }
+    }
+
     async function copyManifest() {
       try {
         const url = baseUrl() + '/manifest.json';
@@ -837,24 +903,27 @@ public class SimpleSettingsController implements RequestHandler {
     bindButton('btnAdvancedBuilder', () => window.location.href = baseUrl() + '/settings');
     bindButton('btnIftttBuilder', () => window.location.href = baseUrl() + '/ifttt');
     bindButton('btnCopyManifest', copyManifest);
+    bindButton('btnDismissPrefill', hidePrefillNotice);
 
     addCondition();
     addAction();
 
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
-      // Try to load workspace ID from URL parameters
       const urlParams = new URLSearchParams(window.location.search);
+      const prefillMessages = [];
+
       const workspaceId = urlParams.get('workspaceId') || urlParams.get('ws');
       if (workspaceId) {
         document.getElementById('workspaceId').value = workspaceId;
         loadRules();
       }
-      const ruleNameParam = urlParams.get('ruleName');
+      const ruleNameParam = (urlParams.get('ruleName') || '').trim();
       if (ruleNameParam) {
         document.getElementById('ruleName').value = ruleNameParam;
+        prefillMessages.push(`Rule name: ${ruleNameParam}`);
       }
-      const descriptionPrefill = urlParams.get('prefillDescription');
+      const descriptionPrefill = (urlParams.get('prefillDescription') || '').trim();
       if (descriptionPrefill) {
         const firstCondition = document.querySelector('#conditions .condition-row');
         if (firstCondition) {
@@ -862,15 +931,18 @@ public class SimpleSettingsController implements RequestHandler {
           const valueInput = firstCondition.querySelector('.condition-value');
           if (typeSelect) typeSelect.value = 'descriptionContains';
           if (valueInput) valueInput.value = descriptionPrefill;
+          highlightRow(firstCondition);
         } else {
-          addCondition('descriptionContains', descriptionPrefill);
+          addCondition('descriptionContains', descriptionPrefill, { highlight: true });
         }
+        prefillMessages.push(`Description contains "${descriptionPrefill}"`);
       }
-      const projectPrefill = urlParams.get('prefillProjectId');
+      const projectPrefill = (urlParams.get('prefillProjectId') || '').trim();
       if (projectPrefill) {
-        addCondition('projectIdEquals', projectPrefill);
+        addCondition('projectIdEquals', projectPrefill, { highlight: true });
+        prefillMessages.push(`Project filter: ${projectPrefill}`);
       }
-      const tagPrefill = urlParams.get('prefillTagIds');
+      const tagPrefill = (urlParams.get('prefillTagIds') || '').trim();
       if (tagPrefill) {
         const uniqueTags = Array.from(new Set(
           tagPrefill
@@ -878,7 +950,16 @@ public class SimpleSettingsController implements RequestHandler {
             .map(tagId => tagId.trim())
             .filter(Boolean)
         ));
-        uniqueTags.forEach(tagId => addCondition('hasTag', tagId));
+        uniqueTags.forEach(tagId => addCondition('hasTag', tagId, { highlight: true }));
+        if (uniqueTags.length) {
+          prefillMessages.push(`Tags: ${uniqueTags.slice(0, 5).join(', ')}`);
+        }
+      }
+
+      if (prefillMessages.length) {
+        showPrefillNotice(prefillMessages);
+      } else {
+        hidePrefillNotice();
       }
     });
   </script>
@@ -886,7 +967,15 @@ public class SimpleSettingsController implements RequestHandler {
 </html>
 """;
 
-        html = String.format(html, nonce, nonce, nonce, applyMode, skipSig, envLabel, base, nonce);
+        html = html
+                .replace("{{CSP_STYLE_NONCE}}", nonce)
+                .replace("{{CSP_SCRIPT_NONCE}}", nonce)
+                .replace("{{STYLE_NONCE}}", nonce)
+                .replace("{{APPLY_MODE}}", applyMode)
+                .replace("{{SIG_STATUS}}", skipSig)
+                .replace("{{ENV_LABEL}}", envLabel)
+                .replace("{{BASE_URL}}", base)
+                .replace("{{SCRIPT_NONCE}}", nonce);
         return HttpResponse.ok(html, "text/html; charset=utf-8");
     }
 }

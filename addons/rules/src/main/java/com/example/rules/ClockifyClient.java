@@ -187,6 +187,17 @@ public class ClockifyClient {
         return fetchPage("/workspaces/" + workspaceId + "/tags", queryParams, page, pageSize);
     }
 
+    public PageResult getTasksPage(String workspaceId,
+                                   String projectId,
+                                   Map<String, String> queryParams,
+                                   int page,
+                                   int pageSize) throws Exception {
+        if (projectId == null || projectId.isBlank()) {
+            throw new IllegalArgumentException("projectId is required to list tasks");
+        }
+        return fetchPage("/workspaces/" + workspaceId + "/projects/" + projectId + "/tasks", queryParams, page, pageSize);
+    }
+
     public PageResult getTimeEntriesPage(String workspaceId, Map<String, String> queryParams, int page, int pageSize) throws Exception {
         return fetchPage("/workspaces/" + workspaceId + "/time-entries", queryParams, page, pageSize);
     }

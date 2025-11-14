@@ -47,10 +47,10 @@ Use this checklist before the first deployment **and** during every rollout. Upd
 - [ ] **Settings UI (inside Clockify):**
   - [ ] Sidebar loads, shows correct base URL + environment banner.
   - [ ] Developer tools show `/api/**` and `/status` requests with `Authorization: Bearer ...` headers (no 401s).
-  - [ ] Each explorer tab (users, projects, clients, tags, time entries, time off, webhooks, custom fields, invoices) renders and respects the toolbar filters/page-size selector.
+  - [ ] Each explorer tab (users, projects, clients, tags, **tasks**, time entries, time off, webhooks, custom fields, invoices) renders and respects the toolbar filters/page-size selector.
   - [ ] Presets can be saved per dataset, persist after a reload, and can be reused/deleted.
-- [ ] Snapshot runs complete with conservative limits (e.g., `pageSizePerDataset=10`, `maxPagesPerDataset=1`), honor the selected lookback window (UI presets 7/30/90 days, enforced clamp 1–90), show inline progress, and enable the JSON download when finished.
-  - [ ] “Create rule from this” on a time entry opens the simple builder with the name/description/project/tags prefilled (copy-to-clipboard rule seeds also work).
+- [ ] Snapshot runs complete with conservative limits (e.g., `pageSizePerDataset=10`, `maxPagesPerDataset=1`), honor the selected lookback window (UI presets 7/30/90 days, enforced clamp 1–90), show inline progress, render expandable JSON previews per dataset, and enable the JSON download only when finished.
+  - [ ] “Create rule from this” on a time entry opens the simple builder with the name/description/project/tags prefilled, shows the prefill banner/highlights, and the copy-to-clipboard rule seed works.
 - [ ] **Webhook path sanity:**
   - [ ] Trigger a sample webhook (e.g., create a time entry) with known match conditions.
   - [ ] Confirm webhook log lines show `workspaceId` and `event` fields.

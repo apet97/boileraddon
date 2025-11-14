@@ -162,6 +162,15 @@ curl -s -X POST http://localhost:8080/rules/api/test \
 - Add Conditions from dropdowns; choose AND/OR combinator (optional).
 - Add Actions and provide required args (tag/name, projectId/taskId/value). The UI autocompletes names and converts them to IDs where appropriate.
 - Click “Save Rule”; use “Existing Rules” to refresh or delete.
+- When you arrive via the explorer’s “Create rule from this” action, the builder highlights every injected condition and shows a prefill banner/copyable rule seed so admins know exactly what was preloaded.
+
+## Workspace Explorer & Snapshot
+
+- `/rules/settings` also hosts the workspace explorer iframe used inside Clockify (install via **developer.clockify.me → Admin → Add-ons → Install Custom Add-on** with `https://<domain>/rules/manifest.json`).
+- The left nav covers all read-only datasets required for audits (users, projects, clients, tags, **tasks**, time entries, invoices, time-off, webhooks, custom fields). Each panel ships with search/filter inputs, page-size controls, and a preset dropdown backed by `localStorage` so every browser can save multiple named filter bundles.
+- Explorer APIs (`/api/rules/explorer/**`) run server-side and never expose the Clockify token to the browser. The new tasks endpoint walks project/task GET pages with a capped scan (5K items) so “fetch everything” remains safe even on large workspaces.
+- Snapshot mode (`/api/rules/explorer/snapshot`) supports dataset toggles (users through invoices + tasks), configurable limits (5–100 rows × 1–20 pages), and a selectable time-entry lookback (UI presets 7/30/90 days, clamped 1–90). The UI renders progress per dataset, shows expandable JSON previews, and only enables the download button when a run completes without errors.
+- Time entry rows surface both a “Create rule from this” link (deep-linking into `/simple?ruleName=...&prefillDescription=...&prefillProjectId=...&prefillTagIds=...`) and a copy-to-clipboard rule seed for admins who prefer to start from JSON.
 
 ## Developer Workspace Notes
 

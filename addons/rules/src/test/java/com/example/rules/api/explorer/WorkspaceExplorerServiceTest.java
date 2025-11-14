@@ -92,6 +92,7 @@ class WorkspaceExplorerServiceTest {
                 false,
                 false,
                 false,
+                false,
                 2,
                 2,
                 30
@@ -111,6 +112,7 @@ class WorkspaceExplorerServiceTest {
                 false,
                 false,
                 false,
+                false,
                 true,
                 false,
                 false,
@@ -126,6 +128,7 @@ class WorkspaceExplorerServiceTest {
 
         WorkspaceExplorerService.SnapshotRequest upper = new WorkspaceExplorerService.SnapshotRequest(
                 true,
+                false,
                 false,
                 false,
                 false,
@@ -150,6 +153,7 @@ class WorkspaceExplorerServiceTest {
                 pageResult(1, 5, item("id", "te-1"))
         );
         WorkspaceExplorerService.SnapshotRequest request = new WorkspaceExplorerService.SnapshotRequest(
+                false,
                 false,
                 false,
                 false,
@@ -195,6 +199,19 @@ class WorkspaceExplorerServiceTest {
 
         assertEquals(1, response.get("items").size());
         assertEquals(WorkspaceExplorerService.ExplorerDataset.WEBHOOKS, gateway.lastDataset);
+    }
+
+    @Test
+    void tasksDatasetReturnsItems() throws Exception {
+        gateway.setResponse(
+                WorkspaceExplorerService.ExplorerDataset.TASKS,
+                pageResult(1, 5, item("id", "task-1"))
+        );
+
+        ObjectNode response = service.getTasks("ws", null);
+
+        assertEquals(1, response.get("items").size());
+        assertEquals(WorkspaceExplorerService.ExplorerDataset.TASKS, gateway.lastDataset);
     }
 
     @Test

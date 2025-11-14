@@ -241,6 +241,7 @@ public class RulesApp {
         addon.registerCustomEndpoint("/api/rules/explorer/projects", explorerController.projects());
         addon.registerCustomEndpoint("/api/rules/explorer/clients", explorerController.clients());
         addon.registerCustomEndpoint("/api/rules/explorer/tags", explorerController.tags());
+        addon.registerCustomEndpoint("/api/rules/explorer/tasks", explorerController.tasks());
         addon.registerCustomEndpoint("/api/rules/explorer/time-entries", explorerController.timeEntries());
         addon.registerCustomEndpoint("/api/rules/explorer/time-off", explorerController.timeOff());
         addon.registerCustomEndpoint("/api/rules/explorer/webhooks", explorerController.webhooks());
