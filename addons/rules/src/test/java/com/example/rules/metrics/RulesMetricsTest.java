@@ -117,6 +117,42 @@ class RulesMetricsTest {
     }
 
     @Test
+    void testRecordDedupMiss() {
+        RulesMetrics.recordDedupMiss("NEW_TIME_ENTRY");
+
+        Counter dedupCounter = testRegistry.find("rules_webhook_dedup_misses_total")
+            .tag("event", "NEW_TIME_ENTRY")
+            .counter();
+
+        assertNotNull(dedupCounter);
+        assertEquals(1.0, dedupCounter.count());
+    }
+
+    @Test
+    void testRecordAsyncBacklog() {
+        RulesMetrics.recordAsyncBacklog("fallback");
+
+        Counter backlogCounter = testRegistry.find("rules_async_backlog_total")
+            .tag("outcome", "fallback")
+            .counter();
+
+        assertNotNull(backlogCounter);
+        assertEquals(1.0, backlogCounter.count());
+    }
+
+    @Test
+    void testRecordWorkspaceCacheTruncation() {
+        RulesMetrics.recordWorkspaceCacheTruncation("tasks");
+
+        Counter truncationCounter = testRegistry.find("rules_workspace_cache_truncated_total")
+            .tag("dataset", "tasks")
+            .counter();
+
+        assertNotNull(truncationCounter);
+        assertEquals(1.0, truncationCounter.count());
+    }
+
+    @Test
     void testSanitizeHandlesNull() {
         // Test private sanitize method through public methods
         RulesMetrics.recordRuleEvaluation(null, 5, 1);

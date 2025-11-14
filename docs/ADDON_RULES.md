@@ -3,7 +3,7 @@
 The Rules add‑on lets admins define “if … then …” automations for Clockify time entries (AND/OR logic), with a simple no‑code builder available at `/rules/settings`.
 
 - Conditions: descriptionContains, descriptionEquals, hasTag (by ID), projectIdEquals, projectNameContains, clientIdEquals, clientNameContains, isBillable
-- Actions: add_tag, remove_tag, set_description, set_billable, set_project_by_id, set_project_by_name, set_task_by_id, set_task_by_name
+- Actions: add_tag, remove_tag, set_description, set_billable, set_project_by_id, set_project_by_name, set_task_by_id, set_task_by_name, openapi_call (IFTTT placeholders → Clockify API)
 - Manifest key: `rules`; base path: `/rules`
 - Minimal subscription plan: `PRO` (tasks, invoices, and automation actions require the Pro tier)
 
@@ -175,7 +175,7 @@ curl -s -X POST http://localhost:8080/rules/api/test \
 
 - `/rules/settings` also hosts the workspace explorer iframe used inside Clockify (install via **developer.clockify.me → Admin → Add-ons → Install Custom Add-on** with `https://<domain>/rules/manifest.json`).
 - The left nav covers all read-only datasets required for audits (users, projects, clients, tags, **tasks**, time entries, invoices, time-off, webhooks, custom fields). Each panel ships with search/filter inputs, page-size controls, and a preset dropdown backed by `localStorage` so every browser can save multiple named filter bundles.
-- Explorer APIs (`/api/rules/explorer/**`) run server-side and never expose the Clockify token to the browser. The new tasks endpoint walks project/task GET pages with a capped scan (5K items) so “fetch everything” remains safe even on large workspaces.
+- Explorer APIs (`/api/rules/explorer/**`) run server-side and never expose the Clockify token to the browser. The new tasks endpoint walks project/task GET pages with a capped scan (5K items) so “fetch everything” remains safe even on large workspaces; when the cap hits, refreshes log the workspace and increment `rules_workspace_cache_truncated_total{dataset="tasks"}` so operators can spot truncated caches.
 - Snapshot mode (`/api/rules/explorer/snapshot`) supports dataset toggles (users through invoices + tasks), configurable limits (5–100 rows × 1–20 pages), and a selectable time-entry lookback (UI presets 7/30/90 days, clamped 1–90). The UI renders progress per dataset, shows expandable JSON previews, and only enables the download button when a run completes without errors.
 - Time entry rows surface both a “Create rule from this” link (deep-linking into `/simple?ruleName=...&prefillDescription=...&prefillProjectId=...&prefillTagIds=...`) and a copy-to-clipboard rule seed for admins who prefer to start from JSON.
 
@@ -235,12 +235,12 @@ that powers classic actions (add_tag, set_billable, etc.).
     {
       "type": "openapi_call",
       "endpoint": {
-        "method": "PUT",
-        "path": "/v1/workspaces/{{workspaceId}}/time-entries/{{id}}"
+        "method": "POST",
+        "path": "/v1/workspaces/{{workspaceId}}/projects/{{projectId}}/tasks"
       },
       "body": {
-        "billable": true,
-        "tagIds": ["tag-billable-id"]
+        "name": "Follow-up for {{user.name}}",
+        "projectId": "{{projectId}}"
       }
     }
   ]
@@ -265,6 +265,19 @@ that powers classic actions (add_tag, set_billable, etc.).
   - set_project_by_id, set_project_by_name (name resolved via cache)
   - set_task_by_id, set_task_by_name (name resolved under current or newly set project via cache)
   - **openapi_call** (IFTTT: execute any Clockify API endpoint with placeholder resolution)
+
+## Operational guardrails & metrics
+
+- **Workspace cache cap** — Refreshes load at most 5,000 tasks per workspace. When the cap fires, the service logs the workspace, observed totals, and increments `rules_workspace_cache_truncated_total{dataset="tasks"}` so dashboards can flag partial caches.
+- **Per-node dedupe** — `WebhookIdempotencyCache` is an in-memory per-JVM TTL. Treat webhook processing as “at most once per node”; `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` quantify retry ratios and help decide when to introduce a distributed cache.
+- **Async backlog** — Oversized rule batches fall back to synchronous processing when the async executor is saturated. Each fallback increments `rules_async_backlog_total{outcome="fallback"}` so you can alert on sustained queue pressure.
+
+### openapi_call safety
+
+- Only `GET` and `POST` methods are accepted; other verbs fail validation.
+- Paths must start with `/workspaces/{workspaceId}/...` to keep automation scoped to the invoking tenant.
+- Test `openapi_call` rules in a sandbox workspace first, prefer read-only endpoints when possible, and keep payloads small enough to audit via logs/metrics if something goes wrong.
+
 - Signatures: Developer webhooks are signed. The validator accepts `clockify-webhook-signature`, `x-clockify-webhook-signature` (case variants), and Developer’s JWT header `Clockify-Signature` (enable with `ADDON_ACCEPT_JWT_SIGNATURE=true`; default is `false`). If your environment still 401s, use the dev bypass below to prove E2E and share one sample header so we can adapt.
 - Dev bypass: To test end‑to‑end without signature problems and apply changes:
   - `ADDON_SKIP_SIGNATURE_VERIFY=true RULES_APPLY_CHANGES=true bash scripts/run-rules.sh --base-url "https://<ngrok>/rules"`

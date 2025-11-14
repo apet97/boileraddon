@@ -74,13 +74,19 @@ For bare-metal or VM deployments, run the same fat JAR directly: `ADDON_BASE_URL
 - **Presets** — Every dataset toolbar persists filters, search text, and pagination preferences to `localStorage`, with save/load/delete actions per dataset. Use this during QA to simulate admin review workflows.
 
 ## Webhook idempotency & filters
-- `WebhookIdempotencyCache` stores `(workspaceId, eventType, payloadId)` tuples for `RULES_WEBHOOK_DEDUP_SECONDS` (60s–24h). The cache is per-pod and in-memory; duplicates are only caught on the same node. Duplicates short-circuit webhook handlers and increment `rules_webhook_dedup_hits_total`. For cross-node dedupe, back the cache with a persistent store.
+- `WebhookIdempotencyCache` stores `(workspaceId, eventType, payloadId)` tuples for `RULES_WEBHOOK_DEDUP_SECONDS` (60s–24h). The cache is per-pod and in-memory; duplicates are only caught on the same node, so treat the behavior as “at-most-once per JVM”. Duplicates short-circuit webhook handlers and increment `rules_webhook_dedup_hits_total`, while first-seen payloads increment `rules_webhook_dedup_misses_total`. For cross-node dedupe, back the cache with a persistent store.
 - `SecurityHeadersFilter` emits CSP + security headers and shares a per-request nonce with the settings/IFTTT controllers.
 - `SensitiveHeaderFilter` wraps the servlet request to redact `Authorization`, `X-Addon-Token`, `Clockify-Signature`, and cookies before any logging occurs.
 - Workspace iframe JWTs flow through `RulesConfiguration.JwtBootstrapConfig` → `JwtVerifier` → `WorkspaceContextFilter` / `PlatformAuthFilter`, so no controller calls `System.getenv`.
 
 ## Known operational limits
-- **Task scanning** — Workspace-level task listings walk projects (`50` per page) × tasks (`200` per page) and cap the scan at 5,000 tasks to keep snapshots bounded. When the cap hits, pagination reports `hadMore=true`; operators should narrow filters before exporting again.
-- **Webhook dedupe** — Idempotency cache is JVM-local plus TTL-based. Use the Prometheus counters to watch for spikes and consider an external store if you deploy multiple replicas or need >24h dedupe windows.
+- **Task scanning** — Workspace-level task listings walk projects (`50` per page) × tasks (`200` per page) and cap the scan at 5,000 tasks to keep snapshots bounded. When the cap hits, refreshes log the workspace, observed totals, and increment `rules_workspace_cache_truncated_total{dataset="tasks"}` so dashboards can flag truncated caches; operators should narrow filters before exporting again.
+- **Webhook dedupe** — Idempotency cache is JVM-local plus TTL-based. Track `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` to understand retry ratios and consider an external store if you deploy multiple replicas or need >24h dedupe windows.
+- **Async backlog** — If the async executor saturates, webhook requests fall back to synchronous execution and increment `rules_async_backlog_total{outcome="fallback"}`. Sustained growth here signals the need to scale workers or revisit rule complexity.
+
+## openapi_call safety
+- Only `GET` and `POST` methods are accepted for `openapi_call` actions; other verbs fail validation.
+- Paths must start with `/workspaces/{workspaceId}/...` to prevent cross-tenant calls.
+- Use a sandbox workspace (and prefer read-only endpoints) when testing `openapi_call` rules; production alerts should include IDs from the structured logs to correlate who invoked which path.
 
 For the authoritative runbook (env-by-env), see `addons/rules/README.md` and the new [`RULES_PROD_LAUNCH_CHECKLIST.md`](RULES_PROD_LAUNCH_CHECKLIST.md). Keep `PRODUCTION_CHECKLIST.md` and [`docs/RULES_DB_SCHEMA.md`](docs/RULES_DB_SCHEMA.md) in sync with any schema or ops changes.

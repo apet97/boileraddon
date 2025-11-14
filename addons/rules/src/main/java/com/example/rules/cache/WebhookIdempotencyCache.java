@@ -1,5 +1,6 @@
 package com.example.rules.cache;
 
+import com.example.rules.metrics.RulesMetrics;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,18 +75,22 @@ public final class WebhookIdempotencyCache {
     public static boolean isDuplicate(String workspaceId, String eventType, JsonNode payload) {
         String dedupKey = deriveDedupKey(payload);
         if (dedupKey == null) {
+            RulesMetrics.recordDedupMiss(eventType);
             return false;
         }
         String key = buildKey(workspaceId, eventType, dedupKey);
         long expiresAt = System.currentTimeMillis() + ttlMillis;
         Long previous = CACHE.putIfAbsent(key, expiresAt);
         if (previous == null) {
+            RulesMetrics.recordDedupMiss(eventType);
             return false;
         }
         if (previous < System.currentTimeMillis()) {
             CACHE.put(key, expiresAt);
+            RulesMetrics.recordDedupMiss(eventType);
             return false;
         }
+        RulesMetrics.recordDeduplicatedEvent(eventType);
         return true;
     }
 

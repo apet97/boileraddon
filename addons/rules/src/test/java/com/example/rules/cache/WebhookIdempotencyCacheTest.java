@@ -1,7 +1,9 @@
 package com.example.rules.cache;
 
+import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.micrometer.core.instrument.Counter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,7 @@ class WebhookIdempotencyCacheTest {
     void setUp() {
         WebhookIdempotencyCache.clear();
         WebhookIdempotencyCache.configureTtl(60_000);
+        MetricsHandler.registry().clear();
     }
 
     @AfterEach
@@ -31,6 +34,20 @@ class WebhookIdempotencyCacheTest {
 
         assertFalse(WebhookIdempotencyCache.isDuplicate("ws", "NEW_TIME_ENTRY", payload));
         assertTrue(WebhookIdempotencyCache.isDuplicate("ws", "NEW_TIME_ENTRY", payload));
+
+        Counter missCounter = MetricsHandler.registry()
+                .find("rules_webhook_dedup_misses_total")
+                .tag("event", "NEW_TIME_ENTRY")
+                .counter();
+        assertNotNull(missCounter);
+        assertEquals(1.0, missCounter.count());
+
+        Counter hitCounter = MetricsHandler.registry()
+                .find("rules_webhook_dedup_hits_total")
+                .tag("event", "NEW_TIME_ENTRY")
+                .counter();
+        assertNotNull(hitCounter);
+        assertEquals(1.0, hitCounter.count());
     }
 
     @Test

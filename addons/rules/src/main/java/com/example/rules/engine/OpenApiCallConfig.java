@@ -3,6 +3,7 @@ package com.example.rules.engine;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Map;
 
@@ -10,6 +11,8 @@ import java.util.Map;
  * Typed representation of an {@code openapi_call} action. Validates method/path upfront.
  */
 public final class OpenApiCallConfig {
+    private static final EnumSet<HttpMethod> ALLOWED_METHODS = EnumSet.of(HttpMethod.GET, HttpMethod.POST);
+
     private final HttpMethod method;
     private final String pathTemplate;
     private final JsonNode bodyTemplate;
@@ -30,11 +33,18 @@ public final class OpenApiCallConfig {
         }
         HttpMethod method = HttpMethod.from(args.get("method"));
         if (method == null) {
-            throw new IllegalArgumentException("openapi_call.method is required (GET/POST/PUT/PATCH/DELETE)");
+            throw new IllegalArgumentException("openapi_call.method is required (GET or POST)");
+        }
+        if (!ALLOWED_METHODS.contains(method)) {
+            throw new IllegalArgumentException("Unsupported method for openapi_call; allowed: GET, POST.");
         }
         String path = args.get("path");
         if (path == null || path.isBlank()) {
             throw new IllegalArgumentException("openapi_call.path is required");
+        }
+        String normalizedPath = path.trim();
+        if (!normalizedPath.startsWith("/workspaces/")) {
+            throw new IllegalArgumentException("openapi_call path must start with /workspaces/...");
         }
         JsonNode bodyTemplate = null;
         String body = args.get("body");
@@ -45,7 +55,7 @@ public final class OpenApiCallConfig {
                 throw new IllegalArgumentException("Invalid JSON body template", e);
             }
         }
-        return new OpenApiCallConfig(method, path.trim(), bodyTemplate);
+        return new OpenApiCallConfig(method, normalizedPath, bodyTemplate);
     }
 
     public ResolvedCall resolve(JsonNode payload) {

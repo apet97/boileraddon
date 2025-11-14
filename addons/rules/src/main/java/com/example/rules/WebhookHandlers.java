@@ -175,12 +175,30 @@ public class WebhookHandlers {
                         String finalWorkspaceId = workspaceId;
                         JsonNode finalTimeEntry = timeEntry;
                         String finalEventType = eventType;
-                        if (scheduleAsyncProcessing(finalWorkspaceId, finalTimeEntry, actionsToApply, finalEventType)) {
+                        boolean scheduledSuccessfully;
+                        try {
+                            scheduledSuccessfully = scheduleAsyncProcessing(
+                                    finalWorkspaceId, finalTimeEntry, actionsToApply, finalEventType);
+                        } catch (RuntimeException schedulingFailure) {
+                            scheduledSuccessfully = false;
+                            logger.debug("Async scheduling threw for workspace {} (event: {})",
+                                    workspaceId, eventType, schedulingFailure);
+                        }
+                        if (scheduledSuccessfully) {
                             return respondWithMetrics(sample, eventType, "scheduled", createResponse(eventType, "scheduled", actionsToApply));
                         }
+                        RulesMetrics.recordAsyncBacklog("fallback");
+                        ThreadPoolExecutor executorSnapshot = getAsyncExecutor();
+                        int activeThreads = executorSnapshot != null ? executorSnapshot.getActiveCount() : -1;
+                        int queued = 0;
+                        int capacity = 0;
+                        if (executorSnapshot != null) {
+                            queued = executorSnapshot.getQueue().size();
+                            capacity = queued + executorSnapshot.getQueue().remainingCapacity();
+                        }
                         logger.warn(
-                                "Async webhook executor saturated for workspace {} (event: {}). Processing synchronously.",
-                                workspaceId, eventType);
+                                "Async webhook backlog fallback | workspace={} event={} actionCount={} activeThreads={} queueDepth={} queueCapacity={}",
+                                workspaceId, eventType, actionsToApply.size(), activeThreads, queued, capacity);
                     }
 
                     var wkOpt = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
@@ -518,7 +536,7 @@ public class WebhookHandlers {
         } catch (RejectedExecutionException rejected) {
             int queued = executor.getQueue().size();
             int capacity = queued + executor.getQueue().remainingCapacity();
-            logger.warn(
+            logger.debug(
                     "Webhook async executor rejected task (workspace: {}, event: {}, active: {}, queued: {}, capacity: {}).",
                     workspaceId, eventType, executor.getActiveCount(), queued, capacity);
             return false;

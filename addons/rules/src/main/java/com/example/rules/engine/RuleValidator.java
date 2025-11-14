@@ -1,5 +1,7 @@
 package com.example.rules.engine;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -9,6 +11,7 @@ import java.util.Set;
  */
 public class RuleValidator {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final Set<String> SUPPORTED_ACTION_TYPES = Set.of(
             "add_tag",
             "remove_tag",
@@ -193,6 +196,14 @@ public class RuleValidator {
                 if (value != null && value.length() > 10000) {
                     throw new RuleValidationException("Action value too long: " + key);
                 }
+            }
+        }
+
+        if ("openapi_call".equals(type)) {
+            try {
+                OpenApiCallConfig.from(action, OBJECT_MAPPER);
+            } catch (IllegalArgumentException ex) {
+                throw new RuleValidationException(ex.getMessage());
             }
         }
     }

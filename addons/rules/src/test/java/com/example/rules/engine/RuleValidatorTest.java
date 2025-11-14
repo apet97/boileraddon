@@ -60,4 +60,62 @@ class RuleValidatorTest {
 
         assertThrows(RuleValidator.RuleValidationException.class, () -> RuleValidator.validate(rule));
     }
+
+    @Test
+    void openApiCallRejectsUnsupportedMethod() {
+        Rule rule = new Rule(
+                "rule-openapi-invalid-method",
+                "Invalid method",
+                true,
+                "AND",
+                List.of(new Condition("descriptionContains", Condition.Operator.CONTAINS, "meeting", null)),
+                List.of(new Action("openapi_call", Map.of(
+                        "method", "DELETE",
+                        "path", "/workspaces/{workspaceId}/projects"
+                ))),
+                null,
+                0
+        );
+
+        assertThrows(RuleValidator.RuleValidationException.class, () -> RuleValidator.validate(rule));
+    }
+
+    @Test
+    void openApiCallRejectsUnsafePath() {
+        Rule rule = new Rule(
+                "rule-openapi-invalid-path",
+                "Invalid path",
+                true,
+                "AND",
+                List.of(new Condition("descriptionContains", Condition.Operator.CONTAINS, "meeting", null)),
+                List.of(new Action("openapi_call", Map.of(
+                        "method", "POST",
+                        "path", "/users"
+                ))),
+                null,
+                0
+        );
+
+        assertThrows(RuleValidator.RuleValidationException.class, () -> RuleValidator.validate(rule));
+    }
+
+    @Test
+    void openApiCallWithSafeConfigPassesValidation() {
+        Rule rule = new Rule(
+                "rule-openapi-valid",
+                "Valid openapi_call",
+                true,
+                "AND",
+                List.of(new Condition("descriptionContains", Condition.Operator.CONTAINS, "meeting", null)),
+                List.of(new Action("openapi_call", Map.of(
+                        "method", "POST",
+                        "path", "/workspaces/{workspaceId}/projects",
+                        "body", "{\"name\":\"example\"}"
+                ))),
+                null,
+                0
+        );
+
+        assertDoesNotThrow(() -> RuleValidator.validate(rule));
+    }
 }

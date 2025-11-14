@@ -3,7 +3,6 @@ package com.example.rules.metrics;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
 
 /**
@@ -57,6 +56,30 @@ public final class RulesMetrics {
         Counter.builder("rules_webhook_dedup_hits_total")
                 .description("Duplicate webhook requests ignored")
                 .tag("event", sanitize(event))
+                .register(REGISTRY)
+                .increment();
+    }
+
+    public static void recordDedupMiss(String event) {
+        Counter.builder("rules_webhook_dedup_misses_total")
+                .description("Webhook payloads accepted as new work")
+                .tag("event", sanitize(event))
+                .register(REGISTRY)
+                .increment();
+    }
+
+    public static void recordAsyncBacklog(String outcome) {
+        Counter.builder("rules_async_backlog_total")
+                .description("Async webhook backlog outcomes (fallback or drop)")
+                .tag("outcome", sanitize(outcome))
+                .register(REGISTRY)
+                .increment();
+    }
+
+    public static void recordWorkspaceCacheTruncation(String dataset) {
+        Counter.builder("rules_workspace_cache_truncated_total")
+                .description("Workspace cache refreshes that hit safety caps")
+                .tag("dataset", sanitize(dataset))
                 .register(REGISTRY)
                 .increment();
     }

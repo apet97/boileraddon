@@ -1,8 +1,8 @@
 package com.example.rules;
 
 import com.example.rules.engine.Action;
+import com.example.rules.engine.OpenApiCallConfig;
 import com.example.rules.engine.Rule;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +40,7 @@ class DynamicHandlerOpenApiCallTest {
     void openApiCallAction_canBeSerialized() throws Exception {
         // Verify that openapi_call actions can be serialized/deserialized properly
         Map<String, String> args = Map.of(
-                "method", "PUT",
+                "method", "POST",
                 "path", "/workspaces/{workspaceId}/projects/{projectId}",
                 "body", "{\"name\":\"Updated Project\"}"
         );
@@ -64,8 +64,8 @@ class DynamicHandlerOpenApiCallTest {
         ));
 
         Action updateProject = new Action("openapi_call", Map.of(
-                "method", "PUT",
-                "path", "/workspaces/{workspaceId}/projects/{projectId}",
+                "method", "POST",
+                "path", "/workspaces/{workspaceId}/projects/{projectId}/archive",
                 "body", "{\"archived\":true}"
         ));
 
@@ -100,8 +100,7 @@ class DynamicHandlerOpenApiCallTest {
     }
 
     @Test
-    void openApiCallAction_supportsDeleteMethod() {
-        // Verify DELETE method actions
+    void openApiCallAction_rejectsDeleteMethod() {
         Map<String, String> args = Map.of(
                 "method", "DELETE",
                 "path", "/workspaces/{workspaceId}/tags/{tagId}"
@@ -109,8 +108,7 @@ class DynamicHandlerOpenApiCallTest {
 
         Action action = new Action("openapi_call", args);
 
-        assertEquals("DELETE", action.getArgs().get("method"));
-        assertNull(action.getArgs().get("body"), "DELETE requests typically don't have a body");
+        assertThrows(IllegalArgumentException.class, () -> OpenApiCallConfig.from(action, objectMapper));
     }
 
     @Test

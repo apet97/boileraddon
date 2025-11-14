@@ -1,14 +1,15 @@
 package com.example.rules.cache;
 
 import com.example.rules.ClockifyClient;
+import com.example.rules.metrics.RulesMetrics;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.*;
 
 /**
@@ -16,6 +17,9 @@ import java.util.concurrent.*;
  * Populated on lifecycle install and refreshable via API.
  */
 public final class WorkspaceCache {
+    private static final Logger logger = LoggerFactory.getLogger(WorkspaceCache.class);
+    private static final int MAX_TASKS_PER_WORKSPACE = 5_000;
+
     private WorkspaceCache() {}
 
     public static final class Snapshot {
@@ -121,22 +125,42 @@ public final class WorkspaceCache {
 
             Map<String, Map<String, String>> tasksByProjectNameNorm = new ConcurrentHashMap<>();
             Map<String, String> taskNamesById = new ConcurrentHashMap<>();
-            for (Map.Entry<String, String> e : projectsById.entrySet()) {
+            int totalTasksObserved = 0;
+            int tasksLoaded = 0;
+            boolean truncated = false;
+            var orderedProjects = new ArrayList<>(projectsById.entrySet());
+            orderedProjects.sort(Map.Entry.comparingByKey());
+            for (Map.Entry<String, String> e : orderedProjects) {
                 String pid = e.getKey(); String pname = e.getValue();
                 String pnorm = norm(pname);
                 JsonNode tasks = api.getTasks(workspaceId, pid);
                 Map<String, String> tmap = new ConcurrentHashMap<>();
                 if (tasks != null && tasks.isArray()) {
                     for (JsonNode t : tasks) {
-                        if (t.has("id") && t.has("name")) {
-                            String id = t.get("id").asText();
-                            String name = t.get("name").asText("");
-                            tmap.put(norm(name), id);
-                            taskNamesById.put(id, name);
+                        if (!t.has("id") || !t.has("name")) {
+                            continue;
                         }
+                        totalTasksObserved++;
+                        if (tasksLoaded >= MAX_TASKS_PER_WORKSPACE) {
+                            truncated = true;
+                            break;
+                        }
+                        String id = t.get("id").asText();
+                        String name = t.get("name").asText("");
+                        tmap.put(norm(name), id);
+                        taskNamesById.put(id, name);
+                        tasksLoaded++;
                     }
                 }
                 tasksByProjectNameNorm.put(pnorm, tmap);
+                if (truncated) {
+                    break;
+                }
+            }
+            if (truncated) {
+                RulesMetrics.recordWorkspaceCacheTruncation("tasks");
+                logger.warn("Workspace cache task cap enforced | workspace={} cap={} totalTasksObserved={} tasksLoaded={}",
+                        workspaceId, MAX_TASKS_PER_WORKSPACE, totalTasksObserved, tasksLoaded);
             }
 
             Snapshot snap = new Snapshot(

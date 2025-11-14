@@ -1,7 +1,9 @@
 package com.example.rules.cache;
 
+import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.micrometer.core.instrument.Counter;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -38,6 +40,7 @@ class WorkspaceCachePaginationTest {
         tasksByProject = new HashMap<>();
         clients = new ArrayList<>();
         users = new ArrayList<>();
+        MetricsHandler.registry().clear();
 
         // Create >500 entries for each dataset to require pagination.
         for (int i = 1; i <= 502; i++) {
@@ -103,6 +106,32 @@ class WorkspaceCachePaginationTest {
         assertNotNull(tasksForProjectOne);
         assertEquals(501, tasksForProjectOne.size());
         assertEquals("Task 501", snapshot.taskNamesById.get("task-1-501"));
+    }
+
+    @Test
+    void refreshTruncatesTasksBeyondCap() {
+        List<ObjectNode> projectOneTasks = tasksByProject.get("project-1");
+        projectOneTasks.clear();
+        for (int i = 1; i <= 6_005; i++) {
+            ObjectNode task = OM.createObjectNode();
+            task.put("id", "task-1-" + i);
+            task.put("name", "Task " + i);
+            projectOneTasks.add(task);
+        }
+
+        WorkspaceCache.Snapshot snapshot = WorkspaceCache.refresh("ws1", baseUrl, "token");
+
+        assertEquals(5_000, snapshot.taskNamesById.size());
+        Map<String, String> tasksForProjectOne = snapshot.tasksByProjectNameNorm.get("project 1");
+        assertNotNull(tasksForProjectOne);
+        assertEquals(5_000, tasksForProjectOne.size());
+
+        Counter truncationCounter = MetricsHandler.registry()
+                .find("rules_workspace_cache_truncated_total")
+                .tag("dataset", "tasks")
+                .counter();
+        assertNotNull(truncationCounter);
+        assertEquals(1.0, truncationCounter.count());
     }
 
     private class ProjectsHandler implements HttpHandler {

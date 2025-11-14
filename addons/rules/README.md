@@ -307,8 +307,20 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 ## Webhook idempotency & duplicate detection
 
 - `WebhookIdempotencyCache` hashes `(workspaceId, eventType, preferred payload ID)` per delivery. `RULES_WEBHOOK_DEDUP_SECONDS` must stay between **60 seconds and 24 hours**; invalid values now fail fast during startup and are clamped/logged defensively at runtime.
-- Preferred IDs include `payloadId`, `eventId`, `timeEntry.id`, etc. If no stable field exists, the cache falls back to hashing the entire payload body. The cache is **in-memory per JVM instance**, so duplicates are only caught on the same pod and within the TTL window. For multi-node deduplication, wire a durable store (Redis/SQL) behind the cache.
-- When a duplicate arrives within the TTL, handlers short-circuit, emit a `duplicate` log line, and increment the Prometheus counter `rules_webhook_dedup_hits_total`. Alert on spikes to spot upstream retry storms or delivery loops.
+- Preferred IDs include `payloadId`, `eventId`, `timeEntry.id`, etc. If no stable field exists, the cache falls back to hashing the entire payload body. The cache is **in-memory per JVM instance**, so duplicates are only caught on the same pod and within the TTL window. Treat dedupe as best-effort per node; multi-replica deployments still need an external cache if “once globally” semantics are required.
+- When a duplicate arrives within the TTL, handlers short-circuit, emit a `duplicate` log line, and increment the Prometheus counter `rules_webhook_dedup_hits_total`. First-seen payloads increment `rules_webhook_dedup_misses_total`. Alert on spikes in either counter to spot upstream retry storms or unexpectedly noisy tenants.
+
+## Operational guardrails
+
+- **Workspace cache cap** &mdash; Refreshes load at most 5,000 tasks per workspace to keep memory bounded. When a workspace exceeds the cap, log lines include `workspaceId`, `tasksLoaded`, and the observed total, and the metric `rules_workspace_cache_truncated_total{dataset="tasks"}` increments so dashboards can flag truncated caches.
+- **Async webhook backlog** &mdash; Any time the async executor rejects work, the handler falls back to synchronous processing and increments `rules_async_backlog_total{outcome="fallback"}`. Alerting on this counter helps catch sustained overload before queue depth impacts webhook SLAs.
+- **Per-node dedupe** &mdash; Duplicate suppression happens inside each JVM only; keep an eye on `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` to understand retry ratios and whether a shared dedupe store is needed.
+
+### openapi_call safety
+
+- Only `GET` and `POST` methods are accepted for `openapi_call` actions; other verbs are rejected during rule validation.
+- Paths must start with `/workspaces/{workspaceId}/...` to keep automation scoped to the invoking workspace’s public APIs.
+- Treat `openapi_call` as a privileged escape hatch: test rules in a sandbox workspace, prefer read-only endpoints first, and keep payloads small enough to inspect in logs/metrics when something misfires.
 
 ## Checklist: Plan, Scopes, Events
 

@@ -3,17 +3,19 @@ package com.example.rules;
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.metrics.MetricsHandler;
+import com.clockify.addon.sdk.security.WebhookSignatureValidator;
+import com.clockify.addon.sdk.testutil.SignatureTestUtil;
 import com.example.rules.ClockifyClient;
+import com.example.rules.cache.WebhookIdempotencyCache;
 import com.example.rules.engine.Action;
 import com.example.rules.engine.Condition;
 import com.example.rules.engine.Rule;
-import com.clockify.addon.sdk.security.WebhookSignatureValidator;
-import com.clockify.addon.sdk.testutil.SignatureTestUtil;
 import com.example.rules.store.RulesStore;
-import com.example.rules.cache.WebhookIdempotencyCache;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.micrometer.core.instrument.Counter;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
@@ -54,6 +56,7 @@ class WebhookHandlersTest {
         mapper = new ObjectMapper();
         request = Mockito.mock(HttpServletRequest.class);
         WebhookIdempotencyCache.clear();
+        MetricsHandler.registry().clear();
 
         // Clear token store
         com.clockify.addon.sdk.security.TokenStore.clear();
@@ -423,6 +426,13 @@ class WebhookHandlersTest {
             JsonNode json = mapper.readTree(response.getBody());
             assertEquals("actions_applied", json.get("status").asText());
             assertTrue(fake.getUpdateCount() >= 1, "Expected synchronous update invocation");
+
+            Counter backlogCounter = MetricsHandler.registry()
+                    .find("rules_async_backlog_total")
+                    .tag("outcome", "fallback")
+                    .counter();
+            assertNotNull(backlogCounter);
+            assertEquals(1.0, backlogCounter.count());
         } finally {
             blocker.countDown();
         }
