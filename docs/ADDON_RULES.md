@@ -5,6 +5,7 @@ The Rules add‑on lets admins define “if … then …” automations for Cloc
 - Conditions: descriptionContains, descriptionEquals, hasTag (by ID), projectIdEquals, projectNameContains, clientIdEquals, clientNameContains, isBillable
 - Actions: add_tag, remove_tag, set_description, set_billable, set_project_by_id, set_project_by_name, set_task_by_id, set_task_by_name
 - Manifest key: `rules`; base path: `/rules`
+- Minimal subscription plan: `PRO` (tasks, invoices, and automation actions require the Pro tier)
 
 ## Zero‑to‑Run
 
@@ -59,7 +60,11 @@ ClockifyManifest manifest = ClockifyManifest
     .minimalSubscriptionPlan("PRO")
     .scopes(new String[]{
         "TIME_ENTRY_READ", "TIME_ENTRY_WRITE",
-        "TAG_READ", "TAG_WRITE", "PROJECT_READ"
+        "TAG_READ", "TAG_WRITE",
+        "PROJECT_READ", "PROJECT_WRITE",
+        "CLIENT_READ", "CLIENT_WRITE",
+        "TASK_READ", "TASK_WRITE",
+        "WORKSPACE_READ"
     })
     .build();
 
@@ -67,6 +72,8 @@ ClockifyManifest manifest = ClockifyManifest
 manifest.getComponents().add(
     new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Rules", "ADMINS")
 );
+
+Explorer datasets and the simple builder both create/update projects, clients, and tasks on behalf of admins, so the manifest purposely includes the matching read/write scopes alongside `WORKSPACE_READ` for context banners.
 ```
 
 Optional runtime safeguards:

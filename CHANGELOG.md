@@ -198,6 +198,11 @@ chmod +x .git/hooks/pre-commit
   - `ConfigValidatorTest.java` - 12 test cases for input validation
   - `PathSanitizerTest.java` - 15 test cases for path security
   - Tests cover edge cases, error conditions, and security scenarios
+
+### Changed - Rules Explorer Launch Hardening
+- Explorer controllers now log the dataset scope and workspace ID whenever a backend fetch fails, improving production triage without exposing bearer data.
+- Rules docs (`addons/rules/README.md`, `docs/ADDON_RULES.md`, `RULES_ADDON_PRODUCTION_SUMMARY.md`) now pin the minimal plan to PRO, list every manifest scope used by explorer/builder helpers, and reiterate snapshot/task clamps plus builder prefill behavior.
+- `RULES_PROD_LAUNCH_CHECKLIST.md` adds developer.clockify.me install validation, requires both tiny and moderate snapshot test runs, and documents the “copy rule seed” verification workflow ahead of launch.
   - Ready for integration tests framework
 
 ### Documentation

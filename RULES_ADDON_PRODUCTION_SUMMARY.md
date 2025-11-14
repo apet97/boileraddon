@@ -42,7 +42,7 @@ DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON
     -p 8080:8080 \
     registry.example.com/rules:latest
   ```
-  For bare-metal or VM deployments, run the same fat JAR directly: `ADDON_BASE_URL=https://rules.example.com java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar`.
+For bare-metal or VM deployments, run the same fat JAR directly: `ADDON_BASE_URL=https://rules.example.com java -jar addons/rules/target/rules-0.1.0-jar-with-dependencies.jar`.
 
 - **Mandatory envs/secrets**  
   - Base networking: `ADDON_PORT`, `ADDON_BASE_URL`, `CLOCKIFY_API_BASE_URL`
@@ -51,6 +51,10 @@ DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON
   - Security/middleware: `ADDON_FRAME_ANCESTORS`, `ADDON_RATE_LIMIT`/`ADDON_LIMIT_BY`, optional `ADDON_CORS_*`, `ADDON_REQUEST_LOGGING`
   - Never set `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, or `ADDON_SKIP_SIGNATURE_VERIFY` outside development.
   - Webhook dedupe: `RULES_WEBHOOK_DEDUP_SECONDS` between **60 seconds and 24 hours**; values outside that range cause startup failures (and are clamped/logged defensively at runtime).
+
+## Plan & scope profile
+- **Plan** — `minimalSubscriptionPlan("PRO")`. Explorer tabs (invoices, PTO) and automation features only exist on Pro, so production tenants must meet that bar to avoid partial UIs.
+- **Scopes** — Runtime manifest includes `TIME_ENTRY_{READ,WRITE}`, `TAG_{READ,WRITE}`, `PROJECT_{READ,WRITE}`, `CLIENT_{READ,WRITE}`, `TASK_{READ,WRITE}`, and `WORKSPACE_READ`. CRUD helpers behind `/api/projects`, `/api/clients`, `/api/tasks`, and explorer routes depend on these scopes; they stay server-side so the browser never holds installation tokens.
 
 ## Health, readiness, and metrics
 - `GET /rules/health` — Jetty + storage liveness. Includes database checks when `RULES_DB_*` or `DB_*` are configured and a `DatabaseHealthCheck` for the pooled token store.
@@ -63,10 +67,20 @@ DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON
 - `/api/rules/explorer/snapshot` powers an on-demand “fetch everything” pass (multiple paginated GETs). The UI exposes dataset toggles (users through invoices **plus tasks**), configurable limits (5–100 rows × 1–20 pages), and a selectable time-entry lookback (UI presets 7/30/90 days, clamped 1–90 via `timeEntryLookbackDays`). Inline progress cards keep operators informed, each dataset now has an expandable JSON preview, and the download button only enables once a run completes.
 - Time entry rows expose both a “Create rule from this” link (deep-linking into `/simple?ruleName=...&prefillDescription=...&prefillProjectId=...&prefillTagIds=...`) and a copy-to-clipboard rule seed for admins who want to start from raw JSON. The builder now shows a prefill banner and highlights injected conditions so reviewers always know what arrived from the explorer.
 
+## Explorer + builder quick reference
+- **Datasets** — Users, projects, clients, tags, **tasks**, time entries, time off (requests/policies/balances), webhooks, custom fields, invoices, plus the aggregated overview endpoint. All traffic stays under `/api/rules/explorer/**`.
+- **Snapshot limits** — `pageSizePerDataset` is clamped between 5–100 rows, `maxPagesPerDataset` between 1–20 pages, and `timeEntryLookbackDays` between 1–90 days. Presets (7/30/90) sit in the UI, but the controller enforces the clamps even if a caller tampers with the query parameters.
+- **Builder prefill** — `/simple` honors `ruleName`, `prefillDescription`, `prefillProjectId`, and `prefillTagIds`. Deep links show a blue banner that lists injected fields and highlight each affected form control so reviewers can audit exactly what came from the explorer seed.
+- **Presets** — Every dataset toolbar persists filters, search text, and pagination preferences to `localStorage`, with save/load/delete actions per dataset. Use this during QA to simulate admin review workflows.
+
 ## Webhook idempotency & filters
 - `WebhookIdempotencyCache` stores `(workspaceId, eventType, payloadId)` tuples for `RULES_WEBHOOK_DEDUP_SECONDS` (60s–24h). The cache is per-pod and in-memory; duplicates are only caught on the same node. Duplicates short-circuit webhook handlers and increment `rules_webhook_dedup_hits_total`. For cross-node dedupe, back the cache with a persistent store.
 - `SecurityHeadersFilter` emits CSP + security headers and shares a per-request nonce with the settings/IFTTT controllers.
 - `SensitiveHeaderFilter` wraps the servlet request to redact `Authorization`, `X-Addon-Token`, `Clockify-Signature`, and cookies before any logging occurs.
 - Workspace iframe JWTs flow through `RulesConfiguration.JwtBootstrapConfig` → `JwtVerifier` → `WorkspaceContextFilter` / `PlatformAuthFilter`, so no controller calls `System.getenv`.
+
+## Known operational limits
+- **Task scanning** — Workspace-level task listings walk projects (`50` per page) × tasks (`200` per page) and cap the scan at 5,000 tasks to keep snapshots bounded. When the cap hits, pagination reports `hadMore=true`; operators should narrow filters before exporting again.
+- **Webhook dedupe** — Idempotency cache is JVM-local plus TTL-based. Use the Prometheus counters to watch for spikes and consider an external store if you deploy multiple replicas or need >24h dedupe windows.
 
 For the authoritative runbook (env-by-env), see `addons/rules/README.md` and the new [`RULES_PROD_LAUNCH_CHECKLIST.md`](RULES_PROD_LAUNCH_CHECKLIST.md). Keep `PRODUCTION_CHECKLIST.md` and [`docs/RULES_DB_SCHEMA.md`](docs/RULES_DB_SCHEMA.md) in sync with any schema or ops changes.
