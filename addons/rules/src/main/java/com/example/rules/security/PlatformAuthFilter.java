@@ -40,7 +40,7 @@ public final class PlatformAuthFilter implements Filter {
       JwtVerifier.DecodedJwt jwt = verifier.verify(token);
       JsonNode p = jwt.payload();
       // These claim names are typical. Adjust to your portal's schema if different.
-      String installationId = text(p, "installation_id", "sub");
+      String installationId = text(p, "installation_id", "installationId");
       String workspaceId = text(p, "workspace_id", "workspaceId", "wid");
       String userId = text(p, "user_id", "uid");
 

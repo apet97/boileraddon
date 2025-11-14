@@ -204,7 +204,7 @@ export CLOCKIFY_JWT_LEEWAY_SECONDS=60
 ## HTTP filters & logging hygiene
 
 - **SecurityHeadersFilter** sets security headers (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cache-Control`) and injects the CSP nonce that UI controllers consume. Override `ADDON_FRAME_ANCESTORS` to embed outside the Clockify defaults.
-- **PlatformAuthFilter** now guards `/api/**` and `/status`, rejecting requests that lack a valid `Authorization: Bearer <auth_token>` header. `RequestContext.resolveWorkspaceId` only falls back to `workspaceId` query params in `ENV=dev`, so production callers cannot spoof another workspace by tweaking the URL.
+- **PlatformAuthFilter** now guards `/api/**` and `/status`, rejecting requests that lack a valid `Authorization: Bearer <auth_token>` header. Tokens must include both `installation_id` and `workspace_id` claims or the request is rejected with 403. `RequestContext.resolveWorkspaceId` only falls back to `workspaceId` query params in `ENV=dev`, so production callers cannot spoof another workspace by tweaking the URL.
 - **SensitiveHeaderFilter** redacts `Authorization`, `X-Addon-Token`, `X-Addon-Lifecycle-Token`, `Clockify-Signature`, `Cookie`, and `Set-Cookie` before any logging occurs so request logs never leak installation tokens.
 - **Optional filters** (RateLimiter, CorsFilter, RequestLoggingFilter) are attached only when the corresponding env vars are set in `RulesConfiguration`. This avoids divergent behavior between local dev and production.
 
