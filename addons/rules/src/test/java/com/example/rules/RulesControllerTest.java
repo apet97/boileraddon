@@ -13,7 +13,7 @@ import com.example.rules.store.RulesStore;
 import com.example.rules.web.RequestContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.example.rules.security.PlatformAuthFilter;
+import com.clockify.addon.sdk.middleware.PlatformAuthFilter;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;

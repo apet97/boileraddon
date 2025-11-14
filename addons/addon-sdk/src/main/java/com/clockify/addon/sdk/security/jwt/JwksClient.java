@@ -1,4 +1,4 @@
-package com.example.rules.security;
+package com.clockify.addon.sdk.security.jwt;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * JWKS (JSON Web Key Set) client for dynamic key discovery and rotation.
  * Supports automatic key refresh with caching and rotation alarms.
  */
-public final class JwksClient {
+final class JwksClient {
     private static final Logger logger = LoggerFactory.getLogger(JwksClient.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -37,11 +37,11 @@ public final class JwksClient {
     private volatile Instant lastFetchTime = Instant.MIN;
     private volatile boolean rotationAlarmTriggered = false;
 
-    public JwksClient(URI jwksUri) {
+    JwksClient(URI jwksUri) {
         this(jwksUri, HttpClient.newHttpClient(), Duration.ofMinutes(5), Duration.ofSeconds(10));
     }
 
-    public JwksClient(URI jwksUri, HttpClient httpClient, Duration cacheTtl, Duration timeout) {
+    JwksClient(URI jwksUri, HttpClient httpClient, Duration cacheTtl, Duration timeout) {
         this.jwksUri = jwksUri;
         this.httpClient = httpClient;
         this.cacheTtl = cacheTtl;
@@ -52,7 +52,7 @@ public final class JwksClient {
      * Get a public key by kid from JWKS endpoint.
      * Automatically refreshes keys if cache is expired.
      */
-    public PublicKey getKey(String kid) throws JwksException {
+    PublicKey getKey(String kid) throws JwksException {
         if (isCacheExpired()) {
             synchronized (this) {
                 if (isCacheExpired()) {
@@ -72,7 +72,7 @@ public final class JwksClient {
     /**
      * Get all currently cached keys.
      */
-    public Map<String, PublicKey> getAllKeys() {
+    Map<String, PublicKey> getAllKeys() {
         if (isCacheExpired()) {
             synchronized (this) {
                 if (isCacheExpired()) {
@@ -90,7 +90,7 @@ public final class JwksClient {
     /**
      * Force refresh of JWKS keys.
      */
-    public void refreshKeys() throws JwksException {
+    void refreshKeys() throws JwksException {
         try {
             logger.debug("Refreshing JWKS keys from: {}", jwksUri);
 
@@ -137,10 +137,8 @@ public final class JwksClient {
                 throw new JwksException("No valid RSA keys found in JWKS response");
             }
 
-            // Check for key rotation
             if (!cachedKeys.isEmpty() && !newKeys.keySet().equals(cachedKeys.keySet())) {
-                logger.warn("JWKS key rotation detected. Old keys: {}, New keys: {}",
-                           cachedKeys.keySet(), newKeys.keySet());
+                logger.warn("JWKS key rotation detected. Old keys: {}, New keys: {}", cachedKeys.keySet(), newKeys.keySet());
                 if (!rotationAlarmTriggered) {
                     rotationAlarmTriggered = true;
                     logger.info("JWKS key rotation alarm triggered - keys have changed");
@@ -171,11 +169,9 @@ public final class JwksClient {
             throw new IllegalArgumentException("JWK missing required RSA parameters");
         }
 
-        // Convert JWK to PEM format
         byte[] modulusBytes = Base64.getUrlDecoder().decode(modulus);
         byte[] exponentBytes = Base64.getUrlDecoder().decode(exponent);
 
-        // Create RSA public key from modulus and exponent
         java.math.BigInteger n = new java.math.BigInteger(1, modulusBytes);
         java.math.BigInteger e = new java.math.BigInteger(1, exponentBytes);
 
@@ -183,10 +179,7 @@ public final class JwksClient {
         return KeyFactory.getInstance("RSA").generatePublic(spec);
     }
 
-    /**
-     * Get cache statistics for monitoring.
-     */
-    public CacheStats getCacheStats() {
+    CacheStats getCacheStats() {
         return new CacheStats(
                 cachedKeys.size(),
                 lastFetchTime,
@@ -194,14 +187,14 @@ public final class JwksClient {
         );
     }
 
-    public record CacheStats(int keyCount, Instant lastFetchTime, boolean rotationAlarmTriggered) {}
+    record CacheStats(int keyCount, Instant lastFetchTime, boolean rotationAlarmTriggered) {}
 
-    public static class JwksException extends Exception {
-        public JwksException(String message) {
+    static class JwksException extends Exception {
+        JwksException(String message) {
             super(message);
         }
 
-        public JwksException(String message, Throwable cause) {
+        JwksException(String message, Throwable cause) {
             super(message, cause);
         }
     }

@@ -1,11 +1,11 @@
-package com.example.rules.security;
+package com.clockify.addon.sdk.security.jwt;
 
 import java.security.PublicKey;
 import java.util.Map;
 
 /**
- * Key source abstraction for JWT verification that can use either
- * static PEM keys or dynamic JWKS discovery.
+ * Key source abstraction for JWT verification that can use either static PEM keys or dynamic
+ * JWKS discovery.
  */
 public interface JwksKeySource {
 

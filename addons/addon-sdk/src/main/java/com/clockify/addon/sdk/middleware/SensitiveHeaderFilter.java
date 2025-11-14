@@ -1,6 +1,11 @@
-package com.example.rules.middleware;
+package com.clockify.addon.sdk.middleware;
 
-import jakarta.servlet.*;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import org.slf4j.Logger;
@@ -14,43 +19,30 @@ import java.util.Set;
 
 /**
  * Filter that redacts sensitive headers to prevent token leakage in logs.
- *
- * <p><strong>Security Requirement:</strong> Per Clockify addon guide (line 1750),
- * sensitive headers like X-Addon-Token must be redacted in logs to prevent
- * installation token exposure.</p>
- *
- * <p>This filter wraps the HttpServletRequest to provide redacted values when
- * headers are accessed for logging purposes.</p>
  */
 public class SensitiveHeaderFilter implements Filter {
     private static final Logger logger = LoggerFactory.getLogger(SensitiveHeaderFilter.class);
 
-    /**
-     * Set of header names (lowercase) that contain sensitive data and must be redacted.
-     */
     private static final Set<String> SENSITIVE_HEADERS = Set.of(
-        "x-addon-token",
-        "authorization",
-        "clockify-signature",
-        "x-addon-lifecycle-token",
-        "cookie",
-        "set-cookie"
+            "x-addon-token",
+            "authorization",
+            "clockify-signature",
+            "x-addon-lifecycle-token",
+            "cookie",
+            "set-cookie"
     );
 
     private static final String REDACTED_VALUE = "[REDACTED]";
 
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-        logger.info("SensitiveHeaderFilter initialized - protecting {} header types",
-            SENSITIVE_HEADERS.size());
+    public void init(FilterConfig filterConfig) {
+        logger.info("SensitiveHeaderFilter initialized - protecting {} header types", SENSITIVE_HEADERS.size());
     }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-
-        if (request instanceof HttpServletRequest) {
-            HttpServletRequest httpRequest = (HttpServletRequest) request;
+        if (request instanceof HttpServletRequest httpRequest) {
             HttpServletRequest wrappedRequest = new SensitiveHeaderRequestWrapper(httpRequest);
             chain.doFilter(wrappedRequest, response);
         } else {
@@ -63,13 +55,9 @@ public class SensitiveHeaderFilter implements Filter {
         logger.debug("SensitiveHeaderFilter destroyed");
     }
 
-    /**
-     * Request wrapper that redacts sensitive header values when accessed.
-     * This prevents tokens from appearing in logs if request headers are logged.
-     */
     private static class SensitiveHeaderRequestWrapper extends HttpServletRequestWrapper {
 
-        public SensitiveHeaderRequestWrapper(HttpServletRequest request) {
+        SensitiveHeaderRequestWrapper(HttpServletRequest request) {
             super(request);
         }
 
@@ -85,7 +73,6 @@ public class SensitiveHeaderFilter implements Filter {
         @Override
         public Enumeration<String> getHeaders(String name) {
             if (isSensitiveHeader(name)) {
-                // Return single redacted value
                 return Collections.enumeration(List.of(REDACTED_VALUE));
             }
             return super.getHeaders(name);
@@ -93,16 +80,9 @@ public class SensitiveHeaderFilter implements Filter {
 
         @Override
         public Enumeration<String> getHeaderNames() {
-            // Don't redact header names, only values
             return super.getHeaderNames();
         }
 
-        /**
-         * Checks if a header name is sensitive and should be redacted.
-         *
-         * @param headerName The header name to check
-         * @return true if the header should be redacted
-         */
         private boolean isSensitiveHeader(String headerName) {
             if (headerName == null) {
                 return false;

@@ -1,4 +1,4 @@
-package com.example.rules.middleware;
+package com.clockify.addon.sdk.middleware;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletRequest;

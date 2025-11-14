@@ -1,6 +1,8 @@
 package com.example.rules.config;
 
 import com.clockify.addon.sdk.ConfigValidator;
+import com.clockify.addon.sdk.security.jwt.JwtBootstrapConfig;
+import com.clockify.addon.sdk.security.jwt.JwtBootstrapLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,7 +129,7 @@ public record RulesConfiguration(
                 requestLogging,
                 dedupMillis,
                 envLabel,
-                parseJwtBootstrap(env),
+                JwtBootstrapLoader.fromEnvironment(env),
                 resolveLocalSecrets(env, envLabel)
         );
         return configuration;
@@ -136,22 +138,6 @@ public record RulesConfiguration(
     public record DatabaseSettings(String url, String username, String password) {}
     public record RateLimitConfig(double permitsPerSecond, String limitBy) {}
     public record CorsConfig(String originsCsv, boolean allowCredentials) {}
-    public enum JwtKeySource {
-        JWKS_URI,
-        KEY_MAP,
-        PUBLIC_KEY
-    }
-
-    public record JwtBootstrapConfig(
-            Optional<String> publicKeyPem,
-            Optional<String> keyMapJson,
-            Optional<String> jwksUri,
-            Optional<String> defaultKid,
-            Optional<String> expectedIssuer,
-            Optional<String> expectedAudience,
-            long leewaySeconds,
-            JwtKeySource source
-    ) {}
     public record LocalDevSecrets(String workspaceId, String installationToken) {}
 
     private static Optional<DatabaseSettings> databaseSettings(String url, String username, String password) {
@@ -199,49 +185,6 @@ public record RulesConfiguration(
         }
     }
 
-    private static Optional<JwtBootstrapConfig> parseJwtBootstrap(Map<String, String> env) {
-        String pem = firstNonBlank(env.get("CLOCKIFY_JWT_PUBLIC_KEY"), env.get("CLOCKIFY_JWT_PUBLIC_KEY_PEM"));
-        String keyMap = trimToNull(env.get("CLOCKIFY_JWT_PUBLIC_KEY_MAP"));
-        String jwksUri = trimToNull(env.get("CLOCKIFY_JWT_JWKS_URI"));
-        if (pem == null && keyMap == null && jwksUri == null) {
-            return Optional.empty();
-        }
-        JwtKeySource source;
-        if (jwksUri != null) {
-            source = JwtKeySource.JWKS_URI;
-            if (keyMap != null || pem != null) {
-                logger.warn("CLOCKIFY_JWT_JWKS_URI is set; ignoring CLOCKIFY_JWT_PUBLIC_KEY_MAP and CLOCKIFY_JWT_PUBLIC_KEY(_PEM).");
-            }
-            keyMap = null;
-            pem = null;
-        } else if (keyMap != null) {
-            source = JwtKeySource.KEY_MAP;
-            if (pem != null) {
-                logger.warn("CLOCKIFY_JWT_PUBLIC_KEY_MAP is set; ignoring CLOCKIFY_JWT_PUBLIC_KEY(_PEM).");
-            }
-            jwksUri = null;
-            pem = null;
-        } else {
-            source = JwtKeySource.PUBLIC_KEY;
-            jwksUri = null;
-            keyMap = null;
-        }
-        String defaultKid = trimToNull(env.get("CLOCKIFY_JWT_DEFAULT_KID"));
-        String expectedIssuer = trimToNull(env.get("CLOCKIFY_JWT_EXPECT_ISS"));
-        String expectedAudience = trimToNull(env.get("CLOCKIFY_JWT_EXPECT_AUD"));
-        long leewaySeconds = parseLong(env.get("CLOCKIFY_JWT_LEEWAY_SECONDS"), 60L);
-        return Optional.of(new JwtBootstrapConfig(
-                Optional.ofNullable(pem),
-                Optional.ofNullable(keyMap),
-                Optional.ofNullable(jwksUri),
-                Optional.ofNullable(defaultKid),
-                Optional.ofNullable(expectedIssuer),
-                Optional.ofNullable(expectedAudience),
-                leewaySeconds,
-                source
-        ));
-    }
-
     private static Optional<LocalDevSecrets> resolveLocalSecrets(Map<String, String> env, String envLabel) {
         if (!"dev".equalsIgnoreCase(envLabel)) {
             if (trimToNull(env.get("CLOCKIFY_WORKSPACE_ID")) != null ||
@@ -282,14 +225,6 @@ public record RulesConfiguration(
 
     private static String normalizeEnv(String rawEnv) {
         return rawEnv == null ? "prod" : rawEnv.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private static String firstNonBlank(String primary, String secondary) {
-        String first = trimToNull(primary);
-        if (first != null) {
-            return first;
-        }
-        return trimToNull(secondary);
     }
 
     private static String trimToNull(String value) {

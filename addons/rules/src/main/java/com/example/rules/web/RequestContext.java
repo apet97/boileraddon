@@ -3,7 +3,7 @@ package com.example.rules.web;
 import com.clockify.addon.sdk.logging.LoggingContext;
 import com.clockify.addon.sdk.middleware.DiagnosticContextFilter;
 import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
-import com.example.rules.security.PlatformAuthFilter;
+import com.clockify.addon.sdk.middleware.PlatformAuthFilter;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**

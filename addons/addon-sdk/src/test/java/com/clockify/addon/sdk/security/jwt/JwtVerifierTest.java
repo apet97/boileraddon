@@ -1,4 +1,4 @@
-package com.example.rules.security;
+package com.clockify.addon.sdk.security.jwt;
 
 import org.junit.jupiter.api.Test;
 

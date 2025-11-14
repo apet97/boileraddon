@@ -1,7 +1,10 @@
 package com.example.autotagassistant;
 
-import com.clockify.addon.sdk.RequestHandler;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.RequestHandler;
+import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
+import com.clockify.addon.sdk.security.jwt.AuthTokenVerifier;
+import com.clockify.addon.sdk.security.jwt.JwtVerifier;
 import com.example.autotagassistant.security.JwtTokenDecoder;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,44 +20,32 @@ import org.slf4j.LoggerFactory;
 public class SettingsController implements RequestHandler {
     private static final Logger logger = LoggerFactory.getLogger(SettingsController.class);
 
+    private final AuthTokenVerifier jwtVerifier;
+    private final boolean devMode;
+
+    public SettingsController(AuthTokenVerifier jwtVerifier, boolean devMode) {
+        this.jwtVerifier = jwtVerifier;
+        this.devMode = devMode;
+    }
+
     @Override
     public HttpResponse handle(HttpServletRequest request) throws Exception {
-        // Extract and parse JWT token from query parameters
-        String jwtToken = request.getParameter("token");
-        if (jwtToken == null || jwtToken.isBlank()) {
-            jwtToken = request.getParameter("jwt");
+        JsonNode payload = resolvePayload(request);
+        if (payload == null) {
+            return HttpResponse.error(401, "{\"error\":\"Valid JWT token required\"}", "application/json");
         }
 
-        String workspaceId = "unknown";
-        String userId = "unknown";
-        String workspaceName = "Unknown Workspace";
+        String workspaceIdAttr = attributeAsString(request, WorkspaceContextFilter.WORKSPACE_ID_ATTR);
+        String userIdAttr = attributeAsString(request, WorkspaceContextFilter.USER_ID_ATTR);
+        String workspaceId = workspaceIdAttr != null
+                ? workspaceIdAttr
+                : (payload.hasNonNull("workspaceId") ? payload.get("workspaceId").asText() : "unknown");
+        String userId = userIdAttr != null
+                ? userIdAttr
+                : (payload.hasNonNull("userId") ? payload.get("userId").asText() : "unknown");
+        String workspaceName = payload.hasNonNull("workspaceName") ? payload.get("workspaceName").asText() : "Unknown Workspace";
 
-        if (jwtToken != null && !jwtToken.isBlank()) {
-            try {
-                JwtTokenDecoder.DecodedJwt decoded = JwtTokenDecoder.decode(jwtToken);
-                JsonNode payload = decoded.payload();
-
-                // Extract workspace and user information
-                if (payload.hasNonNull("workspaceId")) {
-                    workspaceId = payload.get("workspaceId").asText();
-                }
-                if (payload.hasNonNull("userId")) {
-                    userId = payload.get("userId").asText();
-                }
-                if (payload.hasNonNull("workspaceName")) {
-                    workspaceName = payload.get("workspaceName").asText();
-                }
-
-                logger.info("Settings page accessed by user {} in workspace {} ({})",
-                           userId, workspaceId, workspaceName);
-            } catch (Exception e) {
-                logger.warn("Failed to decode JWT token in settings page: {}", e.getMessage());
-                return HttpResponse.error(401, "{\"error\":\"Invalid or missing JWT token\"}", "application/json");
-            }
-        } else {
-            logger.warn("Settings page accessed without JWT token");
-            return HttpResponse.error(401, "{\"error\":\"JWT token required\"}", "application/json");
-        }
+        logger.info("Settings page accessed by user {} in workspace {} ({})", userId, workspaceId, workspaceName);
 
         // Generate workspace-specific HTML with extracted context
         String html = """
@@ -204,5 +195,69 @@ public class SettingsController implements RequestHandler {
                     .replace(">", "&gt;")
                     .replace("\"", "&quot;")
                     .replace("'", "&#39;");
+    }
+
+    private JsonNode resolvePayload(HttpServletRequest request) {
+        String rawToken = extractJwt(request);
+        if (rawToken == null || rawToken.isBlank()) {
+            if (attributeAsString(request, WorkspaceContextFilter.WORKSPACE_ID_ATTR) != null) {
+                return com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+            }
+            logger.warn("Settings page accessed without JWT token");
+            return null;
+        }
+
+        try {
+            if (jwtVerifier != null) {
+                JwtVerifier.DecodedJwt decoded = jwtVerifier.verify(rawToken);
+                return decoded.payload();
+            }
+            if (devMode) {
+                return JwtTokenDecoder.decode(rawToken).payload();
+            }
+            logger.warn("JWT token provided but verifier unavailable (ENV!=dev)");
+            return null;
+        } catch (JwtVerifier.JwtVerificationException e) {
+            logger.warn("Failed to verify JWT token in settings page: {}", e.getMessage());
+            return null;
+        } catch (IllegalArgumentException e) {
+            logger.warn("Failed to decode JWT token in settings page: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private String extractJwt(HttpServletRequest request) {
+        String token = firstNonBlank(
+                request.getParameter("auth_token"),
+                request.getParameter("token"),
+                request.getParameter("jwt"));
+        if (token != null && !token.isBlank()) {
+            return token.trim();
+        }
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7).trim();
+        }
+        return null;
+    }
+
+    private static String attributeAsString(HttpServletRequest request, String attributeName) {
+        Object value = request.getAttribute(attributeName);
+        if (value instanceof String str && !str.isBlank()) {
+            return str;
+        }
+        return null;
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 }

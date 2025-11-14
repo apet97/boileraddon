@@ -1,4 +1,4 @@
-package com.example.rules.security;
+package com.clockify.addon.sdk.middleware;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletRequest;
@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import com.clockify.addon.sdk.security.jwt.JwtVerifier;
 
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;

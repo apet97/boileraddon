@@ -2,6 +2,9 @@ package com.example.overtime;
 
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
+import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
+import com.clockify.addon.sdk.security.jwt.AuthTokenVerifier;
+import com.clockify.addon.sdk.security.jwt.JwtVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,11 +14,20 @@ import java.io.BufferedReader;
 public class SettingsController {
     private final SettingsStore store;
     private final ObjectMapper om = new ObjectMapper();
+    private final AuthTokenVerifier jwtVerifier;
+    private final boolean devMode;
 
-    public SettingsController(SettingsStore store) { this.store = store; }
+    public SettingsController(SettingsStore store, AuthTokenVerifier jwtVerifier, boolean devMode) {
+        this.store = store;
+        this.jwtVerifier = jwtVerifier;
+        this.devMode = devMode;
+    }
 
     public HttpResponse handleHtml(HttpServletRequest req) throws Exception {
-        String ws = req.getParameter("workspaceId");
+        String ws = resolveWorkspaceId(req);
+        if (ws == null || ws.isBlank()) {
+            return HttpResponse.error(401, "{\"error\":\"Valid JWT token required\"}", "application/json");
+        }
         SettingsStore.Settings s = store.get(ws != null ? ws : "");
         String html = "<!doctype html><html><head><meta charset='utf-8'><title>Overtime Settings</title>"+
                 "<style>body{font-family:sans-serif;margin:2rem;}input{padding:.4rem;margin:.2rem 0;width:12rem}button{padding:.5rem 1rem}code{background:#eee;padding:.1rem .3rem}</style>"+
@@ -58,5 +70,45 @@ public class SettingsController {
             return HttpResponse.ok("{\"saved\":true}", "application/json");
         }
         return HttpResponse.error(405, "{\"error\":\"Method not allowed\"}", "application/json");
+    }
+
+    private String resolveWorkspaceId(HttpServletRequest request) throws Exception {
+        String attr = attributeAsString(request, WorkspaceContextFilter.WORKSPACE_ID_ATTR);
+        if (attr != null) {
+            return attr;
+        }
+        String token = request.getParameter("auth_token");
+        if ((token == null || token.isBlank()) && request.getParameter("token") != null) {
+            token = request.getParameter("token");
+        }
+        if (token == null || token.isBlank()) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7).trim();
+            }
+        }
+        if (token == null || token.isBlank()) {
+            return devMode ? request.getParameter("workspaceId") : null;
+        }
+        if (jwtVerifier == null) {
+            if (devMode) {
+                return request.getParameter("workspaceId");
+            }
+            return null;
+        }
+        try {
+            JwtVerifier.DecodedJwt decoded = jwtVerifier.verify(token);
+            return decoded.payload().path("workspaceId").asText(null);
+        } catch (JwtVerifier.JwtVerificationException e) {
+            return null;
+        }
+    }
+
+    private static String attributeAsString(HttpServletRequest request, String name) {
+        Object value = request.getAttribute(name);
+        if (value instanceof String str && !str.isBlank()) {
+            return str;
+        }
+        return null;
     }
 }

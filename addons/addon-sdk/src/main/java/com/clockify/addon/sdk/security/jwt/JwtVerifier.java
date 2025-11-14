@@ -1,4 +1,4 @@
-package com.example.rules.security;
+package com.clockify.addon.sdk.security.jwt;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -22,33 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * JWT verifier for Clockify marketplace tokens (RS256).
- *
- * <p><strong>Architecture Note:</strong> This verifier is implemented at the addon level rather than
- * in the shared SDK to allow each addon to customize its JWT verification requirements independently.
- * Different addons may have different:
- * <ul>
- *   <li>Trust domains and expected issuers/audiences</li>
- *   <li>Key management strategies (JWKS, static keys, rotation schedules)</li>
- *   <li>Security policies (algorithm restrictions, TTL limits, clock skew tolerance)</li>
- * </ul>
- *
- * <p>If all addons in your deployment share identical JWT verification requirements, consider
- * moving this to the SDK for reusability. Otherwise, maintain addon-specific implementations.
- *
- * <p><strong>Security Features:</strong>
- * <ul>
- *   <li><strong>Strict kid handling:</strong> When JWT header includes "kid", that specific key
- *       is used with no fallback to default keys (prevents key confusion attacks)</li>
- *   <li><strong>Algorithm intersection:</strong> Enforces intersection of configured algorithms
- *       with safe built-in set (RS256, ES256) to prevent algorithm substitution</li>
- *   <li><strong>Temporal validation:</strong> Enforces iat/nbf/exp with configurable clock skew
- *       and maximum TTL (24h default) to limit token lifetime</li>
- *   <li><strong>Audience any-of:</strong> Supports both string and array audience claims with
- *       any-of semantics per RFC 7519</li>
- * </ul>
- *
- * @see Constraints#fromEnvironment() for environment-based configuration
+ * JWT verifier for Clockify marketplace tokens (RS256/ES256).
  */
 public final class JwtVerifier implements AuthTokenVerifier {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -123,24 +97,24 @@ public final class JwtVerifier implements AuthTokenVerifier {
         return new JwtVerifier(fallback, resolved, constraints, defaultKid, Clock.systemUTC(), expectedSubject);
     }
 
-    static JwtVerifier forTesting(PublicKey defaultKey, Constraints constraints, Clock clock) {
+    public static JwtVerifier forTesting(PublicKey defaultKey, Constraints constraints, Clock clock) {
         return new JwtVerifier(defaultKey, Map.of(), constraints, null, clock);
     }
 
-    static JwtVerifier forTesting(PublicKey defaultKey,
-                                  Constraints constraints,
-                                  Clock clock,
-                                  String expectedSubject) {
+    public static JwtVerifier forTesting(PublicKey defaultKey,
+                                         Constraints constraints,
+                                         Clock clock,
+                                         String expectedSubject) {
         return new JwtVerifier(defaultKey, Map.of(), constraints, null, clock, expectedSubject);
     }
 
-    static JwtVerifier forTesting(Map<String, PublicKey> kidKeys, PublicKey defaultKey,
-                                  Constraints constraints, Clock clock) {
+    public static JwtVerifier forTesting(Map<String, PublicKey> kidKeys, PublicKey defaultKey,
+                                         Constraints constraints, Clock clock) {
         return new JwtVerifier(defaultKey, kidKeys, constraints, null, clock);
     }
 
-    static JwtVerifier forTesting(Map<String, PublicKey> kidKeys, PublicKey defaultKey,
-                                  String defaultKid, Constraints constraints, Clock clock) {
+    public static JwtVerifier forTesting(Map<String, PublicKey> kidKeys, PublicKey defaultKey,
+                                         String defaultKid, Constraints constraints, Clock clock) {
         return new JwtVerifier(defaultKey, kidKeys, constraints, defaultKid, clock);
     }
 
@@ -149,7 +123,6 @@ public final class JwtVerifier implements AuthTokenVerifier {
         if (allKeys.isEmpty()) {
             throw new IllegalArgumentException("Key source returned no keys");
         }
-        // Use the first key as default if no default kid is specified
         String firstKid = allKeys.keySet().iterator().next();
         return new JwtVerifier(allKeys.get(firstKid), allKeys, constraints, firstKid, Clock.systemUTC());
     }
@@ -181,7 +154,6 @@ public final class JwtVerifier implements AuthTokenVerifier {
         return new DecodedJwt(header, payload);
     }
 
-    // Intersect constraints with a safe built-in set
     private static final Set<String> SAFE_ALGS = Set.of("RS256", "ES256");
     private static final Duration MAX_TTL = Duration.ofHours(24);
 
@@ -198,28 +170,28 @@ public final class JwtVerifier implements AuthTokenVerifier {
 
     private PublicKey selectKey(String kid) throws JwtVerificationException {
         if (kid != null && !kid.isBlank()) {
-            String trimmedKid = kid.trim();
-            PublicKey key = kidKeys.get(trimmedKid);
-            if (key != null) return key;
-            // No fallback when kid is present
-            throw new JwtVerificationException("Unknown JWT kid: " + trimmedKid);
-        }
-        if (defaultKey != null) return defaultKey;
-        if (!kidKeys.isEmpty()) {
-            if (defaultKid != null && !defaultKid.isBlank()) {
-                PublicKey key = kidKeys.get(defaultKid);
-                if (key == null) throw new JwtVerificationException("Configured default kid not found: " + defaultKid);
-                return key;
+            PublicKey key = kidKeys.get(kid);
+            if (key == null) {
+                throw new JwtVerificationException("Unknown JWT kid: " + kid);
             }
-            throw new JwtVerificationException("JWT missing kid header");
+            return key;
         }
-        throw new JwtVerificationException("No public key configured for JWT verification");
+        if (defaultKey != null) {
+            return defaultKey;
+        }
+        if (!kidKeys.isEmpty() && defaultKid != null) {
+            PublicKey fallback = kidKeys.get(defaultKid);
+            if (fallback != null) {
+                return fallback;
+            }
+        }
+        throw new JwtVerificationException("No default JWT key configured");
     }
 
     private JsonNode decodeSegment(String segment, String description) throws JwtVerificationException {
         try {
             byte[] decoded = Base64.getUrlDecoder().decode(segment);
-            return OBJECT_MAPPER.readTree(decoded);
+            return OBJECT_MAPPER.readTree(new String(decoded, StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new JwtVerificationException("Failed to decode JWT " + description, e);
         }
@@ -232,123 +204,140 @@ public final class JwtVerifier implements AuthTokenVerifier {
             signature.initVerify(key);
             signature.update(signedData.getBytes(StandardCharsets.US_ASCII));
             if (!signature.verify(signatureBytes)) {
-                throw new JwtVerificationException("JWT signature verification failed");
+                throw new JwtVerificationException("Invalid JWT signature");
             }
         } catch (JwtVerificationException e) {
             throw e;
         } catch (Exception e) {
-            throw new JwtVerificationException("JWT signature validation error", e);
+            throw new JwtVerificationException("Failed to verify JWT signature", e);
         }
     }
 
     private void validateClaims(JsonNode payload) throws JwtVerificationException {
-        enforceTemporal(payload);
+        long now = clock.instant().getEpochSecond();
 
-        if (constraints.expectedIssuer() != null) {
-            String iss = normalize(payload.path("iss").asText(null));
-            if (!constraints.expectedIssuer().equals(iss)) {
-                throw new JwtVerificationException("Unexpected issuer");
+        if (payload.has("exp")) {
+            long exp = payload.get("exp").asLong();
+            long adjustedExp = exp + constraints.clockSkewSeconds();
+            if (adjustedExp < now) {
+                throw new JwtVerificationException("JWT expired");
+            }
+            long issuedAt = payload.has("iat") ? payload.get("iat").asLong() : now;
+            long ttl = exp - issuedAt;
+            if (ttl > MAX_TTL.toSeconds()) {
+                throw new JwtVerificationException("JWT TTL exceeds maximum allowed duration");
+            }
+        } else if (constraints.requireExp()) {
+            throw new JwtVerificationException("JWT missing exp claim");
+        }
+
+        if (payload.has("nbf")) {
+            long nbf = payload.get("nbf").asLong();
+            long adjustedNbf = nbf - constraints.clockSkewSeconds();
+            if (adjustedNbf > now) {
+                throw new JwtVerificationException("JWT not yet valid");
             }
         }
 
-        if (constraints.expectedAudience() != null) {
-            if (!audMatches(payload.get("aud"), constraints.expectedAudience())) {
-                throw new JwtVerificationException("Unexpected audience");
+        if (payload.has("iss")) {
+            String iss = payload.get("iss").asText();
+            if (!constraints.allowedIssuers().isEmpty() && !constraints.allowedIssuers().contains(iss)) {
+                throw new JwtVerificationException("Unexpected JWT issuer");
+            }
+        } else if (!constraints.allowedIssuers().isEmpty()) {
+            throw new JwtVerificationException("JWT missing iss claim");
+        }
+
+        if (!constraints.allowedAudiences().isEmpty()) {
+            if (payload.has("aud")) {
+                if (!audienceMatches(payload.get("aud"), constraints.allowedAudiences())) {
+                    throw new JwtVerificationException("JWT audience mismatch");
+                }
+            } else {
+                throw new JwtVerificationException("JWT missing aud claim");
             }
         }
 
-        if (expectedSubject != null) {
-            String sub = normalize(payload.path("sub").asText(null));
-            if (!Objects.equals(expectedSubject, sub)) {
-                throw new JwtVerificationException("Unexpected subject");
+        if (expectedSubject != null && !expectedSubject.isBlank()) {
+            String sub = payload.has("sub") ? payload.get("sub").asText() : null;
+            if (!expectedSubject.equals(sub)) {
+                throw new JwtVerificationException("JWT subject mismatch");
             }
         }
     }
 
-    private void enforceTemporal(JsonNode payload) throws JwtVerificationException {
-        Instant now = Instant.now(clock);
-        long leeway = Optional.ofNullable(constraints.clockSkewSeconds()).orElse(60L);
-        Instant iat = getInstant(payload.get("iat"));
-        Instant nbf = getInstant(payload.get("nbf"));
-        Instant exp = getInstant(payload.get("exp"));
-
-        if (iat != null && iat.isAfter(now.plusSeconds(leeway))) {
-            throw new JwtVerificationException("JWT issued in the future");
-        }
-        if (nbf != null && now.isBefore(nbf.minusSeconds(leeway))) {
-            throw new JwtVerificationException("JWT not yet valid");
-        }
-        if (exp == null) {
-            throw new JwtVerificationException("JWT missing exp");
-        }
-        if (now.isAfter(exp.plusSeconds(leeway))) {
-            throw new JwtVerificationException("JWT expired");
-        }
-        if (iat != null && Duration.between(iat, exp).compareTo(MAX_TTL) > 0) {
-            throw new JwtVerificationException("JWT lifetime exceeds policy");
-        }
-    }
-
-    private Instant getInstant(JsonNode n) {
-        if (n == null || n.isNull()) return null;
-        if (n.isNumber()) return Instant.ofEpochSecond(n.asLong());
-        if (n.isTextual()) {
-            try {
-                return Instant.ofEpochSecond(Long.parseLong(n.asText().trim()));
-            } catch (Exception ignore) {}
-        }
-        return null;
-    }
-
-    private boolean audMatches(JsonNode audNode, String expected) {
-        if (audNode == null || audNode.isNull()) {
+    private static boolean audienceMatches(JsonNode aud, Set<String> allowedAud) {
+        if (aud == null) {
             return false;
         }
-        if (audNode.isTextual()) {
-            return expected.equals(normalize(audNode.asText()));
+        if (aud.isTextual()) {
+            return allowedAud.contains(aud.asText());
         }
-        if (audNode.isArray()) {
-            for (JsonNode element : audNode) {
-                if (element.isTextual() && expected.equals(normalize(element.asText()))) {
+        if (aud.isArray()) {
+            for (JsonNode value : aud) {
+                if (value.isTextual() && allowedAud.contains(value.asText())) {
                     return true;
                 }
             }
-            return false;
         }
         return false;
     }
 
-    private static PublicKey parsePem(String pem) throws Exception {
-        if (pem == null || pem.isBlank()) {
-            throw new IllegalArgumentException("Public key PEM is required");
-        }
-        String normalized = pem
-                .replace("-----BEGIN PUBLIC KEY-----", "")
-                .replace("-----END PUBLIC KEY-----", "")
-                .replaceAll("\\s", "");
-        byte[] decoded = Base64.getDecoder().decode(normalized);
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
-        return KeyFactory.getInstance("RSA").generatePublic(spec);
-    }
-
-    private static String normalize(String value) {
-        return (value == null || value.isBlank()) ? null : value.trim();
-    }
-
     public record DecodedJwt(JsonNode header, JsonNode payload) {}
 
-    public record Constraints(String expectedIssuer,
-                              String expectedAudience,
-                              long clockSkewSeconds,
-                              Set<String> allowedAlgorithms) {
+    public static final class Constraints {
+        private final Set<String> allowedIssuers;
+        private final Set<String> allowedAudiences;
+        private final Set<String> allowedAlgorithms;
+        private final long clockSkewSeconds;
+        private final boolean requireExp;
 
-        public static Constraints defaults() {
-            return new Constraints(null, null, 60, Set.of("RS256"));
+        public Constraints(String expectedIss, String expectedAud, long clockSkewSeconds, Set<String> allowedAlgorithms) {
+            this(expectedIss == null ? Set.of() : Set.of(expectedIss),
+                    expectedAud == null ? Set.of() : Set.of(expectedAud),
+                    allowedAlgorithms == null || allowedAlgorithms.isEmpty() ? SAFE_ALGS : allowedAlgorithms,
+                    clockSkewSeconds,
+                    true);
         }
 
+        public Constraints(Set<String> allowedIssuers,
+                           Set<String> allowedAudiences,
+                           Set<String> allowedAlgorithms,
+                           long clockSkewSeconds,
+                           boolean requireExp) {
+            this.allowedIssuers = allowedIssuers == null ? Set.of() : Set.copyOf(allowedIssuers);
+            this.allowedAudiences = allowedAudiences == null ? Set.of() : Set.copyOf(allowedAudiences);
+            this.allowedAlgorithms = allowedAlgorithms == null ? SAFE_ALGS : Set.copyOf(allowedAlgorithms);
+            this.clockSkewSeconds = Math.max(0, clockSkewSeconds);
+            this.requireExp = requireExp;
+        }
+
+        public static Constraints defaults() {
+            return new Constraints(Set.of(), Set.of(), SAFE_ALGS, 60, true);
+        }
+
+        public Set<String> allowedIssuers() {
+            return allowedIssuers;
+        }
+
+        public Set<String> allowedAudiences() {
+            return allowedAudiences;
+        }
+
+        public Set<String> allowedAlgorithms() {
+            return allowedAlgorithms;
+        }
+
+        public long clockSkewSeconds() {
+            return clockSkewSeconds;
+        }
+
+        public boolean requireExp() {
+            return requireExp;
+        }
     }
 
-    public static class JwtVerificationException extends Exception {
+    public static final class JwtVerificationException extends Exception {
         public JwtVerificationException(String message) {
             super(message);
         }
@@ -358,4 +347,27 @@ public final class JwtVerifier implements AuthTokenVerifier {
         }
     }
 
+    private static PublicKey parsePem(String pem) throws Exception {
+        String sanitized = pem.replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "")
+                .replaceAll("\\s", "");
+        byte[] decoded = Base64.getDecoder().decode(sanitized);
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(decoded);
+        return KeyFactory.getInstance("RSA").generatePublic(spec);
+    }
+
+    private static String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    public static Map<String, String> parsePemMap(String json) throws Exception {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        return OBJECT_MAPPER.readValue(json, new TypeReference<Map<String, String>>() {});
+    }
+
+    public Constraints constraints() {
+        return constraints;
+    }
 }

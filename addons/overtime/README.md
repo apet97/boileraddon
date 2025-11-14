@@ -14,6 +14,7 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 ## Quick Start
 
 ```
+cp .env.overtime.example .env.overtime
 mvn -q -pl addons/overtime -am package -DskipTests
 ADDON_BASE_URL=http://localhost:8080/overtime java -jar addons/overtime/target/overtime-0.1.0-jar-with-dependencies.jar
 # In another terminal:
@@ -63,6 +64,7 @@ See docs/MANIFEST_AND_LIFECYCLE.md for full guidance and docs/REQUEST-RESPONSE-E
 | `/lifecycle/deleted` | Lifecycle uninstall callback | `lifecycle[]` item `{ type: "DELETED", path: "/lifecycle/deleted" }` |
 | `/webhook` (default) | Time entry webhooks (e.g., NEW_TIME_ENTRY, TIME_ENTRY_UPDATED) | One `webhooks[]` item per event with `path: "/webhook"` |
 | `/health` | Health endpoint | Not listed in manifest |
+| `/status` | Runtime status (requires bearer token) | Not listed in manifest |
 | `/metrics` | Prometheus metrics scrape | Not listed in manifest |
 
 ## Checklist: Plan, Scopes, Events
@@ -79,3 +81,9 @@ See docs/MANIFEST_AND_LIFECYCLE.md for full guidance and docs/REQUEST-RESPONSE-E
   - Event payloads: docs/REQUEST-RESPONSE-EXAMPLES.md
   - Full catalog: dev-docs-marketplace-cake-snapshot/
   - Manifest fields: docs/CLOCKIFY_PARAMETERS.md
+
+## Security & Environment
+
+- `.env.overtime.example` captures the base settings (base URL, port, addon key, ENV) plus the required `CLOCKIFY_JWT_*` inputs. Copy it, set `ENV=prod|staging`, and provide one of JWKS/PEM entries before deploying.
+- `/api/settings` and `/status` are protected by `PlatformAuthFilter`; pass `Authorization: Bearer <auth_token>` issued by Clockify.
+- The settings iframe now relies on an `auth_token` query parameter (or Authorization header). Requests without a valid token return `401`.

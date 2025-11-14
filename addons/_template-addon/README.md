@@ -19,8 +19,8 @@ This module is a copy-ready starting point for building a new Clockify add-on wi
 
 ## Local development
 
-1. Copy the environment defaults from the repo root: `cp .env.example .env`
-2. Update `.env` with your preferred `ADDON_PORT` and `ADDON_BASE_URL` values.
+1. Copy the environment defaults from the repo root: `cp .env.template-addon.example .env.template-addon`
+2. Update `.env.template-addon` with your preferred `ADDON_PORT`, `ADDON_BASE_URL`, and `ENV` values.
 3. Run `make dev` from the repo root to build and launch the template using those settings.
 4. Verify endpoints:
    - `curl $ADDON_BASE_URL/health`
@@ -74,5 +74,6 @@ DELETE /api/items?id=<ID>
 
 ## Security note
 
-- Always verify webhooks with `clockify-webhook-signature` using the SDK `WebhookSignatureValidator.verify(request, workspaceId)`
-- Use the SDK `TokenStore` to store the installation token (persist for production)
+- Always verify webhooks with `clockify-webhook-signature` using the SDK `WebhookSignatureValidator.verify(request, workspaceId)`.
+- Use the SDK `TokenStore` to store the installation token (persist for production).
+- Copy `.env.template-addon.example` and provide real `CLOCKIFY_JWT_*` values when `ENV` is set to `staging`/`prod`. The template now wires `WorkspaceContextFilter`, `PlatformAuthFilter`, `/status`, and `ScopedPlatformAuthFilter` so `/api/**` + `/status` require `Authorization: Bearer <auth_token>`.

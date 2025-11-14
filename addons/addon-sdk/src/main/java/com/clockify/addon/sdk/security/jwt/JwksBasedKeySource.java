@@ -1,4 +1,4 @@
-package com.example.rules.security;
+package com.clockify.addon.sdk.security.jwt;
 
 import java.net.URI;
 import java.net.http.HttpClient;

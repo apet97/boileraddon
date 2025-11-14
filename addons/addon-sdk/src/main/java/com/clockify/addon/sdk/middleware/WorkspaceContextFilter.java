@@ -99,9 +99,12 @@ public class WorkspaceContextFilter implements Filter {
      */
     private String extractJwt(HttpServletRequest request) {
         // Try query parameter first (Clockify settings pattern)
-        String token = request.getParameter("auth_token");
-        if (token != null && !token.isBlank()) {
-            return token.trim();
+        String token = firstNonBlank(
+                request.getParameter("auth_token"),
+                request.getParameter("token"),
+                request.getParameter("jwt"));
+        if (token != null) {
+            return token;
         }
 
         // Try Authorization header (standard Bearer pattern)
@@ -110,6 +113,18 @@ public class WorkspaceContextFilter implements Filter {
             return authHeader.substring(7).trim();
         }
 
+        return null;
+    }
+
+    private static String firstNonBlank(String... candidates) {
+        if (candidates == null) {
+            return null;
+        }
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()) {
+                return candidate.trim();
+            }
+        }
         return null;
     }
 

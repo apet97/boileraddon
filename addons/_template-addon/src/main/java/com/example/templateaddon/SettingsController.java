@@ -2,6 +2,7 @@ package com.example.templateaddon;
 
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.RequestHandler;
+import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -12,6 +13,9 @@ import jakarta.servlet.http.HttpServletRequest;
 public class SettingsController implements RequestHandler {
     @Override
     public HttpResponse handle(HttpServletRequest request) {
+        if (request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR) == null) {
+            return HttpResponse.error(401, "{\"error\":\"Valid auth_token required\"}", "application/json");
+        }
         String html = """
                 <!DOCTYPE html>
                 <html lang=\"en\">

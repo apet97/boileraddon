@@ -1,20 +1,34 @@
 package com.example.overtime;
 
-import com.clockify.addon.sdk.*;
+import com.clockify.addon.sdk.AddonServlet;
+import com.clockify.addon.sdk.ClockifyAddon;
+import com.clockify.addon.sdk.ClockifyManifest;
+import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.ConfigValidator;
+import com.clockify.addon.sdk.EmbeddedServer;
 import com.clockify.addon.sdk.health.HealthCheck;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.middleware.CorsFilter;
+import com.clockify.addon.sdk.middleware.PlatformAuthFilter;
 import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
+import com.clockify.addon.sdk.middleware.ScopedPlatformAuthFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
+import com.clockify.addon.sdk.middleware.SensitiveHeaderFilter;
+import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
 import com.clockify.addon.sdk.config.SecretsPolicy;
+import com.clockify.addon.sdk.security.jwt.JwtBootstrapConfig;
+import com.clockify.addon.sdk.security.jwt.JwtVerifier;
+import com.clockify.addon.sdk.security.jwt.JwtVerifierFactory;
+import java.util.List;
+import java.util.Set;
 
 public class OvertimeApp {
     public static void main(String[] args) throws Exception {
         SecretsPolicy.enforce();
-        String baseUrl = ConfigValidator.validateUrl(System.getenv("ADDON_BASE_URL"),
-                "http://localhost:8080/overtime", "ADDON_BASE_URL");
-        int port = ConfigValidator.validatePort(System.getenv("ADDON_PORT"), 8080, "ADDON_PORT");
+        OvertimeConfiguration config = OvertimeConfiguration.fromEnvironment();
+        String baseUrl = config.baseUrl();
+        int port = config.port();
 
         ClockifyManifest manifest = ClockifyManifest
                 .v1_3Builder()
@@ -27,16 +41,37 @@ public class OvertimeApp {
                 .build();
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
+        JwtVerifier jwtVerifier = initializeJwtVerifier(config);
 
         // Controllers and stores
         SettingsStore settings = new SettingsStore();
-        SettingsController settingsController = new SettingsController(settings);
+        SettingsController settingsController = new SettingsController(settings, jwtVerifier, config.isDev());
 
         // Endpoints
         addon.registerCustomEndpoint("/manifest.json", new DefaultManifestController(manifest));
         // Health with optional DB probe (if DB env is set in a future persistent store variant)
         HealthCheck health = new HealthCheck("overtime", "0.1.0");
         addon.registerCustomEndpoint("/health", health);
+        addon.registerCustomEndpoint("/status", request -> {
+            String workspaceId = request.getParameter("workspaceId");
+            if (workspaceId == null || workspaceId.isBlank()) {
+                Object attr = request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR);
+                if (attr instanceof String attrValue && !attrValue.isBlank()) {
+                    workspaceId = attrValue;
+                }
+            }
+            boolean tokenPresent = workspaceId != null && !workspaceId.isBlank()
+                    && com.clockify.addon.sdk.security.TokenStore.get(workspaceId).isPresent();
+            String json = String.format(
+                    "{\"addonKey\":\"%s\",\"workspaceId\":\"%s\",\"tokenPresent\":%s,\"environment\":\"%s\",\"baseUrl\":\"%s\"}",
+                    config.addonKey(),
+                    workspaceId == null ? "" : workspaceId,
+                    Boolean.toString(tokenPresent),
+                    config.environment(),
+                    baseUrl
+            );
+            return HttpResponse.ok(json, "application/json");
+        });
         addon.registerCustomEndpoint("/settings", settingsController::handleHtml);
         addon.registerCustomEndpoint("/api/settings", settingsController::handleApi);
         addon.registerCustomEndpoint("/metrics", new MetricsHandler());
@@ -49,7 +84,28 @@ public class OvertimeApp {
         AddonServlet servlet = new AddonServlet(addon);
         String contextPath = sanitizeContextPath(baseUrl);
         EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+        if (jwtVerifier != null) {
+            server.addFilter(new WorkspaceContextFilter(jwt -> {
+                try {
+                    JwtVerifier.DecodedJwt decoded = jwtVerifier.verify(jwt);
+                    return decoded.payload();
+                } catch (Exception e) {
+                    return null;
+                }
+            }));
+            server.addFilter(new ScopedPlatformAuthFilter(
+                    new PlatformAuthFilter(jwtVerifier),
+                    Set.of("/status"),
+                    List.of("/api")
+            ));
+        } else if (!config.isDev()) {
+            throw new IllegalStateException("JWT verifier must be configured when ENV=" + config.environment());
+        } else {
+            System.getLogger(OvertimeApp.class.getName()).log(System.Logger.Level.WARNING,
+                    "PlatformAuthFilter disabled (ENV=dev and no CLOCKIFY_JWT_* configuration).");
+        }
         server.addFilter(new SecurityHeadersFilter());
+        server.addFilter(new SensitiveHeaderFilter());
 
         String rateLimit = System.getenv("ADDON_RATE_LIMIT");
         if (rateLimit != null && !rateLimit.isBlank()) {
@@ -78,5 +134,29 @@ public class OvertimeApp {
         } catch (Exception e) {
             return "/";
         }
+    }
+
+    private static JwtVerifier initializeJwtVerifier(OvertimeConfiguration config) throws Exception {
+        var jwtConfigOpt = config.jwtBootstrap();
+        if (jwtConfigOpt.isEmpty()) {
+            if (config.isDev()) {
+                return null;
+            }
+            throw new IllegalStateException("CLOCKIFY_JWT_* env vars are required when ENV=" + config.environment());
+        }
+        JwtBootstrapConfig jwtConfig = jwtConfigOpt.get();
+        String expectedIssuer = jwtConfig.expectedIssuer()
+                .filter(value -> !value.isBlank())
+                .orElse("clockify");
+        String expectedAudience = jwtConfig.expectedAudience()
+                .filter(value -> !value.isBlank())
+                .orElse(config.addonKey());
+        JwtVerifier.Constraints constraints = new JwtVerifier.Constraints(
+                expectedIssuer,
+                expectedAudience,
+                jwtConfig.leewaySeconds(),
+                Set.of("RS256")
+        );
+        return JwtVerifierFactory.create(jwtConfig, constraints, config.addonKey());
     }
 }

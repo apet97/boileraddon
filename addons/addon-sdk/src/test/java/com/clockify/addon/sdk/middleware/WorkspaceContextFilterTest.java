@@ -38,6 +38,24 @@ class WorkspaceContextFilterTest {
     }
 
     @Test
+    void acceptsLegacyTokenParameter() throws Exception {
+        JsonNode payload = MAPPER.readTree("{\"workspaceId\":\"legacy-ws\"}");
+        WorkspaceContextFilter filter = new WorkspaceContextFilter(jwt -> payload);
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+
+        when(request.getParameter("auth_token")).thenReturn(null);
+        when(request.getParameter("token")).thenReturn("legacy.jwt");
+
+        filter.doFilter(request, response, chain);
+
+        verify(request).setAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR, "legacy-ws");
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
     void extractsFromAuthorizationHeader() throws Exception {
         // Given: JWT in Authorization header
         JsonNode payload = MAPPER.readTree("{\"workspaceId\":\"ws789\"}");

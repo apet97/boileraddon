@@ -109,6 +109,7 @@ Install the following tools:
 # 1. Clone the repository
 git clone https://github.com/apet97/boileraddon.git
 cd boileraddon
+cp .env.auto-tag-assistant.example .env.auto-tag-assistant   # customize ENV/JWT as needed
 
 # 2. Build the fat JAR (downloads Maven Central dependencies on first run)
 mvn clean package -DskipTests
@@ -148,6 +149,9 @@ curl http://localhost:8080/auto-tag-assistant/manifest.json
 
 # Settings HTML (returns inline HTML stub)
 curl http://localhost:8080/auto-tag-assistant/settings
+
+# Status (requires Authorization: Bearer <auth_token>)
+curl -H "Authorization: Bearer eyJ..." http://localhost:8080/auto-tag-assistant/status
 ```
 
 ## Clockify API Usage
@@ -166,6 +170,12 @@ curl http://localhost:8080/auto-tag-assistant/settings
 - Replace the HTML stub in `SettingsController.java` with a real React/Vue/vanilla UI and serve static assets.
 - Swap the SDK TokenStore for a persistent database in production so tokens survive restarts.
 - Use `JwtTokenDecoder` when you need to introspect installation or user tokens (e.g., to discover `backendUrl`, `apiUrl`, or other environment-specific endpoints).
+
+### Security & Environment
+
+- Copy `.env.auto-tag-assistant.example` to `.env.auto-tag-assistant` and fill in the required values. `ENV` defaults to `dev`; when you switch to `staging`/`prod` you must provide one of `CLOCKIFY_JWT_{PUBLIC_KEY|PUBLIC_KEY_MAP|JWKS_URI}` plus issuer/audience constraints.
+- `/api/**` and the new `/status` endpoint are protected by `PlatformAuthFilter`. Requests must include `Authorization: Bearer <auth_token>` issued by Clockify.
+- The settings iframe now requires a valid `auth_token` query parameter (or `Authorization` header). Tokens are verified server-side before any context is rendered.
 
 ## Production Considerations
 

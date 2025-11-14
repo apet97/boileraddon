@@ -1,4 +1,4 @@
-package com.example.rules.security;
+package com.clockify.addon.sdk.middleware;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -15,8 +15,7 @@ import java.util.Set;
 
 /**
  * Wraps {@link PlatformAuthFilter} (or any servlet {@link Filter}) so that authentication
- * is enforced only for selected request paths. This allows us to require bearer tokens
- * on sensitive API endpoints while keeping health/manifest endpoints publicly readable.
+ * is enforced only for selected request paths.
  */
 public final class ScopedPlatformAuthFilter implements Filter {
     private final Filter delegate;

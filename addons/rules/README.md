@@ -123,7 +123,7 @@ Each example file includes all required keys plus inline notes linking back to t
 | `CLOCKIFY_JWT_EXPECT_ISS`, `CLOCKIFY_JWT_EXPECT_AUD` | Issuer/audience claims enforced by `JwtVerifier.Constraints`. | Defaults: issuer `clockify`, audience `rules` (the addon key). |
 | `CLOCKIFY_JWT_LEEWAY_SECONDS` | Allowed clock skew when validating temporal claims. | `60` seconds. |
 
-`RulesConfiguration.JwtBootstrapConfig` feeds all of the above into `JwtVerifier`. JWKS > PEM map > single PEM is enforced explicitly, and extra env vars are logged then ignored so there is never ambiguity about which key source is in use. Non-dev environments fail fast (with actionable error messages) unless at least one of the three key sources is configured. Dev environments may omit the keys entirely, but `/api/**` endpoints will run without bearer enforcement in that case.
+SDK-level `JwtBootstrapConfig` feeds all of the above into `JwtVerifier` (loaded by `RulesConfiguration`). JWKS > PEM map > single PEM is enforced explicitly, and extra env vars are logged then ignored so there is never ambiguity about which key source is in use. Non-dev environments fail fast (with actionable error messages) unless at least one of the three key sources is configured. Dev environments may omit the keys entirely, but `/api/**` endpoints will run without bearer enforcement in that case.
 
 Platform authorization flows through `ScopedPlatformAuthFilter` + `PlatformAuthFilter` once a verifier is configured; see “Security: JWT Verification” below for architecture details.
 
@@ -154,7 +154,7 @@ This addon implements JWT verification at the **addon level** rather than in the
 - **Manage keys independently** using addon-specific JWKS endpoints or environment-configured key maps
 - **Evolve security policies** without requiring SDK updates across all addons
 
-`RulesConfiguration.JwtBootstrapConfig` builds the `JwtVerifier` instance on startup. Constraints (`expectedIssuer`, `expectedAudience`, `clockSkewSeconds`) come straight from env vars, while the expected subject is derived from the manifest key (`rules`). Key material is sourced in this priority order:
+`JwtBootstrapConfig` builds the `JwtVerifier` instance on startup. Constraints (`expectedIssuer`, `expectedAudience`, `clockSkewSeconds`) come straight from env vars, while the expected subject is derived from the manifest key (`rules`). Key material is sourced in this priority order:
 
 1. **JWKS (`CLOCKIFY_JWT_JWKS_URI`)** — best for production key rotation.
 2. **PEM map (`CLOCKIFY_JWT_PUBLIC_KEY_MAP` + optional `CLOCKIFY_JWT_DEFAULT_KID`)** — supports multiple `kid` entries in a single env var.

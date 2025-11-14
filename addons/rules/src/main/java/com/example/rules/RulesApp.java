@@ -8,9 +8,12 @@ import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.health.DatabaseHealthCheck;
 import com.clockify.addon.sdk.health.HealthCheck;
 import com.clockify.addon.sdk.middleware.CorsFilter;
+import com.clockify.addon.sdk.middleware.PlatformAuthFilter;
 import com.clockify.addon.sdk.middleware.RateLimiter;
 import com.clockify.addon.sdk.middleware.RequestLoggingFilter;
+import com.clockify.addon.sdk.middleware.ScopedPlatformAuthFilter;
 import com.clockify.addon.sdk.middleware.SecurityHeadersFilter;
+import com.clockify.addon.sdk.middleware.SensitiveHeaderFilter;
 import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
 import com.example.rules.config.RuntimeFlags;
 import com.example.rules.config.RulesConfiguration;
@@ -23,18 +26,16 @@ import com.example.rules.store.RulesStoreSPI;
 import com.example.rules.store.DatabaseRulesStore;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.security.PooledDatabaseTokenStore;
-import com.example.rules.security.JwtVerifier;
-import com.example.rules.security.JwksBasedKeySource;
-import com.example.rules.security.PlatformAuthFilter;
-import com.example.rules.security.ScopedPlatformAuthFilter;
+import com.clockify.addon.sdk.security.jwt.JwtBootstrapConfig;
+import com.clockify.addon.sdk.security.jwt.JwtVerifier;
+import com.clockify.addon.sdk.security.jwt.JwksBasedKeySource;
+import com.clockify.addon.sdk.security.jwt.JwtVerifierFactory;
 import com.example.rules.web.RequestContext;
 import com.clockify.addon.sdk.logging.LoggingContext;
 import com.example.rules.health.ReadinessHandler;
-import com.example.rules.middleware.SensitiveHeaderFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -633,7 +634,7 @@ public class RulesApp {
             logger.error(msg);
             throw new IllegalStateException(msg);
         }
-        RulesConfiguration.JwtBootstrapConfig jwtConfig = jwtConfigOpt.get();
+        JwtBootstrapConfig jwtConfig = jwtConfigOpt.get();
         String expectedIssuer = jwtConfig.expectedIssuer()
                 .filter(value -> !value.isBlank())
                 .orElse("clockify");
@@ -648,11 +649,13 @@ public class RulesApp {
         );
         String expectedSubject = config.addonKey();
         try {
-            return switch (jwtConfig.source()) {
-                case JWKS_URI -> buildJwksVerifier(jwtConfig, constraints, expectedSubject);
-                case KEY_MAP -> buildKeyMapVerifier(jwtConfig, constraints, expectedSubject);
-                case PUBLIC_KEY -> buildPemVerifier(jwtConfig, constraints, expectedSubject);
-            };
+            JwtVerifier verifier = JwtVerifierFactory.create(jwtConfig, constraints, expectedSubject);
+            logger.info("Verified settings JWTs using {} (iss={}, aud={}, skew={}s)",
+                    describeJwtSource(jwtConfig.source()),
+                    logValue(constraints.allowedIssuers().isEmpty() ? null : constraints.allowedIssuers().iterator().next()),
+                    logValue(constraints.allowedAudiences().isEmpty() ? null : constraints.allowedAudiences().iterator().next()),
+                    constraints.clockSkewSeconds());
+            return verifier;
         } catch (Exception e) {
             String msg = "Failed to initialize JWT verifier using %s: %s. %s"
                     .formatted(describeJwtSource(jwtConfig.source()), e.getMessage(), JWT_DOC_HINT);
@@ -708,71 +711,7 @@ public class RulesApp {
         return (value == null || value.isBlank()) ? "n/a" : value;
     }
 
-    private static JwtVerifier buildJwksVerifier(RulesConfiguration.JwtBootstrapConfig jwtConfig,
-                                                 JwtVerifier.Constraints constraints,
-                                                 String expectedSubject) throws Exception {
-        URI jwksUri = parseJwksUri(jwtConfig.jwksUri()
-                .orElseThrow(() -> new IllegalStateException("CLOCKIFY_JWT_JWKS_URI must be provided for JWKS configuration")));
-        JwtVerifier verifier = JwtVerifier.fromKeySource(new JwksBasedKeySource(jwksUri), constraints, expectedSubject);
-        logger.info("Verified settings JWTs using JWKS ({}) (iss={}, aud={}, skew={}s)",
-                jwksUri,
-                logValue(constraints.expectedIssuer()),
-                logValue(constraints.expectedAudience()),
-                constraints.clockSkewSeconds());
-        return verifier;
-    }
-
-    private static JwtVerifier buildKeyMapVerifier(RulesConfiguration.JwtBootstrapConfig jwtConfig,
-                                                   JwtVerifier.Constraints constraints,
-                                                   String expectedSubject) throws Exception {
-        String raw = jwtConfig.keyMapJson()
-                .orElseThrow(() -> new IllegalStateException("CLOCKIFY_JWT_PUBLIC_KEY_MAP must be provided for PEM map configuration"));
-        Map<String, String> pemByKid = new com.fasterxml.jackson.databind.ObjectMapper()
-                .readValue(raw, new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
-        if (pemByKid.isEmpty()) {
-            throw new IllegalStateException("CLOCKIFY_JWT_PUBLIC_KEY_MAP must contain at least one entry");
-        }
-        String defaultKid = jwtConfig.defaultKid().orElse(null);
-        JwtVerifier verifier = JwtVerifier.fromPemMap(pemByKid, defaultKid, constraints, expectedSubject);
-        logger.info("Verified settings JWTs using {} kid-mapped keys (defaultKid={}, iss={}, aud={}, skew={}s)",
-                pemByKid.size(),
-                logValue(defaultKid),
-                logValue(constraints.expectedIssuer()),
-                logValue(constraints.expectedAudience()),
-                constraints.clockSkewSeconds());
-        return verifier;
-    }
-
-    private static JwtVerifier buildPemVerifier(RulesConfiguration.JwtBootstrapConfig jwtConfig,
-                                                JwtVerifier.Constraints constraints,
-                                                String expectedSubject) throws Exception {
-        String pem = jwtConfig.publicKeyPem()
-                .orElseThrow(() -> new IllegalStateException("CLOCKIFY_JWT_PUBLIC_KEY or CLOCKIFY_JWT_PUBLIC_KEY_PEM must be provided"));
-        JwtVerifier verifier = JwtVerifier.fromPem(pem, constraints, expectedSubject);
-        logger.info("Verified settings JWTs using configured public key (iss={}, aud={}, skew={}s)",
-                logValue(constraints.expectedIssuer()),
-                logValue(constraints.expectedAudience()),
-                constraints.clockSkewSeconds());
-        return verifier;
-    }
-
-    private static URI parseJwksUri(String rawUri) {
-        try {
-            URI uri = URI.create(rawUri);
-            String scheme = uri.getScheme();
-            if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
-                throw new IllegalArgumentException("CLOCKIFY_JWT_JWKS_URI must start with http:// or https://");
-            }
-            if (uri.getHost() == null) {
-                throw new IllegalArgumentException("CLOCKIFY_JWT_JWKS_URI must include a hostname");
-            }
-            return uri;
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid CLOCKIFY_JWT_JWKS_URI: " + e.getMessage(), e);
-        }
-    }
-
-    private static String describeJwtSource(RulesConfiguration.JwtKeySource source) {
+    private static String describeJwtSource(JwtBootstrapConfig.JwtKeySource source) {
         return switch (source) {
             case JWKS_URI -> "CLOCKIFY_JWT_JWKS_URI";
             case KEY_MAP -> "CLOCKIFY_JWT_PUBLIC_KEY_MAP";

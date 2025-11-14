@@ -6,12 +6,23 @@ import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.health.HealthCheck;
+import com.clockify.addon.sdk.middleware.PlatformAuthFilter;
+import com.clockify.addon.sdk.middleware.ScopedPlatformAuthFilter;
+import com.clockify.addon.sdk.middleware.SensitiveHeaderFilter;
+import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
 import com.clockify.addon.sdk.security.DatabaseTokenStore;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.ConfigValidator;
 import com.clockify.addon.sdk.config.SecretsPolicy;
+import com.clockify.addon.sdk.security.jwt.JwtBootstrapConfig;
+import com.clockify.addon.sdk.security.jwt.JwtVerifier;
+import com.clockify.addon.sdk.security.jwt.JwtVerifierFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Auto-Tag Assistant Add-on
@@ -36,18 +47,10 @@ public class AutoTagAssistantApp {
 
     public static void main(String[] args) throws Exception {
         SecretsPolicy.enforce();
-        // Read and validate configuration from environment
-        String baseUrl = ConfigValidator.validateUrl(
-            System.getenv("ADDON_BASE_URL"),
-            "http://localhost:8080/auto-tag-assistant",
-            "ADDON_BASE_URL"
-        );
-        int port = ConfigValidator.validatePort(
-            System.getenv("ADDON_PORT"),
-            8080,
-            "ADDON_PORT"
-        );
-        String addonKey = "auto-tag-assistant";
+        AutoTagConfiguration config = AutoTagConfiguration.fromEnvironment();
+        String baseUrl = config.baseUrl();
+        int port = config.port();
+        String addonKey = config.addonKey();
 
         // Build manifest programmatically (aligns with manifest.json)
         ClockifyManifest manifest = ClockifyManifest
@@ -64,6 +67,7 @@ public class AutoTagAssistantApp {
         manifest.getComponents().add(new ClockifyManifest.ComponentEndpoint("sidebar", "/settings", "Auto-Tag Assistant", "ADMINS"));
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
+        JwtVerifier jwtVerifier = initializeJwtVerifier(config);
 
         // Configure persistent token storage if database credentials are provided
         String dbUrl = System.getenv("DB_URL");
@@ -88,7 +92,7 @@ public class AutoTagAssistantApp {
         addon.registerCustomEndpoint("/manifest.json", new ManifestController(manifest));
 
         // GET /auto-tag-assistant/settings - Sidebar iframe for time entry
-        addon.registerCustomEndpoint("/settings", new SettingsController());
+        addon.registerCustomEndpoint("/settings", new SettingsController(jwtVerifier, config.isDev()));
 
         // POST /auto-tag-assistant/lifecycle/installed & /lifecycle/deleted - Lifecycle events
         LifecycleHandlers.register(addon);
@@ -116,6 +120,26 @@ public class AutoTagAssistantApp {
             });
         }
         addon.registerCustomEndpoint("/health", health);
+        addon.registerCustomEndpoint("/status", request -> {
+            String workspaceId = request.getParameter("workspaceId");
+            if (workspaceId == null || workspaceId.isBlank()) {
+                Object attr = request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR);
+                if (attr instanceof String attrValue && !attrValue.isBlank()) {
+                    workspaceId = attrValue;
+                }
+            }
+            boolean tokenPresent = workspaceId != null && !workspaceId.isBlank()
+                    && com.clockify.addon.sdk.security.TokenStore.get(workspaceId).isPresent();
+            String json = String.format(
+                    "{\"addonKey\":\"%s\",\"workspaceId\":\"%s\",\"tokenPresent\":%s,\"environment\":\"%s\",\"baseUrl\":\"%s\"}",
+                    addonKey,
+                    workspaceId == null ? "" : workspaceId,
+                    Boolean.toString(tokenPresent),
+                    config.environment(),
+                    baseUrl
+            );
+            return HttpResponse.ok(json, "application/json");
+        });
         // Prometheus metrics (optional; text/plain scrape)
         addon.registerCustomEndpoint("/metrics", new MetricsHandler());
 
@@ -126,8 +150,29 @@ public class AutoTagAssistantApp {
         // Start embedded Jetty server
         AddonServlet servlet = new AddonServlet(addon);
         EmbeddedServer server = new EmbeddedServer(servlet, contextPath);
+        if (jwtVerifier != null) {
+            server.addFilter(new WorkspaceContextFilter(jwt -> {
+                try {
+                    JwtVerifier.DecodedJwt decoded = jwtVerifier.verify(jwt);
+                    return decoded.payload();
+                } catch (Exception e) {
+                    logger.debug("WorkspaceContextFilter JWT verification failed: {}", e.getMessage());
+                    return null;
+                }
+            }));
+            server.addFilter(new ScopedPlatformAuthFilter(
+                    new PlatformAuthFilter(jwtVerifier),
+                    Set.of("/status"),
+                    List.of("/api")
+            ));
+        } else if (!config.isDev()) {
+            throw new IllegalStateException("JWT verifier must be configured when ENV=" + config.environment());
+        } else {
+            logger.warn("PlatformAuthFilter disabled (ENV=dev and no CLOCKIFY_JWT_* configuration).");
+        }
         // Always add basic security headers; configure frame-ancestors via ADDON_FRAME_ANCESTORS
         server.addFilter(new com.clockify.addon.sdk.middleware.SecurityHeadersFilter());
+        server.addFilter(new SensitiveHeaderFilter());
 
         // Optional rate limiter via env: ADDON_RATE_LIMIT (double, requests/sec), ADDON_LIMIT_BY (ip|workspace)
         String rateLimit = System.getenv("ADDON_RATE_LIMIT");
@@ -210,5 +255,34 @@ public class AutoTagAssistantApp {
             logger.warn("Could not parse base URL '{}', using '/' as context path", baseUrl, e);
         }
         return contextPath;
+    }
+
+    private static JwtVerifier initializeJwtVerifier(AutoTagConfiguration config) {
+        Optional<JwtBootstrapConfig> jwtConfigOpt = config.jwtBootstrap();
+        if (jwtConfigOpt.isEmpty()) {
+            if (config.isDev()) {
+                logger.warn("JWT verifier disabled: no CLOCKIFY_JWT_* env vars provided and ENV=dev.");
+                return null;
+            }
+            throw new IllegalStateException("CLOCKIFY_JWT_* env vars are required when ENV=" + config.environment());
+        }
+        JwtBootstrapConfig jwtConfig = jwtConfigOpt.get();
+        String expectedIssuer = jwtConfig.expectedIssuer()
+                .filter(value -> !value.isBlank())
+                .orElse("clockify");
+        String expectedAudience = jwtConfig.expectedAudience()
+                .filter(value -> !value.isBlank())
+                .orElse(config.addonKey());
+        JwtVerifier.Constraints constraints = new JwtVerifier.Constraints(
+                expectedIssuer,
+                expectedAudience,
+                jwtConfig.leewaySeconds(),
+                Set.of("RS256")
+        );
+        try {
+            return JwtVerifierFactory.create(jwtConfig, constraints, config.addonKey());
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to initialize JWT verifier: " + e.getMessage(), e);
+        }
     }
 }

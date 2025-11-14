@@ -3,7 +3,7 @@
 Track the hardening items required to ship the Rules add-on safely. Update each line with context (file paths, notes) when work is completed.
 
 - [x] Single source of truth for config (env vars + config module). (`RulesConfiguration.fromEnvironment`, `.env.rules.example`, `RuntimeFlags` for live toggles)
-- [x] Proper Clockify JWT/signature validation for webhooks and UI. (`RulesConfiguration.JwtBootstrapConfig` → `JwtVerifier`, `WorkspaceContextFilter`, `PlatformAuthFilter`, `WebhookSignatureValidator` with HMAC default and guarded `ADDON_ACCEPT_JWT_SIGNATURE`)
+- [x] Proper Clockify JWT/signature validation for webhooks and UI. (`JwtBootstrapConfig` → `JwtVerifier`, `WorkspaceContextFilter`, `PlatformAuthFilter`, `WebhookSignatureValidator` with HMAC default and guarded `ADDON_ACCEPT_JWT_SIGNATURE`)
 - [x] Webhook idempotency/deduplication with storage + metrics. (`WebhookIdempotencyCache`, TTL via `RULES_WEBHOOK_DEDUP_SECONDS`, `RulesMetrics.recordDeduplicatedEvent`)
 - [x] Reasonable timeouts and error handling on all HTTP calls to Clockify. (`ClockifyHttpClient`)
 - [x] Backoff / rate limiting respecting Clockify’s 50 RPS per add-on per workspace. (`RulesApp` + `RateLimiter`)

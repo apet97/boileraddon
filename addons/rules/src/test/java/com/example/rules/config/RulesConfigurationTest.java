@@ -1,5 +1,6 @@
 package com.example.rules.config;
 
+import com.clockify.addon.sdk.security.jwt.JwtBootstrapConfig;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -31,7 +32,7 @@ class RulesConfigurationTest {
 
     @Test
     void enablingTokenStoreWithoutDatabaseFails() {
-        RulesConfiguration.JwtBootstrapConfig jwt = new RulesConfiguration.JwtBootstrapConfig(
+        JwtBootstrapConfig jwt = new JwtBootstrapConfig(
                 Optional.of("-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----"),
                 Optional.empty(),
                 Optional.empty(),
@@ -39,7 +40,7 @@ class RulesConfigurationTest {
                 Optional.of("clockify"),
                 Optional.of("rules"),
                 60,
-                RulesConfiguration.JwtKeySource.PUBLIC_KEY
+                JwtBootstrapConfig.JwtKeySource.PUBLIC_KEY
         );
 
         assertThrows(IllegalStateException.class, () ->

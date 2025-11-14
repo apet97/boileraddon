@@ -77,7 +77,7 @@ For bare-metal or VM deployments, run the same fat JAR directly: `ADDON_BASE_URL
 - `WebhookIdempotencyCache` stores `(workspaceId, eventType, payloadId)` tuples for `RULES_WEBHOOK_DEDUP_SECONDS` (60s–24h). The cache is per-pod and in-memory; duplicates are only caught on the same node, so treat the behavior as “at-most-once per JVM”. Duplicates short-circuit webhook handlers and increment `rules_webhook_dedup_hits_total`, while first-seen payloads increment `rules_webhook_dedup_misses_total`. For cross-node dedupe, back the cache with a persistent store.
 - `SecurityHeadersFilter` emits CSP + security headers and shares a per-request nonce with the settings/IFTTT controllers.
 - `SensitiveHeaderFilter` wraps the servlet request to redact `Authorization`, `X-Addon-Token`, `Clockify-Signature`, and cookies before any logging occurs.
-- Workspace iframe JWTs flow through `RulesConfiguration.JwtBootstrapConfig` → `JwtVerifier` → `WorkspaceContextFilter` / `PlatformAuthFilter`, so no controller calls `System.getenv`.
+- Workspace iframe JWTs flow through the SDK `JwtBootstrapConfig` (loaded by `RulesConfiguration`) → `JwtVerifier` → `WorkspaceContextFilter` / `PlatformAuthFilter`, so no controller calls `System.getenv`.
 
 ## Known operational limits
 - **Task scanning** — Workspace-level task listings walk projects (`50` per page) × tasks (`200` per page) and cap the scan at 5,000 tasks to keep snapshots bounded. When the cap hits, refreshes log the workspace, observed totals, and increment `rules_workspace_cache_truncated_total{dataset="tasks"}` so dashboards can flag truncated caches; operators should narrow filters before exporting again.
