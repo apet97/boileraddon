@@ -11,6 +11,7 @@ import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * Aggregates workspace data into explorer-friendly payloads and exposes collection helpers.
@@ -19,13 +20,19 @@ public class WorkspaceExplorerService {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final ExplorerGateway gateway;
+    private final Supplier<OffsetDateTime> clock;
 
     public WorkspaceExplorerService() {
         this(new ClockifyExplorerGateway());
     }
 
     public WorkspaceExplorerService(ExplorerGateway gateway) {
+        this(gateway, () -> OffsetDateTime.now(ZoneOffset.UTC));
+    }
+
+    WorkspaceExplorerService(ExplorerGateway gateway, Supplier<OffsetDateTime> clock) {
         this.gateway = Objects.requireNonNull(gateway, "gateway");
+        this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     public ObjectNode getOverview(String workspaceId, OverviewRequest request) throws ExplorerException {
@@ -55,7 +62,7 @@ public class WorkspaceExplorerService {
         addSample("timeOffPolicies", timeOffPolicies, summary, samples);
 
         Map<String, String> timeFilters = new LinkedHashMap<>();
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime now = clock.get();
         timeFilters.put("end", now.toString());
         timeFilters.put("start", now.minusDays(effective.recentDays()).toString());
         ExplorerQuery timeEntriesQuery = ensureHydrated(new ExplorerQuery(1, effective.sampleSize(), timeFilters));
@@ -110,7 +117,7 @@ public class WorkspaceExplorerService {
         root.set("datasets", datasets);
 
         Map<String, String> timeEntryFilters = new LinkedHashMap<>();
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime now = clock.get();
         timeEntryFilters.put("end", now.toString());
         timeEntryFilters.put("start", now.minusDays(effective.timeEntryLookbackDays()).toString());
         Map<String, String> timeOffFilters = Map.of("view", "policies", "status", "ACTIVE");

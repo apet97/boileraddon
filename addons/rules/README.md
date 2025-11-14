@@ -19,7 +19,7 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 - Uses a left-hand navigation rail plus dataset-aware toolbars (search, filters, page-size selector, reset) so admins always know where they are.
 - Streams data from backend routes under `/api/rules/explorer/**`, which wrap the Clockify OpenAPI GET endpoints using the installation token.
 - Adds per-section presets that live in `localStorage`—each browser can save multiple named filters per dataset and reload them later.
-- Upgrades the snapshot workspace with dataset toggles (users through invoices), configurable page size/max pages (5–100 × 1–20), and a selectable time-entry lookback (7/30/90 days). Progress is rendered inline and the JSON download is enabled in-place once a run finishes.
+- Upgrades the snapshot workspace with dataset toggles (users through invoices), configurable page size/max pages (5–100 × 1–20), and a selectable time-entry lookback (UI presets 7/30/90 days, clamped 1–90 via `timeEntryLookbackDays`). Progress is rendered inline and the JSON download is enabled in-place once a run finishes.
 - Provides contextual “Create rule from this” actions on time entries (with copy-to-clipboard rule seeds) and quick project/tag shortcuts into the simple builder via `ruleName`, `prefillDescription`, `prefillProjectId`, and `prefillTagIds` query params.
 
 ### Explorer API (backend-only)

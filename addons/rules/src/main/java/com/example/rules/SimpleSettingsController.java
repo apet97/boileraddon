@@ -872,10 +872,13 @@ public class SimpleSettingsController implements RequestHandler {
       }
       const tagPrefill = urlParams.get('prefillTagIds');
       if (tagPrefill) {
-        tagPrefill.split(',')
-          .map(tagId => tagId.trim())
-          .filter(Boolean)
-          .forEach(tagId => addCondition('hasTag', tagId));
+        const uniqueTags = Array.from(new Set(
+          tagPrefill
+            .split(',')
+            .map(tagId => tagId.trim())
+            .filter(Boolean)
+        ));
+        uniqueTags.forEach(tagId => addCondition('hasTag', tagId));
       }
     });
   </script>

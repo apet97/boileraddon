@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.OffsetDateTime;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WorkspaceExplorerServiceTest {
     private static final ObjectMapper OM = new ObjectMapper();
+    private static final OffsetDateTime FIXED_NOW = OffsetDateTime.parse("2024-01-20T12:00:00Z");
 
     private WorkspaceExplorerService service;
     private StubGateway gateway;
@@ -23,7 +25,7 @@ class WorkspaceExplorerServiceTest {
     @BeforeEach
     void setUp() {
         gateway = new StubGateway();
-        service = new WorkspaceExplorerService(gateway);
+        service = new WorkspaceExplorerService(gateway, () -> FIXED_NOW);
     }
 
     @Test
@@ -91,7 +93,8 @@ class WorkspaceExplorerServiceTest {
                 false,
                 false,
                 2,
-                2
+                2,
+                30
         );
 
         ObjectNode snapshot = service.getSnapshot("ws", request);
@@ -99,6 +102,73 @@ class WorkspaceExplorerServiceTest {
         assertEquals(3, snapshot.path("summary").path("users").path("items").asInt());
         assertEquals(2, snapshot.path("summary").path("users").path("pages").asInt());
         assertEquals(3, snapshot.path("datasets").path("users").size());
+    }
+
+    @Test
+    void snapshotRequestClampsBounds() {
+        WorkspaceExplorerService.SnapshotRequest lower = new WorkspaceExplorerService.SnapshotRequest(
+                true,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                1,
+                0,
+                0
+        );
+        assertEquals(5, lower.pageSizePerDataset());
+        assertEquals(1, lower.maxPagesPerDataset());
+        assertEquals(1, lower.timeEntryLookbackDays());
+
+        WorkspaceExplorerService.SnapshotRequest upper = new WorkspaceExplorerService.SnapshotRequest(
+                true,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                500,
+                100,
+                120
+        );
+        assertEquals(100, upper.pageSizePerDataset());
+        assertEquals(20, upper.maxPagesPerDataset());
+        assertEquals(90, upper.timeEntryLookbackDays());
+    }
+
+    @Test
+    void snapshotTimeEntryLookbackSetsStartFilter() throws Exception {
+        gateway.setResponse(
+                WorkspaceExplorerService.ExplorerDataset.TIME_ENTRIES,
+                pageResult(1, 5, item("id", "te-1"))
+        );
+        WorkspaceExplorerService.SnapshotRequest request = new WorkspaceExplorerService.SnapshotRequest(
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                5,
+                1,
+                12
+        );
+
+        service.getSnapshot("ws", request);
+
+        Map<String, String> filters = gateway.lastQuery.filters();
+        assertEquals(FIXED_NOW.toString(), filters.get("end"));
+        assertEquals(FIXED_NOW.minusDays(12).toString(), filters.get("start"));
     }
 
     @Test

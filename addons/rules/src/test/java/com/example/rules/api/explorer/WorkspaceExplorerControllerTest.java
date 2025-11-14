@@ -80,7 +80,8 @@ class WorkspaceExplorerControllerTest {
                 "includeTimeOff", new String[]{"true"},
                 "includeWebhooks", new String[]{"1"},
                 "pageSizePerDataset", new String[]{"10"},
-                "maxPagesPerDataset", new String[]{"2"}
+                "maxPagesPerDataset", new String[]{"2"},
+                "timeEntryLookbackDays", new String[]{"45"}
         ));
         when(service.getSnapshot(eq("ws-3"), any())).thenReturn(emptyResponse());
 
@@ -92,6 +93,7 @@ class WorkspaceExplorerControllerTest {
         WorkspaceExplorerService.SnapshotRequest snapshot = captor.getValue();
         assertEquals(10, snapshot.pageSizePerDataset());
         assertEquals(2, snapshot.maxPagesPerDataset());
+        assertEquals(45, snapshot.timeEntryLookbackDays());
         assertTrue(snapshot.includeTimeOff());
         assertTrue(snapshot.includeWebhooks());
     }

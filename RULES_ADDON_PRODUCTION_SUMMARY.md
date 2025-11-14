@@ -60,7 +60,7 @@ DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON
 ## Workspace explorer updates
 - The `/settings` iframe now drives the entire explorer experience: a left-hand nav keeps admins oriented, every dataset gets a toolbar (search, filters, page-size selector, reset), and presets are stored per section in `localStorage` so each browser can maintain multiple saved filter bundles.
 - `/api/rules/explorer/**` remains the only data plane—the browser never talks to Clockify directly. Webhook `event`/`enabled`/`search` filters are applied client-side after fetching the workspace inventory so pagination stats describe the filtered subset.
-- `/api/rules/explorer/snapshot` powers an on-demand “fetch everything” pass (multiple paginated GETs). The UI exposes dataset toggles (users through invoices), configurable limits (5–100 rows × 1–20 pages), and a selectable time-entry lookback (7/30/90 days). Inline progress cards keep operators informed and the JSON download happens inside the iframe once a run completes.
+- `/api/rules/explorer/snapshot` powers an on-demand “fetch everything” pass (multiple paginated GETs). The UI exposes dataset toggles (users through invoices), configurable limits (5–100 rows × 1–20 pages), and a selectable time-entry lookback (UI presets 7/30/90 days, clamped 1–90 via `timeEntryLookbackDays`). Inline progress cards keep operators informed and the JSON download happens inside the iframe once a run completes.
 - Time entry rows expose both a “Create rule from this” link (deep-linking into `/simple?ruleName=...&prefillDescription=...&prefillProjectId=...&prefillTagIds=...`) and a copy-to-clipboard rule seed for admins who want to start from raw JSON.
 
 ## Webhook idempotency & filters

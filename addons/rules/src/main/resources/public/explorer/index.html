@@ -928,8 +928,8 @@
     (function() {
       const runtime = window.__RULES_RUNTIME__ || {};
       const bootstrap = window.__RULES_BOOTSTRAP__ || {};
-      const API_BASE = (runtime.apiBase || '').replace(/\/$/, '');
-      const baseUrl = (runtime.baseUrl || '').replace(/\/$/, '');
+      const API_BASE = (runtime.apiBase || '').replace(/\/+$/, '');
+      const baseUrl = (runtime.baseUrl || '').replace(/\/+$/, '');
       const workspaceId = runtime.workspaceId || bootstrap.workspaceId || '';
       const STORAGE_KEY = 'rulesExplorer.filters';
       const SNAPSHOT_KEY = 'rulesExplorer.snapshotOptions';
@@ -974,7 +974,7 @@
       const state = {
         loaded: {},
         filters: clone(defaultFilters),
-        presets: loadPresets(),
+        presets: ensurePlainObject(loadPresets()),
         snapshot: {
           options: loadSnapshotOptions(),
           busy: false,
@@ -1527,16 +1527,12 @@
         state.snapshot.options = sanitized;
         saveSnapshotOptions();
         applySnapshotOptionsToControls();
+        resetSnapshotResults();
         const selected = SNAPSHOT_DATASETS.filter(ds => sanitized[ds.option]);
         if (!selected.length) {
           updateSnapshotStatus('Select at least one dataset before running a snapshot.', true);
-          markSnapshotProgressError('Select at least one dataset to snapshot.', false);
+          markSnapshotProgressError('Select at least one dataset to snapshot.', true);
           return;
-        }
-        state.snapshot.data = null;
-        const downloadBtn = document.getElementById('btn-download-snapshot');
-        if (downloadBtn) {
-          downloadBtn.disabled = true;
         }
         state.snapshot.busy = true;
         disableSnapshotForm(true);
@@ -1571,6 +1567,12 @@
             state.snapshot.busy = false;
             disableSnapshotForm(false);
           });
+      }
+
+      function resetSnapshotResults() {
+        state.snapshot.data = null;
+        state.snapshot.progress = [];
+        renderSnapshotSummary(null);
       }
 
       function disableSnapshotForm(disabled) {
@@ -1712,7 +1714,7 @@
           const raw = localStorage.getItem(PRESETS_KEY);
           if (!raw) return {};
           const parsed = JSON.parse(raw);
-          return typeof parsed === 'object' && parsed ? parsed : {};
+          return ensurePlainObject(parsed);
         } catch (_) {
           return {};
         }
@@ -1720,8 +1722,17 @@
 
       function persistPresets() {
         try {
+          state.presets = ensurePlainObject(state.presets);
           localStorage.setItem(PRESETS_KEY, JSON.stringify(state.presets));
         } catch (_) {}
+      }
+
+      function ensurePlainObject(value) {
+        return isPlainObject(value) ? value : {};
+      }
+
+      function isPlainObject(value) {
+        return typeof value === 'object' && value !== null && !Array.isArray(value);
       }
 
       function populatePresetDropdown(section) {
@@ -1865,8 +1876,7 @@
           toggle.addEventListener('change', () => {
             const key = toggle.getAttribute('data-snapshot-toggle');
             if (!key) return;
-            state.snapshot.options[key] = !!toggle.checked;
-            saveSnapshotOptions();
+            setSnapshotOption(key, !!toggle.checked);
           });
         });
         document.querySelectorAll('[data-snapshot-input]').forEach(input => {
@@ -1915,21 +1925,37 @@
 
       async function writeClipboard(text) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
+          try {
+            await navigator.clipboard.writeText(text);
+            return;
+          } catch (err) {
+            console.warn('navigator.clipboard.writeText failed, attempting fallback', err);
+          }
+        }
+        if (legacyCopy(text)) {
           return;
         }
+        throw new Error('Copy not supported');
+      }
+
+      function legacyCopy(text) {
         const textarea = document.createElement('textarea');
         textarea.value = text;
         textarea.style.position = 'fixed';
         textarea.style.opacity = '0';
+        textarea.setAttribute('aria-hidden', 'true');
         document.body.appendChild(textarea);
         textarea.focus();
         textarea.select();
-        const success = document.execCommand('copy');
-        document.body.removeChild(textarea);
-        if (!success) {
-          throw new Error('Copy not supported');
+        let success = false;
+        try {
+          success = document.execCommand('copy');
+        } catch (_) {
+          success = false;
+        } finally {
+          document.body.removeChild(textarea);
         }
+        return success;
       }
 
       function flashCopyMessage(button, message) {
@@ -1938,11 +1964,15 @@
         if (!button.dataset.originalText) {
           button.dataset.originalText = original;
         }
+        if (button._flashTimeoutId) {
+          clearTimeout(button._flashTimeoutId);
+        }
         button.textContent = message;
         button.disabled = true;
-        setTimeout(() => {
+        button._flashTimeoutId = setTimeout(() => {
           button.textContent = button.dataset.originalText;
           button.disabled = false;
+          button._flashTimeoutId = null;
         }, 1600);
       }
 
