@@ -112,6 +112,37 @@ class DynamicHandlerOpenApiCallTest {
     }
 
     @Test
+    void openApiCallAction_rejectsUnsafePathOutsideWorkspaceScope() {
+        Map<String, String> args = Map.of(
+                "method", "POST",
+                "path", "/users/{userId}/tags"
+        );
+
+        Action action = new Action("openapi_call", args);
+
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class, () -> OpenApiCallConfig.from(action, objectMapper));
+        assertTrue(ex.getMessage().contains("/workspaces"),
+                "Expected message to mention workspace scope");
+    }
+
+    @Test
+    void openApiCallAction_rejectsInvalidJsonBody() {
+        Map<String, String> args = Map.of(
+                "method", "POST",
+                "path", "/workspaces/{workspaceId}/projects",
+                "body", "{not-json"
+        );
+
+        Action action = new Action("openapi_call", args);
+
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class, () -> OpenApiCallConfig.from(action, objectMapper));
+        assertTrue(ex.getMessage().contains("Invalid JSON body"),
+                "Expected invalid JSON body error");
+    }
+
+    @Test
     void openApiCallAction_supportsPlaceholdersInPath() {
         // Verify that paths can contain placeholders that will be resolved at runtime
         Map<String, String> args = Map.of(

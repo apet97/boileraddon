@@ -79,6 +79,21 @@ class PlatformAuthFilterTest {
     }
 
     @Test
+    void missingInstallationIdReturns403() throws Exception {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+
+        String token = signToken(Map.of("workspace_id", "ws-200")); // missing installation_id
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + token);
+
+        filter.doFilter(request, response, chain);
+
+        verify(response).sendError(403, "missing claims");
+        verify(chain, never()).doFilter(any(), any());
+    }
+
+    @Test
     void validTokenSetsAttributesAndContinues() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);

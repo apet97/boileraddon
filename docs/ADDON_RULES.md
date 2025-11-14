@@ -94,6 +94,7 @@ This boilerplate includes comprehensive enterprise security hardening features e
 - **Input Validation**: Comprehensive parameter and payload validation
 - **Path Sanitization**: URL path validation and sanitization
 - **Rate Limiting**: IP and workspace-based request throttling
+- **PlatformAuthFilter**: `/api/**` + `/status` require `Authorization: Bearer <auth_token>` with both `installation_id` and `workspace_id` claims; missing claims return `403` so callers cannot spoof tenancy.
 
 All security features are validated through comprehensive testing (307 tests across 5 layers) and are automatically enabled in production deployments.
 
