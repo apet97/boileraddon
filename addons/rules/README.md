@@ -259,7 +259,11 @@ ClockifyManifest manifest = ClockifyManifest
     .minimalSubscriptionPlan("PRO")
     .scopes(new String[]{
         "TIME_ENTRY_READ", "TIME_ENTRY_WRITE",
-        "TAG_READ", "TAG_WRITE"
+        "TAG_READ", "TAG_WRITE",
+        "PROJECT_READ", "PROJECT_WRITE",
+        "CLIENT_READ", "CLIENT_WRITE",
+        "TASK_READ", "TASK_WRITE",
+        "WORKSPACE_READ"
     })
     .build();
 ```
@@ -309,10 +313,11 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 ## Checklist: Plan, Scopes, Events
 
 - Plan (minimalSubscriptionPlan)
-  - Start with `FREE`; move to `STANDARD`/`PRO` if enterprise features or higher quotas are needed.
-- Scopes (least privilege)
-  - Core: `TIME_ENTRY_READ` (evaluate rules), `TIME_ENTRY_WRITE` (apply changes)
-  - Helpful: `TAG_READ`, `TAG_WRITE` (when adding/removing tags)
+  - Set to `PRO`. Explorer datasets (invoices, time off) and rule actions rely on Pro-tier automations, so staying on Pro avoids false failures during review.
+- Scopes (least privilege while covering explorer/builder)
+  - Rules + actions: `TIME_ENTRY_READ`, `TIME_ENTRY_WRITE`, `TAG_READ`, `TAG_WRITE`
+  - Explorer CRUD helpers: `PROJECT_READ`, `PROJECT_WRITE`, `CLIENT_READ`, `CLIENT_WRITE`, `TASK_READ`, `TASK_WRITE`
+  - Context: `WORKSPACE_READ` (surface workspace metadata in explorer/builder)
 - Webhook events (allowed by schema)
   - `NEW_TIME_ENTRY`, `TIME_ENTRY_UPDATED`
   - Add more only if your rules need additional signals.

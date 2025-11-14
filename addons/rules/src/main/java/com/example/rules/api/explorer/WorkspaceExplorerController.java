@@ -41,8 +41,9 @@ public class WorkspaceExplorerController {
 
     public RequestHandler overview() {
         return request -> {
+            String workspaceId = null;
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = RequestContext.resolveWorkspaceId(request);
+                workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -57,7 +58,7 @@ public class WorkspaceExplorerController {
 
                 return HttpResponse.ok(payload.toString(), MEDIA_JSON);
             } catch (WorkspaceExplorerService.ExplorerException e) {
-                return handleExplorerException(e, request);
+                return handleExplorerException("overview", workspaceId, e, request);
             } catch (Exception e) {
                 return internalError(request, "EXPLORER.OVERVIEW_FAILED", "Failed to load workspace overview", e);
             }
@@ -156,8 +157,9 @@ public class WorkspaceExplorerController {
 
     public RequestHandler snapshot() {
         return request -> {
+            String workspaceId = null;
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String workspaceId = RequestContext.resolveWorkspaceId(request);
+                workspaceId = RequestContext.resolveWorkspaceId(request);
                 if (workspaceId == null) {
                     return workspaceRequired(request);
                 }
@@ -166,7 +168,7 @@ public class WorkspaceExplorerController {
                 ObjectNode payload = service.getSnapshot(workspaceId, snapshotRequest);
                 return HttpResponse.ok(payload.toString(), MEDIA_JSON);
             } catch (WorkspaceExplorerService.ExplorerException e) {
-                return handleExplorerException(e, request);
+                return handleExplorerException("snapshot", workspaceId, e, request);
             } catch (Exception e) {
                 return internalError(request, "EXPLORER.SNAPSHOT_FAILED", "Failed to build snapshot", e);
             }
@@ -177,8 +179,9 @@ public class WorkspaceExplorerController {
                                           int defaultPageSize,
                                           Function<HttpServletRequest, Map<String, String>> filtersBuilder,
                                           WorkspaceExplorerService.ExplorerDataset dataset) {
+        String workspaceId = null;
         try (LoggingContext ctx = RequestContext.logging(request)) {
-            String workspaceId = RequestContext.resolveWorkspaceId(request);
+            workspaceId = RequestContext.resolveWorkspaceId(request);
             if (workspaceId == null) {
                 return workspaceRequired(request);
             }
@@ -200,7 +203,7 @@ public class WorkspaceExplorerController {
             };
             return HttpResponse.ok(payload.toString(), MEDIA_JSON);
         } catch (WorkspaceExplorerService.ExplorerException e) {
-            return handleExplorerException(e, request);
+            return handleExplorerException(dataset.name().toLowerCase(Locale.ROOT), workspaceId, e, request);
         } catch (Exception e) {
             String code = switch (dataset) {
                 case USERS -> "EXPLORER.USERS_FAILED";
@@ -501,11 +504,16 @@ public class WorkspaceExplorerController {
         return filters;
     }
 
-    private HttpResponse handleExplorerException(WorkspaceExplorerService.ExplorerException e, HttpServletRequest request) {
+    private HttpResponse handleExplorerException(String scope,
+                                                 String workspaceId,
+                                                 WorkspaceExplorerService.ExplorerException e,
+                                                 HttpServletRequest request) {
+        String safeScope = scope == null || scope.isBlank() ? "unspecified" : scope;
+        String safeWorkspace = workspaceId == null || workspaceId.isBlank() ? "unknown" : workspaceId;
         if (e.getCause() != null) {
-            logger.warn("Explorer exception {}: {}", e.code(), e.getMessage(), e);
+            logger.warn("Explorer exception {} (scope={}, workspace={}): {}", e.code(), safeScope, safeWorkspace, e.getMessage(), e);
         } else {
-            logger.warn("Explorer exception {}: {}", e.code(), e.getMessage());
+            logger.warn("Explorer exception {} (scope={}, workspace={}): {}", e.code(), safeScope, safeWorkspace, e.getMessage());
         }
         return ErrorResponse.of(e.status(), e.code(), e.getMessage(), request, e.retryable(), e.details());
     }

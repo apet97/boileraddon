@@ -18,6 +18,7 @@ Use this checklist before the first deployment **and** during every rollout. Upd
 - [ ] **Environment label correct:** `ENV=dev` only for local testing, `ENV=staging` or `ENV=prod` everywhere else.
 - [ ] **Dev-only flags absent in staging/prod:** `CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON_SKIP_SIGNATURE_VERIFY`, and `ADDON_ACCEPT_JWT_SIGNATURE` unset.
 - [ ] **Token store inputs:** When `ENABLE_DB_TOKEN_STORE=true`, confirm `DB_URL`, `DB_USER`/`DB_USERNAME`, `DB_PASSWORD` are populated.
+- [ ] **Portal install path validated:** From https://developer.clockify.me (Admin → Add-ons → Install Custom Add-on), confirm the manifest URL resolves (`https://<domain>/rules/manifest.json`) and the sidebar loads inside the Clockify shell.
 
 ## B. Build & deploy
 
@@ -49,8 +50,8 @@ Use this checklist before the first deployment **and** during every rollout. Upd
   - [ ] Developer tools show `/api/**` and `/status` requests with `Authorization: Bearer ...` headers (no 401s).
   - [ ] Each explorer tab (users, projects, clients, tags, **tasks**, time entries, time off, webhooks, custom fields, invoices) renders and respects the toolbar filters/page-size selector.
   - [ ] Presets can be saved per dataset, persist after a reload, and can be reused/deleted.
-- [ ] Snapshot runs complete with conservative limits (e.g., `pageSizePerDataset=10`, `maxPagesPerDataset=1`), honor the selected lookback window (UI presets 7/30/90 days, enforced clamp 1–90), show inline progress, render expandable JSON previews per dataset, and enable the JSON download only when finished.
-  - [ ] “Create rule from this” on a time entry opens the simple builder with the name/description/project/tags prefilled, shows the prefill banner/highlights, and the copy-to-clipboard rule seed works.
+- [ ] Snapshot runs complete with conservative limits (e.g., `pageSizePerDataset=10`, `maxPagesPerDataset=1`) **and** a moderate pass (e.g., `pageSizePerDataset=50`, `maxPagesPerDataset=5`), honor the selected lookback window (UI presets 7/30/90 days, enforced clamp 1–90), show inline progress, render expandable JSON previews per dataset, and enable the JSON download only when finished.
+  - [ ] “Create rule from this” on a time entry opens the simple builder with the name/description/project/tags prefilled, shows the prefill banner/highlights, and the copy-to-clipboard rule seed works; paste the JSON into a scratch buffer or `POST /rules/api/rules` dry-run to confirm it is valid.
 - [ ] **Webhook path sanity:**
   - [ ] Trigger a sample webhook (e.g., create a time entry) with known match conditions.
   - [ ] Confirm webhook log lines show `workspaceId` and `event` fields.
