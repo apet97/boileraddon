@@ -6,6 +6,7 @@ import com.clockify.addon.sdk.ClockifyManifest;
 import com.clockify.addon.sdk.ConfigValidator;
 import com.clockify.addon.sdk.EmbeddedServer;
 import com.clockify.addon.sdk.HttpResponse;
+import com.clockify.addon.sdk.DefaultManifestController;
 import com.clockify.addon.sdk.config.SecretsPolicy;
 import com.clockify.addon.sdk.middleware.PlatformAuthFilter;
 import com.clockify.addon.sdk.middleware.ScopedPlatformAuthFilter;

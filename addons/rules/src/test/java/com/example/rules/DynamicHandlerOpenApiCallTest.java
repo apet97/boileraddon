@@ -4,6 +4,7 @@ import com.example.rules.engine.Action;
 import com.example.rules.engine.OpenApiCallConfig;
 import com.example.rules.engine.Rule;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
