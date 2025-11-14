@@ -186,9 +186,22 @@
     .error-banner { border-color: var(--danger); color: var(--danger); }
     .muted { color: var(--muted); }
     .small { font-size: 12px; }
+    .snapshot-card { margin-top: 20px; }
+    .snapshot-controls { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+    .snapshot-controls label { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
+    .snapshot-summary-table { width:100%; border-collapse: collapse; margin-top:12px; font-size:13px; }
+    .snapshot-summary-table th,
+    .snapshot-summary-table td { padding:8px; border:1px solid var(--border); text-align:left; }
+    .snapshot-summary-table th { background: var(--accent-soft); color: var(--text); }
+    .link-button { display:inline-flex; align-items:center; padding:6px 12px; border-radius:999px; border:1px solid var(--border); font-size:12px; text-decoration:none; color:var(--accent); margin-top:6px; }
+    .link-button:hover { border-color: var(--accent); }
+    .section-note { margin:0 0 12px 0; color:var(--muted); font-size:13px; }
+    .badge.critical { background: rgba(220,38,38,0.12); color: var(--danger); }
+    .list-item .meta { display:flex; gap:8px; flex-wrap:wrap; }
     @media (max-width: 640px) {
       .status-card { flex-direction: column; align-items: flex-start; }
       .card { padding: 16px; }
+      .snapshot-controls { flex-direction:column; align-items:flex-start; }
     }
   </style>
 </head>
@@ -226,6 +239,10 @@
       <button data-panel-trigger="clients">Clients</button>
       <button data-panel-trigger="tags">Tags</button>
       <button data-panel-trigger="time-entries">Time Entries</button>
+      <button data-panel-trigger="time-off">Time Off</button>
+      <button data-panel-trigger="webhooks">Webhooks</button>
+      <button data-panel-trigger="custom-fields">Custom Fields</button>
+      <button data-panel-trigger="invoices">Invoices</button>
     </nav>
 
     <section class="panel active" id="panel-overview" data-panel="overview">
@@ -257,6 +274,22 @@
           <button type="button" class="ghost" data-refresh="overview">Refresh</button>
         </div>
         <div id="recent-time-entries" class="timeline"></div>
+      </div>
+      <div class="card snapshot-card">
+        <div class="card-header">
+          <h3>Fetch Workspace Snapshot</h3>
+          <button type="button" class="ghost" id="btn-run-snapshot">Fetch snapshot</button>
+        </div>
+        <p class="section-note">Generates a one-time JSON snapshot of key datasets. Use sparingly in production.</p>
+        <div class="snapshot-controls">
+          <label><input type="checkbox" data-snapshot-toggle="includeTimeOff" /> Time Off</label>
+          <label><input type="checkbox" data-snapshot-toggle="includeWebhooks" /> Webhooks</label>
+          <label><input type="checkbox" data-snapshot-toggle="includeCustomFields" /> Custom fields</label>
+          <label><input type="checkbox" data-snapshot-toggle="includeInvoices" /> Invoices</label>
+        </div>
+        <div id="snapshot-status" class="muted small">No snapshot generated yet.</div>
+        <div id="snapshot-summary"></div>
+        <button type="button" class="ghost" id="btn-download-snapshot" style="display:none;">Download JSON</button>
       </div>
     </section>
 
@@ -297,6 +330,7 @@
             <option value="true">Billable</option>
             <option value="false">Non-billable</option>
           </select>
+          <input type="search" name="clientId" placeholder="Client ID" data-filter="projects" />
         </div>
         <div id="projects-list" class="list"></div>
       </div>
@@ -352,8 +386,120 @@
           </select>
           <input type="search" name="userId" placeholder="User ID" data-filter="time-entries" />
           <input type="search" name="projectId" placeholder="Project ID" data-filter="time-entries" />
+          <input type="search" name="tagIds" placeholder="Tag IDs comma separated" data-filter="time-entries" />
         </div>
         <div id="time-entries-list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-time-off" data-panel="time-off">
+      <div class="card">
+        <div class="card-header">
+          <h3>Time Off</h3>
+          <button type="button" class="ghost" data-refresh="time-off">Refresh</button>
+        </div>
+        <p class="section-note">Switch between requests, policies, or balances to inspect PTO usage.</p>
+        <div class="panel-controls">
+          <select name="view" data-filter="time-off">
+            <option value="requests">Requests</option>
+            <option value="policies">Policies</option>
+            <option value="balances">Balances</option>
+          </select>
+          <select name="status" data-filter="time-off">
+            <option value="">Status: All</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+          <input type="search" name="userId" placeholder="User ID" data-filter="time-off" />
+          <input type="search" name="groupId" placeholder="Group ID" data-filter="time-off" />
+          <input type="search" name="policyId" placeholder="Policy ID" data-filter="time-off" />
+        </div>
+        <div id="time-off-list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-webhooks" data-panel="webhooks">
+      <div class="card">
+        <div class="card-header">
+          <h3>Webhooks</h3>
+          <button type="button" class="ghost" data-refresh="webhooks">Refresh</button>
+        </div>
+        <div class="panel-controls">
+          <select name="type" data-filter="webhooks">
+            <option value="">Type: All</option>
+            <option value="USER_CREATED">User events</option>
+            <option value="SYSTEM">System</option>
+            <option value="ADDON">Add-on</option>
+          </select>
+          <input type="search" name="event" placeholder="Event name" data-filter="webhooks" />
+          <select name="enabled" data-filter="webhooks">
+            <option value="">Status: All</option>
+            <option value="true">Enabled</option>
+            <option value="false">Disabled</option>
+          </select>
+          <input type="search" name="search" placeholder="Search target URL" data-filter="webhooks" />
+        </div>
+        <div id="webhooks-list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-custom-fields" data-panel="custom-fields">
+      <div class="card">
+        <div class="card-header">
+          <h3>Custom Fields</h3>
+          <button type="button" class="ghost" data-refresh="custom-fields">Refresh</button>
+        </div>
+        <div class="panel-controls">
+          <input type="search" name="search" placeholder="Search by name" data-filter="custom-fields" />
+          <select name="status" data-filter="custom-fields">
+            <option value="">Visibility: All</option>
+            <option value="VISIBLE">Visible</option>
+            <option value="INVISIBLE">Hidden</option>
+            <option value="INACTIVE">Inactive</option>
+          </select>
+          <select name="entityType" data-filter="custom-fields">
+            <option value="">Entity: All</option>
+            <option value="TIMEENTRY">Time entry</option>
+            <option value="USER">User</option>
+            <option value="PROJECT">Project</option>
+          </select>
+        </div>
+        <div id="custom-fields-list" class="list"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-invoices" data-panel="invoices">
+      <div class="card">
+        <div class="card-header">
+          <h3>Invoices</h3>
+          <button type="button" class="ghost" data-refresh="invoices">Refresh</button>
+        </div>
+        <div class="panel-controls">
+          <select name="status" data-filter="invoices" multiple size="4">
+            <option value="UNSENT">Unsent</option>
+            <option value="SENT">Sent</option>
+            <option value="PAID">Paid</option>
+            <option value="PARTIALLY_PAID">Partially paid</option>
+            <option value="OVERDUE">Overdue</option>
+            <option value="VOID">Void</option>
+          </select>
+          <select name="sort" data-filter="invoices">
+            <option value="">Sort: Default</option>
+            <option value="CLIENT">Client</option>
+            <option value="DUE_ON">Due date</option>
+            <option value="ISSUE_DATE">Issue date</option>
+            <option value="AMOUNT">Amount</option>
+            <option value="BALANCE">Balance</option>
+          </select>
+          <select name="sortOrder" data-filter="invoices">
+            <option value="">Order: Asc</option>
+            <option value="ASCENDING">Ascending</option>
+            <option value="DESCENDING">Descending</option>
+          </select>
+          <input type="search" name="clientId" placeholder="Client ID" data-filter="invoices" />
+        </div>
+        <div id="invoices-list" class="list"></div>
       </div>
     </section>
   </div>
@@ -366,20 +512,38 @@
       const API_BASE = (runtime.apiBase || '').replace(/\/$/, '');
       const baseUrl = (runtime.baseUrl || '').replace(/\/$/, '');
       const workspaceId = runtime.workspaceId || bootstrap.workspaceId || '';
+      const STORAGE_KEY = 'rulesExplorer.filters';
+      const SNAPSHOT_KEY = 'rulesExplorer.snapshotOptions';
+      const defaultFilters = {
+        users: { search: '', status: '' },
+        projects: { search: '', archived: '', billable: '', clientId: '' },
+        clients: { search: '', archived: '' },
+        tags: { search: '', archived: '' },
+        'time-entries': { range: '7', userId: '', projectId: '', tagIds: '' },
+        'time-off': { view: 'requests', status: '', userId: '', groupId: '', policyId: '' },
+        webhooks: { type: '', event: '', enabled: '', search: '' },
+        'custom-fields': { search: '', status: '', entityType: '' },
+        invoices: { status: '', sort: '', sortOrder: '', clientId: '' }
+      };
+      const defaultSnapshotOptions = { includeTimeOff: false, includeWebhooks: false, includeCustomFields: false, includeInvoices: false };
+
       const state = {
         loaded: {},
-        filters: {
-          users: { search: '', status: '' },
-          projects: { search: '', archived: '', billable: '' },
-          clients: { search: '', archived: '' },
-          tags: { search: '', archived: '' },
-          'time-entries': { range: '7', userId: '', projectId: '' }
+        filters: clone(defaultFilters),
+        snapshot: {
+          options: loadSnapshotOptions(),
+          busy: false,
+          data: null
         }
       };
 
       const panels = document.querySelectorAll('[data-panel]');
       const triggers = document.querySelectorAll('[data-panel-trigger]');
       const runtimePills = document.querySelectorAll('[data-runtime-pill]');
+
+      loadSavedFilters();
+      applyFiltersToInputs();
+      applySnapshotOptionsToControls();
 
       const runtimeMap = {
         env: runtime.env || 'unknown',
@@ -395,10 +559,13 @@
         }
       });
 
-      document.getElementById('btn-open-ifttt').addEventListener('click', () => {
-        if (!baseUrl) return;
-        window.open(`${baseUrl.replace(/\/$/, '')}/ifttt`, '_blank');
-      });
+      const iftttBtn = document.getElementById('btn-open-ifttt');
+      if (iftttBtn) {
+        iftttBtn.addEventListener('click', () => {
+          if (!baseUrl) return;
+          window.open(`${baseUrl.replace(/\/$/, '')}/ifttt`, '_blank');
+        });
+      }
 
       triggers.forEach(btn => btn.addEventListener('click', () => activatePanel(btn.getAttribute('data-panel-trigger'), btn)));
 
@@ -418,7 +585,11 @@
           projects: () => loadCollection('projects', '/projects', renderProjects),
           clients: () => loadCollection('clients', '/clients', renderClients),
           tags: () => loadCollection('tags', '/tags', renderTags),
-          'time-entries': () => loadCollection('time-entries', '/time-entries', renderTimeEntries)
+          'time-entries': () => loadCollection('time-entries', '/time-entries', renderTimeEntries),
+          'time-off': () => loadCollection('time-off', '/time-off', renderTimeOff),
+          webhooks: () => loadCollection('webhooks', '/webhooks', renderWebhooks),
+          'custom-fields': () => loadCollection('custom-fields', '/custom-fields', renderCustomFields),
+          invoices: () => loadCollection('invoices', '/invoices', renderInvoices)
         };
         const loader = loaders[panelId];
         if (loader) {
@@ -427,21 +598,27 @@
       }
 
       document.querySelectorAll('[data-refresh]').forEach(btn => btn.addEventListener('click', () => loadPanel(btn.getAttribute('data-refresh'))));
-
       document.querySelectorAll('[data-filter]').forEach(input => {
         const panel = input.closest('.panel');
         const target = panel ? panel.getAttribute('data-panel') : null;
-        if (!target) return;
-        input.addEventListener('input', debounce(() => {
+        if (!target || !state.filters[target]) return;
+        const handler = debounce(() => {
           const name = input.getAttribute('name');
           if (!name) return;
-          state.filters[target][name] = input.value.trim();
-          if (target === 'time-entries' && name === 'range' && !input.value) {
+          const value = readInputValue(input);
+          state.filters[target][name] = value;
+          if (target === 'time-entries' && name === 'range' && !value) {
             state.filters[target][name] = '7';
+            setInputValue(input, '7');
           }
+          persistFilters(target);
           loadPanel(target);
-        }, 300));
+        }, 250);
+        input.addEventListener('input', handler);
+        input.addEventListener('change', handler);
       });
+
+      bindSnapshotControls();
 
       const secureHeaders = (headers = {}) => {
         const h = new Headers(headers);
@@ -488,7 +665,6 @@
           setTimelineState(err.message || 'Failed to load overview', true);
         }
       }
-
       function loadCollection(panelId, path, renderer) {
         const list = document.getElementById(`${panelId}-list`);
         if (list) {
@@ -503,6 +679,10 @@
           params.from = start.toISOString();
           params.to = now.toISOString();
           delete params.range;
+        } else if (panelId === 'time-off') {
+          params.view = filters.view || 'requests';
+        } else if (panelId === 'invoices' && params.status) {
+          params.status = params.status;
         }
         return request(path, params)
           .then(data => renderer(data))
@@ -515,13 +695,14 @@
 
       function renderOverview(data) {
         const map = data && data.summary ? data.summary : {};
-        ['users','projects','clients','tags'].forEach(key => {
+        ['users','projects','clients','tags','timeOffPolicies'].forEach(key => {
           const card = document.querySelector(`[data-summary-card="${key}"]`);
           if (!card) return;
           const summary = map[key] || {};
           const value = summary.total ?? summary.sampleSize ?? '—';
+          const sample = summary.sampleSize || 0;
+          const tip = summary.hasMore ? `Showing ${sample} • more available` : `Showing ${sample}`;
           card.querySelector('h2').textContent = value;
-          const tip = summary.hasMore ? `Showing ${summary.sampleSize} • more available` : `Showing ${summary.sampleSize || 0}`;
           card.querySelector('.muted').textContent = tip;
         });
         const target = document.getElementById('recent-time-entries');
@@ -608,13 +789,15 @@
       function renderTimeEntries(data) {
         renderList('time-entries-list', data, entry => {
           const desc = escapeHtml(entry.description || '(no description)');
-          const project = escapeHtml((entry.project && entry.project.name) || 'No project');
-          const user = escapeHtml((entry.user && entry.user.name) || 'Unknown user');
+          const project = escapeHtml(entry?.project?.name || 'No project');
+          const user = escapeHtml(entry?.user?.name || 'Unknown user');
           const duration = formatDuration(entry?.timeInterval?.duration || 0);
+          const ruleLink = buildRuleLink(entry);
           return `<div class="list-item">
             <div>
               <h4>${desc}</h4>
               <p>${project}</p>
+              ${ruleLink ? `<div class="meta">${ruleLink}</div>` : ''}
             </div>
             <div>
               <span class="pill">${duration}</span>
@@ -622,6 +805,98 @@
             </div>
           </div>`;
         }, 'No time entries in range');
+      }
+      function renderTimeOff(data) {
+        const view = (state.filters['time-off'].view || 'requests').toLowerCase();
+        if (view === 'policies') {
+          renderList('time-off-list', data, item => {
+            return `<div class="list-item">
+              <div>
+                <h4>${escapeHtml(item.name || 'Unnamed policy')}</h4>
+                <p>${escapeHtml(item.description || 'No description')}</p>
+              </div>
+              <span class="pill ${item.status === 'ACTIVE' ? 'success' : 'warning'}">${escapeHtml(item.status || 'UNKNOWN')}</span>
+            </div>`;
+          }, 'No policies');
+        } else if (view === 'balances') {
+          renderList('time-off-list', data, item => {
+            const user = escapeHtml(item?.user?.name || item?.user?.email || 'Unknown user');
+            const balance = item.balance ?? item.available ?? 0;
+            const used = item.used ?? 0;
+            return `<div class="list-item">
+              <div>
+                <h4>${user}</h4>
+                <p>${escapeHtml(item?.policy?.name || 'No policy')}</p>
+              </div>
+              <div>
+                <span class="pill">Balance: ${balance}</span>
+                <span class="pill warning">Used: ${used}</span>
+              </div>
+            </div>`;
+          }, 'No balances');
+        } else {
+          renderList('time-off-list', data, item => {
+            const user = escapeHtml(item?.user?.name || item?.user?.email || 'Unknown user');
+            const status = escapeHtml(item.status || 'UNKNOWN');
+            const interval = `${formatDate(item.start)} → ${formatDate(item.end)}`;
+            return `<div class="list-item">
+              <div>
+                <h4>${user}</h4>
+                <p>${escapeHtml(item?.policy?.name || 'No policy')}</p>
+                <p class="muted small">${interval}</p>
+              </div>
+              <span class="pill ${status === 'PENDING' ? 'warning' : status === 'APPROVED' ? 'success' : 'danger'}">${status}</span>
+            </div>`;
+          }, 'No requests');
+        }
+      }
+
+      function renderWebhooks(data) {
+        renderList('webhooks-list', data, item => {
+          const status = item.enabled ? 'success' : 'warning';
+          return `<div class="list-item">
+            <div>
+              <h4>${escapeHtml(item.name || 'Webhook')}</h4>
+              <p>${escapeHtml(item.targetUrl || 'No target')}</p>
+            </div>
+            <div>
+              <span class="pill">${escapeHtml(item.webhookEvent || 'event')}</span>
+              <span class="pill ${status}">${item.enabled ? 'Enabled' : 'Disabled'}</span>
+            </div>
+          </div>`;
+        }, 'No webhooks');
+      }
+
+      function renderCustomFields(data) {
+        renderList('custom-fields-list', data, item => {
+          const status = escapeHtml(item.status || 'VISIBLE');
+          const entity = escapeHtml(item.entity || item.entityType || 'N/A');
+          return `<div class="list-item">
+            <div>
+              <h4>${escapeHtml(item.name || 'Unnamed custom field')}</h4>
+              <p>${entity}</p>
+            </div>
+            <span class="pill ${status === 'VISIBLE' ? 'success' : 'warning'}">${status}</span>
+          </div>`;
+        }, 'No custom fields');
+      }
+
+      function renderInvoices(data) {
+        renderList('invoices-list', data, item => {
+          const client = escapeHtml(item.clientName || item.client?.name || 'No client');
+          const amount = typeof item.amount === 'number' ? item.amount.toFixed(2) : item.amount;
+          return `<div class="list-item">
+            <div>
+              <h4>${escapeHtml(item.number || item.id || 'Invoice')}</h4>
+              <p>${client}</p>
+              <p class="muted small">${formatDate(item.issueDate)}</p>
+            </div>
+            <div>
+              <span class="pill">${amount ? '$' + amount : 'n/a'}</span>
+              <span class="pill ${item.status === 'PAID' ? 'success' : item.status === 'OVERDUE' ? 'danger' : 'warning'}">${escapeHtml(item.status || 'UNKNOWN')}</span>
+            </div>
+          </div>`;
+        }, 'No invoices');
       }
 
       function renderList(targetId, data, renderer, emptyText) {
@@ -639,6 +914,213 @@
         const target = document.getElementById('recent-time-entries');
         if (!target) return;
         target.innerHTML = `<div class="${isError ? 'error-banner' : 'empty'}">${escapeHtml(message)}</div>`;
+      }
+
+      function buildRuleLink(entry) {
+        if (!baseUrl) return '';
+        const params = new URLSearchParams();
+        if (entry.description) {
+          params.set('prefillDescription', entry.description);
+        }
+        if (entry?.project?.id) {
+          params.set('prefillProjectId', entry.project.id);
+        }
+        if (entry?.user?.id) {
+          params.set('prefillUserId', entry.user.id);
+        }
+        if (!params.toString()) {
+          return '';
+        }
+        const ruleLabel = entry.description
+          ? `Explorer rule: ${entry.description.slice(0, 32)}`
+          : 'Explorer derived rule';
+        params.set('ruleName', ruleLabel);
+        const url = `${baseUrl.replace(/\/$/, '')}/simple?${params.toString()}`;
+        return `<a class="link-button" href="${escapeHtml(url)}" target="_blank" rel="noopener">Create rule like this</a>`;
+      }
+      function runSnapshot() {
+        if (state.snapshot.busy) return;
+        state.snapshot.busy = true;
+        updateSnapshotStatus('Fetching snapshot…');
+        const opts = state.snapshot.options;
+        const params = {
+          includeUsers: true,
+          includeProjects: true,
+          includeClients: true,
+          includeTags: true,
+          includeTimeEntries: true,
+          includeTimeOff: opts.includeTimeOff,
+          includeWebhooks: opts.includeWebhooks,
+          includeCustomFields: opts.includeCustomFields,
+          includeInvoices: opts.includeInvoices,
+          pageSizePerDataset: 25,
+          maxPagesPerDataset: 3
+        };
+        request('/snapshot', params)
+          .then(data => {
+            state.snapshot.data = data;
+            renderSnapshotSummary(data);
+            updateSnapshotStatus('Snapshot ready.');
+          })
+          .catch(err => {
+            updateSnapshotStatus(err.message || 'Snapshot failed', true);
+          })
+          .finally(() => {
+            state.snapshot.busy = false;
+          });
+      }
+
+      function renderSnapshotSummary(data) {
+        const summaryDiv = document.getElementById('snapshot-summary');
+        const downloadBtn = document.getElementById('btn-download-snapshot');
+        if (!summaryDiv) return;
+        if (!data || !data.summary) {
+          summaryDiv.innerHTML = '<div class="empty">No snapshot captured yet.</div>';
+          if (downloadBtn) downloadBtn.style.display = 'none';
+          return;
+        }
+        const rows = Object.entries(data.summary).map(([key, stats]) => {
+          return `<tr>
+            <td>${escapeHtml(key)}</td>
+            <td>${stats.items ?? 0}</td>
+            <td>${stats.pages ?? 0}</td>
+            <td>${stats.hadMore ? 'Yes' : 'No'}</td>
+          </tr>`;
+        }).join('');
+        summaryDiv.innerHTML = `<table class="snapshot-summary-table">
+          <thead><tr><th>Dataset</th><th>Items</th><th>Pages fetched</th><th>More available?</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+        if (downloadBtn) {
+          downloadBtn.style.display = 'inline-flex';
+        }
+      }
+
+      function downloadSnapshot() {
+        if (!state.snapshot.data) return;
+        const blob = new Blob([JSON.stringify(state.snapshot.data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        link.download = `workspace-snapshot-${ts}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+
+      function updateSnapshotStatus(message, isError) {
+        const statusEl = document.getElementById('snapshot-status');
+        if (!statusEl) return;
+        statusEl.textContent = message;
+        statusEl.classList.toggle('error-banner', !!isError);
+        statusEl.classList.toggle('muted', !isError);
+      }
+
+      function clone(obj) {
+        return JSON.parse(JSON.stringify(obj));
+      }
+
+      function readInputValue(input) {
+        if (input.type === 'checkbox') {
+          return input.checked ? 'true' : '';
+        }
+        if (input.tagName === 'SELECT' && input.multiple) {
+          return Array.from(input.selectedOptions).map(opt => opt.value).filter(Boolean).join(',');
+        }
+        return input.value.trim();
+      }
+
+      function setInputValue(input, value) {
+        if (input.type === 'checkbox') {
+          input.checked = value === true || value === 'true';
+        } else if (input.tagName === 'SELECT' && input.multiple) {
+          const values = (value || '').split(',').map(v => v.trim()).filter(Boolean);
+          Array.from(input.options).forEach(opt => {
+            opt.selected = values.includes(opt.value);
+          });
+        } else if (value !== undefined && value !== null) {
+          input.value = value;
+        }
+      }
+
+      function loadSavedFilters() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const saved = JSON.parse(raw);
+          Object.keys(state.filters).forEach(section => {
+            if (saved[section]) {
+              Object.assign(state.filters[section], saved[section]);
+            }
+          });
+        } catch (_) {}
+      }
+
+      function persistFilters(section) {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          const payload = raw ? JSON.parse(raw) : {};
+          payload[section] = state.filters[section];
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (_) {}
+      }
+
+      function applyFiltersToInputs() {
+        document.querySelectorAll('[data-filter]').forEach(input => {
+          const panel = input.closest('.panel');
+          const target = panel ? panel.getAttribute('data-panel') : null;
+          if (!target || !state.filters[target]) return;
+          const name = input.getAttribute('name');
+          if (!name) return;
+          const value = state.filters[target][name];
+          if (value !== undefined && value !== null) {
+            setInputValue(input, value);
+          }
+        });
+      }
+
+      function loadSnapshotOptions() {
+        try {
+          const raw = localStorage.getItem(SNAPSHOT_KEY);
+          if (!raw) return clone(defaultSnapshotOptions);
+          const parsed = JSON.parse(raw);
+          return { ...defaultSnapshotOptions, ...parsed };
+        } catch (_) {
+          return clone(defaultSnapshotOptions);
+        }
+      }
+
+      function saveSnapshotOptions() {
+        try {
+          localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(state.snapshot.options));
+        } catch (_) {}
+      }
+
+      function applySnapshotOptionsToControls() {
+        document.querySelectorAll('[data-snapshot-toggle]').forEach(toggle => {
+          const key = toggle.getAttribute('data-snapshot-toggle');
+          toggle.checked = !!state.snapshot.options[key];
+        });
+      }
+
+      function bindSnapshotControls() {
+        const fetchBtn = document.getElementById('btn-run-snapshot');
+        const downloadBtn = document.getElementById('btn-download-snapshot');
+        if (fetchBtn) {
+          fetchBtn.addEventListener('click', runSnapshot);
+        }
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', downloadSnapshot);
+        }
+        document.querySelectorAll('[data-snapshot-toggle]').forEach(toggle => {
+          toggle.addEventListener('change', () => {
+            const key = toggle.getAttribute('data-snapshot-toggle');
+            state.snapshot.options[key] = toggle.checked;
+            saveSnapshotOptions();
+          });
+        });
       }
 
       function formatDuration(seconds) {
@@ -660,7 +1142,7 @@
       }
 
       function escapeHtml(value) {
-        return (value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch] || ch));
+        return (value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\\'':'&#39;'}[ch] || ch));
       }
 
       function debounce(fn, delay) {
@@ -680,5 +1162,6 @@
       activatePanel('overview', document.querySelector('[data-panel-trigger="overview"]'));
     })();
   </script>
+
 </body>
 </html>

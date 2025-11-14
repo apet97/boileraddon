@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,6 +69,77 @@ class WorkspaceExplorerServiceTest {
         assertEquals("true", gateway.lastQuery.filters().get("hydrated"));
     }
 
+    @Test
+    void snapshotAggregatesMultiplePagesPerDataset() throws Exception {
+        gateway.setResponse(
+                WorkspaceExplorerService.ExplorerDataset.USERS,
+                pageResult(1, 2, true, 2, 4, item("id", "u-1"), item("id", "u-2"))
+        );
+        gateway.setResponse(
+                WorkspaceExplorerService.ExplorerDataset.USERS,
+                2,
+                pageResult(2, 2, false, 2, 4, item("id", "u-3"))
+        );
+        WorkspaceExplorerService.SnapshotRequest request = new WorkspaceExplorerService.SnapshotRequest(
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                2,
+                2
+        );
+
+        ObjectNode snapshot = service.getSnapshot("ws", request);
+
+        assertEquals(3, snapshot.path("summary").path("users").path("items").asInt());
+        assertEquals(2, snapshot.path("summary").path("users").path("pages").asInt());
+        assertEquals(3, snapshot.path("datasets").path("users").size());
+    }
+
+    @Test
+    void timeOffDefaultsToRequestsView() throws Exception {
+        gateway.setResponse(
+                WorkspaceExplorerService.ExplorerDataset.TIME_OFF,
+                pageResult(1, 10, item("id", "req-1"))
+        );
+
+        ObjectNode response = service.getTimeOff("ws", null);
+
+        assertEquals(WorkspaceExplorerService.ExplorerDataset.TIME_OFF, gateway.lastDataset);
+        assertEquals(1, response.get("items").size());
+    }
+
+    @Test
+    void webhooksDatasetReturnsItems() throws Exception {
+        gateway.setResponse(
+                WorkspaceExplorerService.ExplorerDataset.WEBHOOKS,
+                pageResult(1, 5, item("id", "wh-1"))
+        );
+
+        ObjectNode response = service.getWebhooks("ws", null);
+
+        assertEquals(1, response.get("items").size());
+        assertEquals(WorkspaceExplorerService.ExplorerDataset.WEBHOOKS, gateway.lastDataset);
+    }
+
+    @Test
+    void invoicesDatasetReturnsItems() throws Exception {
+        gateway.setResponse(
+                WorkspaceExplorerService.ExplorerDataset.INVOICES,
+                pageResult(1, 5, item("id", "inv-1"))
+        );
+
+        ObjectNode response = service.getInvoices("ws", null);
+
+        assertEquals(1, response.get("items").size());
+        assertEquals(WorkspaceExplorerService.ExplorerDataset.INVOICES, gateway.lastDataset);
+    }
+
     private static ObjectNode item(String field, String value) {
         ObjectNode node = OM.createObjectNode();
         node.put(field, value);
@@ -75,25 +147,46 @@ class WorkspaceExplorerServiceTest {
     }
 
     private static ClockifyClient.PageResult pageResult(int page, int pageSize, ObjectNode... items) {
+        return pageResult(page, pageSize, false, page, items == null ? 0 : items.length, items);
+    }
+
+    private static ClockifyClient.PageResult pageResult(int page,
+                                                        int pageSize,
+                                                        boolean hasMore,
+                                                        int nextPage,
+                                                        long totalItems,
+                                                        ObjectNode... items) {
         ArrayNode array = OM.createArrayNode();
         if (items != null) {
             for (ObjectNode item : items) {
                 array.add(item);
             }
         }
-        ClockifyClient.Pagination pagination = new ClockifyClient.Pagination(page, pageSize, false, page, array.size());
+        ClockifyClient.Pagination pagination = new ClockifyClient.Pagination(
+                page,
+                pageSize,
+                hasMore,
+                hasMore ? nextPage : page,
+                totalItems
+        );
         return new ClockifyClient.PageResult(array, pagination);
     }
 
     private static class StubGateway implements WorkspaceExplorerService.ExplorerGateway {
-        private final Map<WorkspaceExplorerService.ExplorerDataset, ClockifyClient.PageResult> responses =
+        private final Map<WorkspaceExplorerService.ExplorerDataset, Map<Integer, ClockifyClient.PageResult>> responses =
                 new EnumMap<>(WorkspaceExplorerService.ExplorerDataset.class);
 
         private WorkspaceExplorerService.ExplorerDataset lastDataset;
         private WorkspaceExplorerService.ExplorerQuery lastQuery;
 
         void setResponse(WorkspaceExplorerService.ExplorerDataset dataset, ClockifyClient.PageResult result) {
-            responses.put(dataset, result);
+            setResponse(dataset, 1, result);
+        }
+
+        void setResponse(WorkspaceExplorerService.ExplorerDataset dataset,
+                         int page,
+                         ClockifyClient.PageResult result) {
+            responses.computeIfAbsent(dataset, d -> new HashMap<>()).put(page, result);
         }
 
         @Override
@@ -102,9 +195,20 @@ class WorkspaceExplorerServiceTest {
                                                WorkspaceExplorerService.ExplorerQuery query) {
             lastDataset = dataset;
             lastQuery = query;
-            return responses.getOrDefault(
-                    dataset,
-                    new ClockifyClient.PageResult(OM.createArrayNode(), new ClockifyClient.Pagination(1, 1, false, 1, 0))
+            Map<Integer, ClockifyClient.PageResult> perPage = responses.get(dataset);
+            if (perPage != null) {
+                ClockifyClient.PageResult direct = perPage.get(query.page());
+                if (direct != null) {
+                    return direct;
+                }
+                ClockifyClient.PageResult any = perPage.get(0);
+                if (any != null) {
+                    return any;
+                }
+            }
+            return new ClockifyClient.PageResult(
+                    OM.createArrayNode(),
+                    new ClockifyClient.Pagination(query.page(), query.pageSize(), false, query.page(), 0)
             );
         }
     }

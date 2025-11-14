@@ -57,6 +57,11 @@ DEV-ONLY helpers (`CLOCKIFY_WORKSPACE_ID`, `CLOCKIFY_INSTALLATION_TOKEN`, `ADDON
 - `GET /rules/ready` — `ReadinessHandler` calls `RulesStore.getAll("health-probe")` and `tokenStore.count()`. Returns HTTP 503 with `"status":"DEGRADED"` when either dependency is down, so point Kubernetes readiness probes here.
 - `GET /rules/metrics` — Prometheus exposition (request counters, rule evaluations, webhook dedupe stats, executor latencies). Scrape on the same base URL as the app. See [`docs/RULES_OBSERVABILITY.md`](docs/RULES_OBSERVABILITY.md) for alert suggestions and metric details.
 
+## Workspace explorer updates
+- The `/settings` iframe now drives additional datasets: time-off (requests/policies/balances), webhooks, custom fields, and invoices. All routes live under `/api/rules/explorer/**` and reuse the existing `WORKSPACE_READ`/`PROJECT_READ` scopes; no new permissions are required.
+- A new `/api/rules/explorer/snapshot` endpoint performs an on-demand “fetch everything” pass (multiple paginated GETs). The UI exposes toggles for optional datasets and a JSON download. Operators should only run snapshots when needed—each invocation may issue dozens of Clockify API calls depending on `maxPagesPerDataset`.
+- Client-side filters are persisted per section (`localStorage`), so QA/dev flows can maintain their favorite presets. Time entries now include a “Create rule like this” link that deep-links into `/simple` with prefilled conditions/actions to accelerate rule authoring.
+
 ## Webhook idempotency & filters
 - `WebhookIdempotencyCache` stores `(workspaceId, eventType, payloadId)` tuples for `RULES_WEBHOOK_DEDUP_SECONDS` (60s–24h). The cache is per-pod and in-memory; duplicates are only caught on the same node. Duplicates short-circuit webhook handlers and increment `rules_webhook_dedup_hits_total`. For cross-node dedupe, back the cache with a persistent store.
 - `SecurityHeadersFilter` emits CSP + security headers and shares a per-request nonce with the settings/IFTTT controllers.

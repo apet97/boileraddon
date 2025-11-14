@@ -242,6 +242,11 @@ public class RulesApp {
         addon.registerCustomEndpoint("/api/rules/explorer/clients", explorerController.clients());
         addon.registerCustomEndpoint("/api/rules/explorer/tags", explorerController.tags());
         addon.registerCustomEndpoint("/api/rules/explorer/time-entries", explorerController.timeEntries());
+        addon.registerCustomEndpoint("/api/rules/explorer/time-off", explorerController.timeOff());
+        addon.registerCustomEndpoint("/api/rules/explorer/webhooks", explorerController.webhooks());
+        addon.registerCustomEndpoint("/api/rules/explorer/custom-fields", explorerController.customFields());
+        addon.registerCustomEndpoint("/api/rules/explorer/invoices", explorerController.invoices());
+        addon.registerCustomEndpoint("/api/rules/explorer/snapshot", explorerController.snapshot());
 
         // Cache endpoints: GET /rules/api/cache?workspaceId=... (summary), POST /rules/api/cache/refresh?workspaceId=...
         addon.registerCustomEndpoint("/api/cache", request -> {

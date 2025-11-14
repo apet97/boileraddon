@@ -17,7 +17,10 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 
 - Bootstraps via the signed `auth_token` JWT and never calls Clockify APIs directly from the browser.
 - Surfaces summaries plus drill-down tabs for users, projects, clients, tags, and recent time entries.
-- Streams data from new backend routes under `/api/rules/explorer/**`, which wrap the Clockify OpenAPI GET endpoints using the installation token.
+- Streams data from backend routes under `/api/rules/explorer/**`, which wrap the Clockify OpenAPI GET endpoints using the installation token.
+- Includes tabs for users, projects, clients, tags, time entries, time off, webhooks, custom fields, and invoices with saved filters (per section) stored in `localStorage`.
+- Adds a “Fetch everything” snapshot button that calls the new `/snapshot` endpoint, shows per-dataset stats, and exposes a JSON download.
+- Provides a contextual “Create rule like this” deep link on time entries that opens the simple builder with prefilled conditions/actions.
 
 ### Explorer API (backend-only)
 
@@ -25,10 +28,15 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 | --- | --- | --- |
 | `GET /api/rules/explorer/overview` | Aggregated counts + recent activity | `sampleSize` (default 5), `recentDays` (default 7) |
 | `GET /api/rules/explorer/users` | Paginated workspace users | `page`, `pageSize`, `search`, `status` |
-| `GET /api/rules/explorer/projects` | Paginated projects | `page`, `pageSize`, `search`, `archived`, `billable` |
+| `GET /api/rules/explorer/projects` | Paginated projects | `page`, `pageSize`, `search`, `archived`, `billable`, `clientId` |
 | `GET /api/rules/explorer/clients` | Paginated clients | `page`, `pageSize`, `search`, `archived` |
 | `GET /api/rules/explorer/tags` | Paginated tags | `page`, `pageSize`, `search`, `archived` |
-| `GET /api/rules/explorer/time-entries` | Recent time entries (hydrated) | `page`, `pageSize`, `from`, `to`, `userId`, `projectId` |
+| `GET /api/rules/explorer/time-entries` | Recent time entries (hydrated) | `page`, `pageSize`, `from`, `to`, `userId`, `projectId`, `tagIds` |
+| `GET /api/rules/explorer/time-off` | PTO requests/policies/balances | `page`, `pageSize`, `view` (`requests\|policies\|balances`), `status`, `userId`, `groupId`, `policyId` |
+| `GET /api/rules/explorer/webhooks` | Workspace webhook inventory | `page`, `pageSize`, `type`, `event`, `enabled`, `search` |
+| `GET /api/rules/explorer/custom-fields` | Custom field registry | `page`, `pageSize`, `search`, `status`, `entityType` |
+| `GET /api/rules/explorer/invoices` | Invoice list | `page`, `pageSize`, `status` (CSV), `sort`, `sortOrder`, `clientId` |
+| `GET /api/rules/explorer/snapshot` | On-demand aggregate snapshot | `include{Users|Projects|…}`, `pageSizePerDataset`, `maxPagesPerDataset` |
 
 All requests inherit workspace context from `PlatformAuthFilter`. When running in local dev mode you can still provide `workspaceId` as a query parameter, but production traffic **must** rely on the signed JWT headers.
 

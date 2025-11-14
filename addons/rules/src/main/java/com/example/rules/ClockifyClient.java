@@ -10,7 +10,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.net.URLEncoder;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -187,6 +189,147 @@ public class ClockifyClient {
 
     public PageResult getTimeEntriesPage(String workspaceId, Map<String, String> queryParams, int page, int pageSize) throws Exception {
         return fetchPage("/workspaces/" + workspaceId + "/time-entries", queryParams, page, pageSize);
+    }
+
+    public PageResult getTimeOffPoliciesPage(String workspaceId,
+                                             Map<String, String> queryParams,
+                                             int page,
+                                             int pageSize) throws Exception {
+        return fetchPage("/workspaces/" + workspaceId + "/time-off/policies", queryParams, page, pageSize);
+    }
+
+    public PageResult getTimeOffRequestsPage(String workspaceId,
+                                             Map<String, String> queryParams,
+                                             int page,
+                                             int pageSize) throws Exception {
+        ObjectNode body = om.createObjectNode();
+        body.put("page", page);
+        body.put("pageSize", pageSize);
+        Map<String, String> sanitized = sanitizeQuery(queryParams);
+        if (sanitized.containsKey("start")) {
+            body.put("start", sanitized.get("start"));
+        }
+        if (sanitized.containsKey("end")) {
+            body.put("end", sanitized.get("end"));
+        }
+        if (sanitized.containsKey("statuses")) {
+            body.set("statuses", toArrayNode(splitCsv(sanitized.get("statuses"))));
+        }
+        if (sanitized.containsKey("users")) {
+            body.set("users", toArrayNode(splitCsv(sanitized.get("users"))));
+        }
+        if (sanitized.containsKey("userGroups")) {
+            body.set("userGroups", toArrayNode(splitCsv(sanitized.get("userGroups"))));
+        }
+
+        HttpResponse<String> resp = http.postJson(
+                "/workspaces/" + workspaceId + "/time-off/requests",
+                token,
+                body.toString(),
+                Map.of()
+        );
+        ensure2xx(resp, 200);
+
+        JsonNode root = om.readTree(resp.body());
+        ArrayNode items = root.path("requests").isArray()
+                ? (ArrayNode) root.get("requests")
+                : om.createArrayNode();
+        long total = root.path("count").asLong(items.size());
+        Pagination pagination = paginationFromTotal(total, page, pageSize, items.size());
+        return new PageResult(items, pagination);
+    }
+
+    public PageResult getTimeOffBalancesPage(String workspaceId,
+                                             String policyId,
+                                             String userId,
+                                             Map<String, String> queryParams,
+                                             int page,
+                                             int pageSize) throws Exception {
+        if ((policyId == null || policyId.isBlank()) && (userId == null || userId.isBlank())) {
+            throw new IllegalArgumentException("policyId or userId is required to fetch balances");
+        }
+        String basePath = policyId != null && !policyId.isBlank()
+                ? "/workspaces/" + workspaceId + "/time-off/balance/policy/" + policyId
+                : "/workspaces/" + workspaceId + "/time-off/balance/user/" + userId;
+        Map<String, String> sanitized = sanitizeQuery(queryParams);
+        sanitized.remove("policyId");
+        sanitized.remove("userId");
+
+        String path = buildPaginatedPath(basePath, sanitized, page, pageSize);
+        HttpResponse<String> resp = http.get(path, token, Map.of());
+        ensure2xx(resp, 200);
+
+        JsonNode root = om.readTree(resp.body());
+        ArrayNode balances = root.path("balances").isArray()
+                ? (ArrayNode) root.get("balances")
+                : om.createArrayNode();
+        long total = root.path("count").asLong(balances.size());
+        Pagination pagination = paginationFromTotal(total, page, pageSize, balances.size());
+        return new PageResult(balances, pagination);
+    }
+
+    public PageResult getWebhooksPage(String workspaceId,
+                                      Map<String, String> queryParams,
+                                      int page,
+                                      int pageSize) throws Exception {
+        Map<String, String> sanitized = sanitizeQuery(queryParams);
+        Map<String, String> requestQuery = new LinkedHashMap<>();
+        if (sanitized.containsKey("type")) {
+            requestQuery.put("type", sanitized.get("type"));
+        }
+        String path = appendQueryParams("/workspaces/" + workspaceId + "/webhooks", requestQuery);
+        HttpResponse<String> resp = http.get(path, token, Map.of());
+        ensure2xx(resp, 200);
+
+        JsonNode root = om.readTree(resp.body());
+        ArrayNode raw = root.path("webhooks").isArray()
+                ? (ArrayNode) root.get("webhooks")
+                : om.createArrayNode();
+        ArrayNode filtered = filterWebhooks(raw, sanitized);
+        long total = root.has("workspaceWebhookCount")
+                ? root.get("workspaceWebhookCount").asLong(filtered.size())
+                : filtered.size();
+        ArrayNode slice = sliceArray(filtered, page, pageSize);
+        Pagination pagination = paginationFromTotal(total, page, pageSize, slice.size());
+        return new PageResult(slice, pagination);
+    }
+
+    public PageResult getCustomFieldsPage(String workspaceId,
+                                          Map<String, String> queryParams,
+                                          int page,
+                                          int pageSize) throws Exception {
+        Map<String, String> sanitized = sanitizeQuery(queryParams);
+        String path = appendQueryParams("/workspaces/" + workspaceId + "/custom-fields", sanitized);
+        HttpResponse<String> resp = http.get(path, token, Map.of());
+        ensure2xx(resp, 200);
+
+        JsonNode node = om.readTree(resp.body());
+        ArrayNode all = node != null && node.isArray() ? (ArrayNode) node : om.createArrayNode();
+        ArrayNode slice = sliceArray(all, page, pageSize);
+        Pagination pagination = paginationFromTotal(all.size(), page, pageSize, slice.size());
+        return new PageResult(slice, pagination);
+    }
+
+    public PageResult getInvoicesPage(String workspaceId,
+                                      Map<String, String> queryParams,
+                                      int page,
+                                      int pageSize) throws Exception {
+        Map<String, String> sanitized = sanitizeQuery(queryParams);
+        // Support comma-separated statuses while preserving Clockify's query name.
+        if (sanitized.containsKey("statuses")) {
+            sanitized.put("statuses", String.join(",", splitCsv(sanitized.get("statuses"))));
+        }
+        String path = buildPaginatedPath("/workspaces/" + workspaceId + "/invoices", sanitized, page, pageSize);
+        HttpResponse<String> resp = http.get(path, token, Map.of());
+        ensure2xx(resp, 200);
+
+        JsonNode root = om.readTree(resp.body());
+        ArrayNode invoices = root.path("invoices").isArray()
+                ? (ArrayNode) root.get("invoices")
+                : om.createArrayNode();
+        long total = root.path("total").asLong(invoices.size());
+        Pagination pagination = paginationFromTotal(total, page, pageSize, invoices.size());
+        return new PageResult(invoices, pagination);
     }
 
     public static Map<String, String> mapTagsByNormalizedName(JsonNode tagsArray) {
@@ -370,5 +513,121 @@ public class ClockifyClient {
         }
 
         return new Pagination(page, pageSize, hasMore, hasMore ? nextPage : page, totalItems);
+    }
+
+    private Pagination paginationFromTotal(long total, int page, int pageSize, int returnedItems) {
+        long effectiveTotal = total >= 0 ? total : (long) (page - 1) * pageSize + returnedItems;
+        boolean hasMore = total >= 0
+                ? ((long) page * pageSize) < total
+                : returnedItems >= pageSize;
+        int nextPage = hasMore ? page + 1 : page;
+        return new Pagination(page, pageSize, hasMore, nextPage, effectiveTotal);
+    }
+
+    private ArrayNode sliceArray(ArrayNode source, int page, int pageSize) {
+        ArrayNode slice = om.createArrayNode();
+        if (source == null || source.isEmpty()) {
+            return slice;
+        }
+        int fromIndex = Math.max(0, (page - 1) * pageSize);
+        if (fromIndex >= source.size()) {
+            return slice;
+        }
+        int toIndex = Math.min(source.size(), fromIndex + pageSize);
+        for (int i = fromIndex; i < toIndex; i++) {
+            slice.add(source.get(i));
+        }
+        return slice;
+    }
+
+    private ArrayNode filterWebhooks(ArrayNode raw, Map<String, String> filters) {
+        if (raw == null || raw.isEmpty() || filters == null || filters.isEmpty()) {
+            return raw == null ? om.createArrayNode() : raw;
+        }
+        String eventFilter = normalize(filters.get("event"));
+        String enabledFilter = normalize(filters.get("enabled"));
+        String searchFilter = normalize(filters.get("search"));
+        if (eventFilter == null && enabledFilter == null && searchFilter == null) {
+            return raw;
+        }
+        ArrayNode filtered = om.createArrayNode();
+        for (JsonNode node : raw) {
+            if (!node.isObject()) {
+                continue;
+            }
+            if (eventFilter != null) {
+                String event = node.path("webhookEvent").asText("");
+                if (!eventFilter.equalsIgnoreCase(event)) {
+                    continue;
+                }
+            }
+            if (enabledFilter != null) {
+                boolean expected = "true".equalsIgnoreCase(enabledFilter);
+                if (node.path("enabled").asBoolean(false) != expected) {
+                    continue;
+                }
+            }
+            if (searchFilter != null) {
+                String haystack = (node.path("name").asText("") + "|" + node.path("targetUrl").asText("")).toLowerCase(Locale.ROOT);
+                if (!haystack.contains(searchFilter.toLowerCase(Locale.ROOT))) {
+                    continue;
+                }
+            }
+            filtered.add(node);
+        }
+        return filtered;
+    }
+
+    private String appendQueryParams(String basePath, Map<String, String> queryParams) {
+        if (queryParams == null || queryParams.isEmpty()) {
+            return basePath;
+        }
+        StringBuilder sb = new StringBuilder(basePath);
+        boolean first = !basePath.contains("?");
+        for (Map.Entry<String, String> entry : queryParams.entrySet()) {
+            if (entry.getValue() == null) {
+                continue;
+            }
+            sb.append(first ? '?' : '&');
+            first = false;
+            sb.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+            sb.append('=');
+            sb.append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
+        }
+        return sb.toString();
+    }
+
+    private List<String> splitCsv(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        String[] tokens = raw.split(",");
+        List<String> values = new ArrayList<>(tokens.length);
+        for (String token : tokens) {
+            String trimmed = token == null ? null : token.trim();
+            if (trimmed != null && !trimmed.isEmpty()) {
+                values.add(trimmed);
+            }
+        }
+        return values;
+    }
+
+    private ArrayNode toArrayNode(List<String> values) {
+        ArrayNode array = om.createArrayNode();
+        if (values == null) {
+            return array;
+        }
+        for (String value : values) {
+            array.add(value);
+        }
+        return array;
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

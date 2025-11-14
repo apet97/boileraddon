@@ -850,6 +850,26 @@ public class SimpleSettingsController implements RequestHandler {
         document.getElementById('workspaceId').value = workspaceId;
         loadRules();
       }
+      const ruleNameParam = urlParams.get('ruleName');
+      if (ruleNameParam) {
+        document.getElementById('ruleName').value = ruleNameParam;
+      }
+      const descriptionPrefill = urlParams.get('prefillDescription');
+      if (descriptionPrefill) {
+        const firstCondition = document.querySelector('#conditions .condition-row');
+        if (firstCondition) {
+          const typeSelect = firstCondition.querySelector('.condition-type');
+          const valueInput = firstCondition.querySelector('.condition-value');
+          if (typeSelect) typeSelect.value = 'descriptionContains';
+          if (valueInput) valueInput.value = descriptionPrefill;
+        } else {
+          addCondition('descriptionContains', descriptionPrefill);
+        }
+      }
+      const projectPrefill = urlParams.get('prefillProjectId');
+      if (projectPrefill) {
+        addCondition('projectIdEquals', projectPrefill);
+      }
     });
   </script>
 </body>

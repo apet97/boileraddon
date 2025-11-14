@@ -3,6 +3,7 @@ package com.example.rules.api.explorer;
 import com.clockify.addon.sdk.security.TokenStore;
 import com.example.rules.ClockifyClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.time.OffsetDateTime;
@@ -49,6 +50,10 @@ public class WorkspaceExplorerService {
         addSample("clients", clients, summary, samples);
         addSample("tags", tags, summary, samples);
 
+        ExplorerQuery policiesQuery = new ExplorerQuery(1, effective.sampleSize(), Map.of("view", "policies"));
+        ClockifyClient.PageResult timeOffPolicies = gateway.fetch(workspaceId, ExplorerDataset.TIME_OFF, policiesQuery);
+        addSample("timeOffPolicies", timeOffPolicies, summary, samples);
+
         Map<String, String> timeFilters = new LinkedHashMap<>();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         timeFilters.put("end", now.toString());
@@ -76,6 +81,89 @@ public class WorkspaceExplorerService {
         return toResponse(gateway.fetch(workspaceId, ExplorerDataset.TAGS, query));
     }
 
+    public ObjectNode getTimeOff(String workspaceId, ExplorerQuery query) throws ExplorerException {
+        ExplorerQuery effective = query == null ? new ExplorerQuery(1, 25, Map.of()) : query;
+        return toResponse(gateway.fetch(workspaceId, ExplorerDataset.TIME_OFF, effective));
+    }
+
+    public ObjectNode getWebhooks(String workspaceId, ExplorerQuery query) throws ExplorerException {
+        ExplorerQuery effective = query == null ? new ExplorerQuery(1, 25, Map.of()) : query;
+        return toResponse(gateway.fetch(workspaceId, ExplorerDataset.WEBHOOKS, effective));
+    }
+
+    public ObjectNode getCustomFields(String workspaceId, ExplorerQuery query) throws ExplorerException {
+        ExplorerQuery effective = query == null ? new ExplorerQuery(1, 25, Map.of()) : query;
+        return toResponse(gateway.fetch(workspaceId, ExplorerDataset.CUSTOM_FIELDS, effective));
+    }
+
+    public ObjectNode getInvoices(String workspaceId, ExplorerQuery query) throws ExplorerException {
+        ExplorerQuery effective = query == null ? new ExplorerQuery(1, 25, Map.of()) : query;
+        return toResponse(gateway.fetch(workspaceId, ExplorerDataset.INVOICES, effective));
+    }
+
+    public ObjectNode getSnapshot(String workspaceId, SnapshotRequest request) throws ExplorerException {
+        SnapshotRequest effective = request == null ? SnapshotRequest.defaults() : request;
+        ObjectNode root = MAPPER.createObjectNode();
+        ObjectNode summary = MAPPER.createObjectNode();
+        ObjectNode datasets = MAPPER.createObjectNode();
+        root.set("summary", summary);
+        root.set("datasets", datasets);
+
+        Map<String, String> timeEntryFilters = new LinkedHashMap<>();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        timeEntryFilters.put("end", now.toString());
+        timeEntryFilters.put("start", now.minusDays(30).toString());
+        Map<String, String> timeOffFilters = Map.of("view", "policies", "status", "ACTIVE");
+
+        if (effective.includeUsers()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.USERS, Map.of(), effective);
+            summary.set("users", dataset.summary());
+            datasets.set("users", dataset.items());
+        }
+        if (effective.includeProjects()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.PROJECTS, Map.of(), effective);
+            summary.set("projects", dataset.summary());
+            datasets.set("projects", dataset.items());
+        }
+        if (effective.includeClients()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.CLIENTS, Map.of(), effective);
+            summary.set("clients", dataset.summary());
+            datasets.set("clients", dataset.items());
+        }
+        if (effective.includeTags()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.TAGS, Map.of(), effective);
+            summary.set("tags", dataset.summary());
+            datasets.set("tags", dataset.items());
+        }
+        if (effective.includeTimeEntries()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.TIME_ENTRIES, timeEntryFilters, effective);
+            summary.set("timeEntries", dataset.summary());
+            datasets.set("timeEntries", dataset.items());
+        }
+        if (effective.includeTimeOff()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.TIME_OFF, timeOffFilters, effective);
+            summary.set("timeOff", dataset.summary());
+            datasets.set("timeOff", dataset.items());
+        }
+        if (effective.includeWebhooks()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.WEBHOOKS, Map.of(), effective);
+            summary.set("webhooks", dataset.summary());
+            datasets.set("webhooks", dataset.items());
+        }
+        if (effective.includeCustomFields()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.CUSTOM_FIELDS, Map.of(), effective);
+            summary.set("customFields", dataset.summary());
+            datasets.set("customFields", dataset.items());
+        }
+        if (effective.includeInvoices()) {
+            SnapshotDataset dataset = collectDataset(workspaceId, ExplorerDataset.INVOICES, Map.of(), effective);
+            summary.set("invoices", dataset.summary());
+            datasets.set("invoices", dataset.items());
+        }
+        root.put("workspaceId", workspaceId);
+        return root;
+    }
+
     public ObjectNode getTimeEntries(String workspaceId, ExplorerQuery query) throws ExplorerException {
         ExplorerQuery hydrated = ensureHydrated(query);
         return toResponse(gateway.fetch(workspaceId, ExplorerDataset.TIME_ENTRIES, hydrated));
@@ -88,6 +176,48 @@ public class WorkspaceExplorerService {
         Map<String, String> filters = new LinkedHashMap<>(query.filters());
         filters.put("hydrated", "true");
         return new ExplorerQuery(query.page(), query.pageSize(), filters);
+    }
+
+    private SnapshotDataset collectDataset(String workspaceId,
+                                           ExplorerDataset dataset,
+                                           Map<String, String> filters,
+                                           SnapshotRequest request) throws ExplorerException {
+        int page = 1;
+        int pagesFetched = 0;
+        boolean hadMore = false;
+        long totalItems = -1;
+        ArrayNode aggregated = MAPPER.createArrayNode();
+        Map<String, String> baseFilters = filters == null ? Map.of() : filters;
+
+        while (pagesFetched < request.maxPagesPerDataset()) {
+            ExplorerQuery query = new ExplorerQuery(page, request.pageSizePerDataset(), baseFilters);
+            ExplorerQuery effectiveQuery = dataset == ExplorerDataset.TIME_ENTRIES ? ensureHydrated(query) : query;
+            ClockifyClient.PageResult pageResult = gateway.fetch(workspaceId, dataset, effectiveQuery);
+            aggregated.addAll(pageResult.items());
+            pagesFetched++;
+            if (pageResult.pagination().totalItems() >= 0) {
+                totalItems = pageResult.pagination().totalItems();
+            }
+            if (!pageResult.pagination().hasMore()) {
+                hadMore = false;
+                break;
+            }
+            hadMore = true;
+            int nextPage = pageResult.pagination().nextPage();
+            if (nextPage <= page) {
+                break;
+            }
+            page = nextPage;
+        }
+
+        ObjectNode stats = MAPPER.createObjectNode();
+        stats.put("items", aggregated.size());
+        stats.put("pages", pagesFetched);
+        stats.put("hadMore", hadMore);
+        if (totalItems >= 0) {
+            stats.put("total", totalItems);
+        }
+        return new SnapshotDataset(aggregated, stats);
     }
 
     private void addSample(String key,
@@ -137,7 +267,11 @@ public class WorkspaceExplorerService {
         PROJECTS,
         CLIENTS,
         TAGS,
-        TIME_ENTRIES
+        TIME_ENTRIES,
+        TIME_OFF,
+        WEBHOOKS,
+        CUSTOM_FIELDS,
+        INVOICES
     }
 
     public static class ExplorerException extends Exception {
@@ -199,12 +333,48 @@ public class WorkspaceExplorerService {
                     case CLIENTS -> client.getClientsPage(workspaceId, query.filters(), query.page(), query.pageSize());
                     case TAGS -> client.getTagsPage(workspaceId, query.filters(), query.page(), query.pageSize());
                     case TIME_ENTRIES -> client.getTimeEntriesPage(workspaceId, query.filters(), query.page(), query.pageSize());
+                    case TIME_OFF -> fetchTimeOff(client, workspaceId, query);
+                    case WEBHOOKS -> client.getWebhooksPage(workspaceId, query.filters(), query.page(), query.pageSize());
+                    case CUSTOM_FIELDS -> client.getCustomFieldsPage(workspaceId, query.filters(), query.page(), query.pageSize());
+                    case INVOICES -> client.getInvoicesPage(workspaceId, query.filters(), query.page(), query.pageSize());
                 };
             } catch (ExplorerException e) {
                 throw e;
             } catch (Exception e) {
                 throw new ExplorerException(502, "EXPLORER.CLOCKIFY_ERROR", "Clockify API request failed", true, e);
             }
+        }
+
+        private ClockifyClient.PageResult fetchTimeOff(ClockifyClient client,
+                                                       String workspaceId,
+                                                       ExplorerQuery query) throws ExplorerException, Exception {
+            Map<String, String> filters = new LinkedHashMap<>(query.filters());
+            String rawView = filters.getOrDefault("view", "requests");
+            String view = rawView == null ? "requests" : rawView.trim().toLowerCase();
+            filters.remove("view");
+            return switch (view) {
+                case "policies" -> client.getTimeOffPoliciesPage(workspaceId, filters, query.page(), query.pageSize());
+                case "balances" -> {
+                    String policyId = filters.get("policyId");
+                    String userId = filters.get("userId");
+                    if ((policyId == null || policyId.isBlank()) && (userId == null || userId.isBlank())) {
+                        throw new ExplorerException(
+                                400,
+                                "EXPLORER.TIME_OFF_BALANCE_FILTER_REQUIRED",
+                                "policyId or userId is required when view=balances",
+                                false
+                        );
+                    }
+                    yield client.getTimeOffBalancesPage(workspaceId, policyId, userId, filters, query.page(), query.pageSize());
+                }
+                case "requests", "" -> client.getTimeOffRequestsPage(workspaceId, filters, query.page(), query.pageSize());
+                default -> throw new ExplorerException(
+                        400,
+                        "EXPLORER.TIME_OFF_VIEW_UNSUPPORTED",
+                        "Unknown time off view: " + view,
+                        false
+                );
+            };
         }
 
         private ClockifyClient resolve(String workspaceId) throws ExplorerException {
@@ -236,5 +406,45 @@ public class WorkspaceExplorerService {
             sampleSize = normalizedSample;
             recentDays = normalizedDays;
         }
+    }
+
+    public record SnapshotRequest(
+            boolean includeUsers,
+            boolean includeProjects,
+            boolean includeClients,
+            boolean includeTags,
+            boolean includeTimeEntries,
+            boolean includeTimeOff,
+            boolean includeWebhooks,
+            boolean includeCustomFields,
+            boolean includeInvoices,
+            int pageSizePerDataset,
+            int maxPagesPerDataset
+    ) {
+        public SnapshotRequest {
+            int normalizedPageSize = Math.min(Math.max(pageSizePerDataset, 5), 100);
+            int normalizedPages = Math.min(Math.max(maxPagesPerDataset, 1), 20);
+            pageSizePerDataset = normalizedPageSize;
+            maxPagesPerDataset = normalizedPages;
+        }
+
+        public static SnapshotRequest defaults() {
+            return new SnapshotRequest(
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    false,
+                    false,
+                    false,
+                    false,
+                    25,
+                    3
+            );
+        }
+    }
+
+    private record SnapshotDataset(ArrayNode items, ObjectNode summary) {
     }
 }
