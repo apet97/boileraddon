@@ -2,6 +2,7 @@ package com.example.rules.metrics;
 
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
@@ -150,6 +151,24 @@ class RulesMetricsTest {
 
         assertNotNull(truncationCounter);
         assertEquals(1.0, truncationCounter.count());
+    }
+
+    @Test
+    void testRecordIdempotencyBackend() {
+        RulesMetrics.recordIdempotencyBackend("database");
+        Gauge db = testRegistry.find("rules_webhook_idempotency_backend")
+                .tag("backend", "database")
+                .gauge();
+        assertNotNull(db);
+        assertEquals(1.0, db.value());
+
+        RulesMetrics.recordIdempotencyBackend("in_memory");
+        Gauge mem = testRegistry.find("rules_webhook_idempotency_backend")
+                .tag("backend", "in_memory")
+                .gauge();
+        assertNotNull(mem);
+        assertEquals(1.0, mem.value());
+        assertEquals(0.0, db.value());
     }
 
     @Test

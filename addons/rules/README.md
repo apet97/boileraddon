@@ -310,14 +310,16 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 
 - `WebhookIdempotencyCache` hashes `(workspaceId, eventType, preferred payload ID)` per delivery. `RULES_WEBHOOK_DEDUP_SECONDS` must stay between **60 seconds and 24 hours**; invalid values now fail fast during startup and are clamped/logged defensively at runtime.
 - Preferred IDs include `payloadId`, `eventId`, `timeEntry.id`, etc. If no stable field exists, the cache falls back to hashing the entire payload body.
-- **Store modes:** When `RULES_DB_*` (or the shared `DB_*`) is configured, dedupe entries live in the new `webhook_dedup` table so every pod sees the same suppression window. Without a database configuration, the add-on automatically falls back to the in-memory store (node-local behavior identical to previous releases).
+- **Store modes:** When `RULES_DB_*` (or the shared `DB_*`) is configured, dedupe entries live in the new `webhook_dedup` table so every pod sees the same suppression window. Without a database configuration, the add-on automatically falls back to the in-memory store (best-effort, node-local behavior identical to previous releases). Startup logs now print `idempotency backend ready | backend=database|in_memory` so you can confirm which mode is active.
+- **Runtime visibility:** Prometheus exports `rules_webhook_idempotency_backend{backend="database|in_memory"}` (exactly one tag reads `1` at any time) and the dev-only `/debug/config` endpoint echoes the current backend choice, dedupe TTL, token store mode, and runtime flags without leaking secrets.
 - When a duplicate arrives within the TTL, handlers short-circuit, emit a `duplicate` log line, and increment the Prometheus counter `rules_webhook_dedup_hits_total`. First-seen payloads increment `rules_webhook_dedup_misses_total`. Alert on spikes in either counter to spot upstream retry storms or unexpectedly noisy tenants.
 
 ## Operational guardrails
 
 - **Workspace cache cap** &mdash; Refreshes load at most 5,000 tasks per workspace to keep memory bounded. When a workspace exceeds the cap, log lines include `workspaceId`, `tasksLoaded`, and the observed total, and the metric `rules_workspace_cache_truncated_total{dataset="tasks"}` increments so dashboards can flag truncated caches.
-- **Async webhook backlog** &mdash; Any time the async executor rejects work, the handler falls back to synchronous processing and increments `rules_async_backlog_total{outcome="fallback"}`. Alerting on this counter helps catch sustained overload before queue depth impacts webhook SLAs.
+- **Async webhook backlog** &mdash; Hand-offs increment `rules_async_backlog_total{outcome="submitted"}`. Queue pressure registers `outcome="rejected"`, and `outcome="fallback"` means work ran synchronously because the queue was saturated. Alert on `rejected`/`fallback` spikes to catch overload before webhook SLAs slip.
 - **Dedupe visibility** &mdash; With database settings in place, webhook dedupe entries are shared across all replicas. When running purely in-memory (local dev), duplicates are only caught on the current JVM; track `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` to understand retry ratios and decide when to enable persistence.
+- **Dev config snapshot** &mdash; When `ENV=dev`, `GET /debug/config` returns a sanitized JSON payload (no JDBC URLs, no secrets) showing which subsystems are wired (database vs in-memory stores, dedupe backend, runtime flags). The route is never registered outside development builds.
 
 ### openapi_call safety
 

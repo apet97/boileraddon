@@ -205,31 +205,7 @@ public class WorkspaceExplorerController {
         } catch (WorkspaceExplorerService.ExplorerException e) {
             return handleExplorerException(dataset.name().toLowerCase(Locale.ROOT), workspaceId, e, request);
         } catch (Exception e) {
-            String code = switch (dataset) {
-                case USERS -> "EXPLORER.USERS_FAILED";
-                case PROJECTS -> "EXPLORER.PROJECTS_FAILED";
-                case CLIENTS -> "EXPLORER.CLIENTS_FAILED";
-                case TAGS -> "EXPLORER.TAGS_FAILED";
-                case TASKS -> "EXPLORER.TASKS_FAILED";
-                case TIME_ENTRIES -> "EXPLORER.TIME_ENTRIES_FAILED";
-                case TIME_OFF -> "EXPLORER.TIME_OFF_FAILED";
-                case WEBHOOKS -> "EXPLORER.WEBHOOKS_FAILED";
-                case CUSTOM_FIELDS -> "EXPLORER.CUSTOM_FIELDS_FAILED";
-                case INVOICES -> "EXPLORER.INVOICES_FAILED";
-            };
-            String message = switch (dataset) {
-                case USERS -> "Failed to load workspace users";
-                case PROJECTS -> "Failed to load workspace projects";
-                case CLIENTS -> "Failed to load workspace clients";
-                case TAGS -> "Failed to load workspace tags";
-                case TASKS -> "Failed to load workspace tasks";
-                case TIME_ENTRIES -> "Failed to load time entries";
-                case TIME_OFF -> "Failed to load time off data";
-                case WEBHOOKS -> "Failed to load webhooks";
-                case CUSTOM_FIELDS -> "Failed to load custom fields";
-                case INVOICES -> "Failed to load invoices";
-            };
-            return internalError(request, code, message, e);
+            return internalError(request, datasetErrorCode(dataset), datasetErrorMessage(dataset), e);
         }
     }
 
@@ -590,6 +566,36 @@ public class WorkspaceExplorerController {
             return null;
         }
         return String.join(",", normalized);
+    }
+
+    private static String datasetErrorCode(WorkspaceExplorerService.ExplorerDataset dataset) {
+        return switch (dataset) {
+            case USERS -> "EXPLORER.USERS_FAILED";
+            case PROJECTS -> "EXPLORER.PROJECTS_FAILED";
+            case CLIENTS -> "EXPLORER.CLIENTS_FAILED";
+            case TAGS -> "EXPLORER.TAGS_FAILED";
+            case TASKS -> "EXPLORER.TASKS_FAILED";
+            case TIME_ENTRIES -> "EXPLORER.TIME_ENTRIES_FAILED";
+            case TIME_OFF -> "EXPLORER.TIME_OFF_FAILED";
+            case WEBHOOKS -> "EXPLORER.WEBHOOKS_FAILED";
+            case CUSTOM_FIELDS -> "EXPLORER.CUSTOM_FIELDS_FAILED";
+            case INVOICES -> "EXPLORER.INVOICES_FAILED";
+        };
+    }
+
+    private static String datasetErrorMessage(WorkspaceExplorerService.ExplorerDataset dataset) {
+        return switch (dataset) {
+            case USERS -> "Failed to load workspace users";
+            case PROJECTS -> "Failed to load workspace projects";
+            case CLIENTS -> "Failed to load workspace clients";
+            case TAGS -> "Failed to load workspace tags";
+            case TASKS -> "Failed to load workspace tasks";
+            case TIME_ENTRIES -> "Failed to load time entries";
+            case TIME_OFF -> "Failed to load time off data";
+            case WEBHOOKS -> "Failed to load webhooks";
+            case CUSTOM_FIELDS -> "Failed to load custom fields";
+            case INVOICES -> "Failed to load invoices";
+        };
     }
 
     private static String trim(String value) {

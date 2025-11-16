@@ -531,10 +531,12 @@ public class WebhookHandlers {
         };
         try {
             executor.execute(task);
+            RulesMetrics.recordAsyncBacklog("submitted");
             return true;
         } catch (RejectedExecutionException rejected) {
             int queued = executor.getQueue().size();
             int capacity = queued + executor.getQueue().remainingCapacity();
+            RulesMetrics.recordAsyncBacklog("rejected");
             logger.debug(
                     "Webhook async executor rejected task (workspace: {}, event: {}, active: {}, queued: {}, capacity: {}).",
                     workspaceId, eventType, executor.getActiveCount(), queued, capacity);

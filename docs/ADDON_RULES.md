@@ -270,8 +270,8 @@ that powers classic actions (add_tag, set_billable, etc.).
 ## Operational guardrails & metrics
 
 - **Workspace cache cap** — Refreshes load at most 5,000 tasks per workspace. When the cap fires, the service logs the workspace, observed totals, and increments `rules_workspace_cache_truncated_total{dataset="tasks"}` so dashboards can flag partial caches.
-- **Webhook dedupe storage** — When `RULES_DB_*`/`DB_*` is configured the cache persists entries in the `webhook_dedup` table so every pod shares the same suppression window. Local/dev runs fall back to the in-memory store (at-most-once per JVM). Track `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` to monitor retries and sizing.
-- **Async backlog** — Oversized rule batches fall back to synchronous processing when the async executor is saturated. Each fallback increments `rules_async_backlog_total{outcome="fallback"}` so you can alert on sustained queue pressure.
+- **Webhook dedupe storage** — When `RULES_DB_*`/`DB_*` is configured the cache persists entries in the `webhook_dedup` table so every pod shares the same suppression window. Local/dev runs fall back to the in-memory store (at-most-once per JVM). Track `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` to monitor retries, and scrape `rules_webhook_idempotency_backend{backend="database|in_memory"}` (single tag reports `1`) to confirm which backend is active.
+- **Async backlog** — Oversized rule batches fall back to synchronous processing when the async executor is saturated. `rules_async_backlog_total{outcome="submitted"}` counts hand-offs, `outcome="rejected"` fires when the queue is full, and `outcome="fallback"` means we ran synchronously. Alert on sustained `rejected`/`fallback` growth.
 
 ### openapi_call safety
 

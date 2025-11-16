@@ -2,14 +2,19 @@ package com.example.rules.metrics;
 
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Micrometer helpers for the Rules add-on. Counters/timers are registered once and reused.
  */
 public final class RulesMetrics {
     private static final MeterRegistry REGISTRY = MetricsHandler.registry();
+    private static final Map<String, AtomicInteger> IDEMPOTENCY_BACKEND_GAUGES = new ConcurrentHashMap<>();
 
     private RulesMetrics() {
     }
@@ -76,12 +81,32 @@ public final class RulesMetrics {
                 .increment();
     }
 
+    public static void recordIdempotencyBackend(String backend) {
+        String label = sanitize(backend);
+        AtomicInteger gaugeValue = IDEMPOTENCY_BACKEND_GAUGES.computeIfAbsent(label, key -> new AtomicInteger());
+        ensureGaugeRegistered(label, gaugeValue);
+        IDEMPOTENCY_BACKEND_GAUGES.forEach((key, value) -> value.set(key.equals(label) ? 1 : 0));
+    }
+
     public static void recordWorkspaceCacheTruncation(String dataset) {
         Counter.builder("rules_workspace_cache_truncated_total")
                 .description("Workspace cache refreshes that hit safety caps")
                 .tag("dataset", sanitize(dataset))
                 .register(REGISTRY)
                 .increment();
+    }
+
+    private static void ensureGaugeRegistered(String backend, AtomicInteger gaugeValue) {
+        Gauge existing = REGISTRY.find("rules_webhook_idempotency_backend")
+                .tag("backend", backend)
+                .gauge();
+        if (existing != null) {
+            return;
+        }
+        Gauge.builder("rules_webhook_idempotency_backend", gaugeValue, AtomicInteger::get)
+                .description("Indicator for the active webhook idempotency backend")
+                .tag("backend", backend)
+                .register(REGISTRY);
     }
 
     private static String sanitize(String value) {

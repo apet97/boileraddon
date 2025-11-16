@@ -82,7 +82,7 @@ For bare-metal or VM deployments, run the same fat JAR directly: `ADDON_BASE_URL
 ## Known operational limits
 - **Task scanning** — Workspace-level task listings walk projects (`50` per page) × tasks (`200` per page) and cap the scan at 5,000 tasks to keep snapshots bounded. When the cap hits, refreshes log the workspace, observed totals, and increment `rules_workspace_cache_truncated_total{dataset="tasks"}` so dashboards can flag truncated caches; operators should narrow filters before exporting again.
 - **Webhook dedupe** — Idempotency cache is JVM-local plus TTL-based. Track `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` to understand retry ratios and consider an external store if you deploy multiple replicas or need >24h dedupe windows.
-- **Async backlog** — If the async executor saturates, webhook requests fall back to synchronous execution and increment `rules_async_backlog_total{outcome="fallback"}`. Sustained growth here signals the need to scale workers or revisit rule complexity.
+- **Async backlog** — `rules_async_backlog_total{outcome="submitted"}` tracks async hand-offs, `outcome="rejected"` fires when the queue is full, and `outcome="fallback"` means the handler executed synchronously. Sustained `rejected`/`fallback` growth signals the need to scale workers or revisit rule complexity.
 
 ## openapi_call safety
 - Only `GET` and `POST` methods are accepted for `openapi_call` actions; other verbs fail validation.

@@ -440,9 +440,119 @@ class WebhookHandlersTest {
                     .counter();
             assertNotNull(backlogCounter);
             assertEquals(1.0, backlogCounter.count());
+
+            Counter rejectedCounter = MetricsHandler.registry()
+                    .find("rules_async_backlog_total")
+                    .tag("outcome", "rejected")
+                    .counter();
+            assertNotNull(rejectedCounter);
+            assertEquals(1.0, rejectedCounter.count());
         } finally {
             blocker.countDown();
         }
+    }
+
+    @Test
+    void asyncSchedulingEmitsSubmittedMetric() throws Exception {
+        String workspaceId = "workspace-async-success";
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, "token", "https://api.clockify.me/api");
+
+        System.setProperty("RULES_APPLY_CHANGES", "true");
+        WebhookHandlers.resetAsyncExecutorForTesting();
+
+        List<Action> actions = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            actions.add(new Action("set_description", Map.of("value", "desc-" + i)));
+        }
+        Condition condition = new Condition("descriptionContains", Condition.Operator.CONTAINS, "trigger", null);
+        Rule rule = new Rule("async-rule-success", "Async rule", true, "AND",
+                Collections.singletonList(condition), actions, null, 0);
+        store.save(workspaceId, rule);
+
+        String payload = """
+            {
+                "workspaceId": "workspace-async-success",
+                "event": "NEW_TIME_ENTRY",
+                "timeEntry": {
+                    "id": "entry-async-success",
+                    "description": "trigger action",
+                    "tagIds": []
+                }
+            }
+            """;
+        setupWebhookRequestJwt(payload, workspaceId);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        LatchingClockifyClient fake = new LatchingClockifyClient(latch);
+        WebhookHandlers.setClientFactory((base, token) -> fake);
+
+        ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+                .key("rules").name("Rules").description("Test")
+                .baseUrl("http://localhost:8080/rules")
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ", "TIME_ENTRY_WRITE"})
+                .build();
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        WebhookHandlers.register(addon, store);
+
+        HttpResponse response = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
+        assertEquals(200, response.getStatusCode());
+        JsonNode json = mapper.readTree(response.getBody());
+        assertEquals("scheduled", json.get("status").asText());
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS), "Async update never completed");
+        assertEquals(1, fake.getUpdateCount());
+
+        Counter submittedCounter = MetricsHandler.registry()
+                .find("rules_async_backlog_total")
+                .tag("outcome", "submitted")
+                .counter();
+        assertNotNull(submittedCounter);
+        assertEquals(1.0, submittedCounter.count());
+
+        Counter fallbackCounter = MetricsHandler.registry()
+                .find("rules_async_backlog_total")
+                .tag("outcome", "fallback")
+                .counter();
+        assertNull(fallbackCounter);
+    }
+
+    @Test
+    void skipSignatureFlagIgnoredOutsideDev() throws Exception {
+        String workspaceId = "workspace-prod";
+        com.clockify.addon.sdk.security.TokenStore.save(workspaceId, "prod-token", "https://api.clockify.me/api");
+
+        System.setProperty("ENV", "prod");
+        System.setProperty("ADDON_SKIP_SIGNATURE_VERIFY", "true");
+
+        String payload = """
+            {
+                "workspaceId": "workspace-prod",
+                "event": "NEW_TIME_ENTRY",
+                "timeEntry": {
+                    "id": "entry-prod",
+                    "description": "noop",
+                    "tagIds": []
+                }
+            }
+            """;
+        JsonNode jsonNode = mapper.readTree(payload);
+        when(request.getAttribute("clockify.jsonBody")).thenReturn(jsonNode);
+        when(request.getAttribute("clockify.rawBody")).thenReturn(payload);
+        when(request.getHeader("clockify-webhook-signature")).thenReturn(null);
+        when(request.getHeader("Clockify-Signature")).thenReturn(null);
+
+        ClockifyManifest manifest = ClockifyManifest.v1_3Builder()
+                .key("rules").name("Rules").description("Test")
+                .baseUrl("http://localhost:8080/rules")
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ"})
+                .build();
+        ClockifyAddon addon = new ClockifyAddon(manifest);
+        WebhookHandlers.register(addon, store);
+
+        HttpResponse response = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
+        assertEquals(401, response.getStatusCode(), "Prod env must enforce signatures even when skip flag is set");
     }
 
     private void setupWebhookRequestJwt(String payload, String workspaceId) throws Exception {
@@ -539,6 +649,21 @@ class WebhookHandlersTest {
 
         int getUpdateCount() {
             return updates.get();
+        }
+    }
+
+    private static final class LatchingClockifyClient extends RecordingClockifyClient {
+        private final CountDownLatch latch;
+
+        LatchingClockifyClient(CountDownLatch latch) {
+            this.latch = latch;
+        }
+
+        @Override
+        public ObjectNode updateTimeEntry(String workspaceId, String timeEntryId, ObjectNode patch) {
+            ObjectNode node = super.updateTimeEntry(workspaceId, timeEntryId, patch);
+            latch.countDown();
+            return node;
         }
     }
 

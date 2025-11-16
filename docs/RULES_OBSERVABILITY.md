@@ -20,6 +20,11 @@ Operators can monitor the Rules add-on via dedicated health endpoints, Prometheu
 - **Content:** Plain text metrics with `rules_*` prefixes (see below). Scrape with Prometheus (or compatible) every 15–30s.
 - **Security:** Same base URL as the add-on; protect behind your ingress auth or private network.
 
+### `/debug/config` (dev-only)
+- **Purpose:** Lightweight JSON snapshot for local debugging. Lists environment label, whether Rules/Shared DB configs are wired, which token/idempotency backends are active, and the current runtime flags (`RULES_APPLY_CHANGES`, `ADDON_SKIP_SIGNATURE_VERIFY`).
+- **Availability:** Registered only when `ENV=dev` (or equivalent dev variants). Never exposed in staging/production.
+- **Security:** Sanitized on purpose—no JDBC URLs, credentials, or tokens are returned. Use it to confirm local `.env` wiring before nagging ops.
+
 ## Key Metrics
 
 | Metric | Type | Meaning / Guidance |
@@ -30,7 +35,8 @@ Operators can monitor the Rules add-on via dedicated health endpoints, Prometheu
 | `rules_actions_total{type, result}` | Counter | Action execution attempts (e.g., `add_tag`, `set_description`) and whether they succeeded. Alert on `result="failure"` spikes. |
 | `rules_webhook_dedup_hits_total{event}` | Counter | Duplicate webhooks ignored by `WebhookIdempotencyCache` (exactly one hit per suppressed payload). Spikes usually mean upstream retry storms; verify `RULES_WEBHOOK_DEDUP_SECONDS` and ingress health. |
 | `rules_webhook_dedup_misses_total{event}` | Counter | First-seen webhook payloads (accepted work). Compare against hits to understand retry ratios or scope for a distributed dedupe store. |
-| `rules_async_backlog_total{outcome}` | Counter | Async executor backlog events. `outcome="fallback"` means work ran synchronously because the queue was saturated; alert if this rises or if `outcome="dropped"` ever appears. |
+| `rules_webhook_idempotency_backend{backend}` | Gauge | Current dedupe backend. Exactly one tag (`backend="database"` or `backend="in_memory"`) reports a value of 1. Use to confirm rollout mode matches expectations. |
+| `rules_async_backlog_total{outcome}` | Counter | Async executor backlog events. `outcome="submitted"` counts async hand-offs, `outcome="rejected"` fires when the queue is full, and `outcome="fallback"` means work ran synchronously. Alert if `rejected` or `fallback` rises or if `outcome="dropped"` ever appears. |
 | `rules_workspace_cache_truncated_total{dataset}` | Counter | Workspace cache refreshes that hit a safety cap (currently `dataset="tasks"`). Investigate large tenants or raise limits if dashboards show sustained growth. |
 
 > ℹ️ **Custom metrics:** The SDK also exposes Jetty/JVM metrics (heap, threads) via Micrometer. Scrape them from the same `/metrics` endpoint to round out dashboards.
@@ -43,7 +49,7 @@ Operators can monitor the Rules add-on via dedicated health endpoints, Prometheu
   - `Rules Add-on starting | ... env=... applyChanges=...` &mdash; startup summary, useful for change tracking.
   - `PlatformAuthFilter...` &mdash; indicates bearer enforcement is active on `/api/**` and `/status`.
   - `Duplicate dynamic webhook suppressed` &mdash; idempotency hit; expect a corresponding increase in `rules_webhook_dedup_hits_total`.
-  - `Async webhook backlog fallback` &mdash; executor saturation forced a synchronous run; correlate with `rules_async_backlog_total`.
+  - `Async webhook backlog fallback` &mdash; executor saturation forced a synchronous run; correlate with `rules_async_backlog_total{outcome="fallback"}` (a spike usually follows `rejected` events).
   - `Workspace cache task cap enforced` &mdash; cache refresh truncated a large workspace; check `rules_workspace_cache_truncated_total`.
   - `Rules store readiness failed` / `Token store readiness failed` &mdash; emitted from `/ready` when dependencies throw.
 - **Levels:** INFO for lifecycle events, DEBUG for expected races (e.g., accepting previous token during rotation), WARN for recoverable issues, ERROR only when a request cannot be fulfilled.
@@ -53,7 +59,7 @@ Operators can monitor the Rules add-on via dedicated health endpoints, Prometheu
 1. **Readiness degradation:** `/ready` fails for more than 60 seconds or toggles repeatedly → likely DB outage or credential issue.
 2. **HTTP 5xx / webhook errors:** Outcome label `error` or `partial` dominates `rules_webhook_latency_ms`. Combine with log sampling to pinpoint failing actions.
 3. **Duplicate storm:** `rules_webhook_dedup_hits_total` grows faster than `rules_webhook_dedup_misses_total` → investigate upstream retries or incorrect webhook retries.
-4. **Async backlog:** `rules_async_backlog_total{outcome="fallback"}` keeps rising → scale workers or tune rule complexity before webhook SLAs slip.
+4. **Async backlog:** `rules_async_backlog_total{outcome="rejected"}` or `outcome="fallback"` keeps rising → scale workers or tune rule complexity before webhook SLAs slip.
 5. **Workspace cache truncation:** `rules_workspace_cache_truncated_total{dataset="tasks"}` increments → large tenants exceeded the cache cap; ensure operators understand partial coverage or raise limits.
 6. **Token store failures:** Look for WARN/ERROR lines from `RotatingTokenStore` or `PooledDatabaseTokenStore`. Alert if they recur to avoid auth outages.
 7. **Metrics scrape gaps:** Alert when Prometheus stops scraping `/metrics` (no data for &gt;5 minutes) to catch networking issues early.

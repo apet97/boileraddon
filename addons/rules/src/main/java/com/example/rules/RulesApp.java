@@ -22,6 +22,7 @@ import com.example.rules.cache.InMemoryWebhookIdempotencyStore;
 import com.example.rules.cache.WebhookIdempotencyCache;
 import com.example.rules.cache.WebhookIdempotencyStore;
 import com.example.rules.api.ErrorResponse;
+import com.example.rules.api.DebugConfigController;
 import com.example.rules.api.explorer.WorkspaceExplorerController;
 import com.example.rules.api.explorer.WorkspaceExplorerService;
 import com.example.rules.store.RulesStore;
@@ -40,6 +41,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -434,6 +436,8 @@ public class RulesApp {
                 }
         );
 
+        registerDebugEndpoint(addon, config, tokenStore != null);
+
         // Register health checks
         HealthCheck health = new HealthCheck("rules", "0.1.0");
         if (rulesStore instanceof com.example.rules.store.DatabaseRulesStore) {
@@ -601,17 +605,39 @@ public class RulesApp {
         return new RulesStore();
     }
 
-    private static WebhookIdempotencyStore configureDedupStore(RulesConfiguration.DatabaseSettings dbSettings) {
+    static WebhookIdempotencyStore configureDedupStore(RulesConfiguration.DatabaseSettings dbSettings) {
         if (dbSettings != null && dbSettings.url() != null && !dbSettings.url().isBlank()) {
             try {
-                logger.info("Webhook idempotency store initialized with database persistence");
+                logger.info("Initializing webhook idempotency store (backend=database)");
                 return new DatabaseWebhookIdempotencyStore(dbSettings.url(), dbSettings.username(), dbSettings.password());
             } catch (Exception e) {
                 logger.error("Failed to initialize database-backed webhook dedupe store: {}", e.getMessage(), e);
             }
         }
-        logger.info("Webhook idempotency store initialized in in-memory mode (node-local dedupe only)");
+        logger.info("Initializing webhook idempotency store (backend=in_memory, node-local only)");
         return new InMemoryWebhookIdempotencyStore();
+    }
+
+    static void registerDebugEndpoint(ClockifyAddon addon, RulesConfiguration config, boolean persistentTokenStore) {
+        if (!isDevEnvironment(config.environment())) {
+            logger.info("Debug config endpoint disabled (ENV={})", config.environment());
+            return;
+        }
+        DebugConfigController controller = new DebugConfigController(
+                config,
+                WebhookIdempotencyCache::backendLabel,
+                persistentTokenStore ? "database" : "memory"
+        );
+        addon.registerCustomEndpoint("/debug/config", controller);
+        logger.info("Dev config endpoint registered at /debug/config");
+    }
+
+    private static boolean isDevEnvironment(String envLabel) {
+        if (envLabel == null) {
+            return false;
+        }
+        String normalized = envLabel.trim().toLowerCase(Locale.ROOT);
+        return "dev".equals(normalized) || "development".equals(normalized) || "local".equals(normalized);
     }
 
     static PooledDatabaseTokenStore initializeTokenStore(

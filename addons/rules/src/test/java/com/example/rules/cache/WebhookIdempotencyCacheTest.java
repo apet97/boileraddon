@@ -63,4 +63,19 @@ class WebhookIdempotencyCacheTest {
         String dedupKeyAgain = WebhookIdempotencyCache.deriveDedupKey(payload);
         assertEquals(dedupKey, dedupKeyAgain);
     }
+
+    @Test
+    void backendLabelReflectsCurrentStore() {
+        WebhookIdempotencyCache.reset();
+        assertEquals(WebhookIdempotencyCache.Backend.IN_MEMORY, WebhookIdempotencyCache.backendMode());
+        assertEquals("in_memory", WebhookIdempotencyCache.backendLabel());
+
+        WebhookIdempotencyCache.configureStore(new DatabaseWebhookIdempotencyStore(
+                "jdbc:h2:mem:dedup-backend;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+                "sa",
+                ""
+        ));
+        assertEquals(WebhookIdempotencyCache.Backend.DATABASE, WebhookIdempotencyCache.backendMode());
+        assertEquals("database", WebhookIdempotencyCache.backendLabel());
+    }
 }

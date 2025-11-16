@@ -10,12 +10,18 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
+import java.util.Locale;
 
 /**
  * Facade over the configurable webhook idempotency store.
  */
 public final class WebhookIdempotencyCache {
     private static final Logger logger = LoggerFactory.getLogger(WebhookIdempotencyCache.class);
+    public enum Backend {
+        IN_MEMORY,
+        DATABASE,
+        UNKNOWN
+    }
 
     private static final String[] PREFERRED_FIELDS = new String[]{
             "payloadId",
@@ -38,6 +44,7 @@ public final class WebhookIdempotencyCache {
 
     private static volatile long ttlMillis = Duration.ofMinutes(10).toMillis();
     private static volatile WebhookIdempotencyStore store = new InMemoryWebhookIdempotencyStore();
+    private static volatile Backend backend = Backend.IN_MEMORY;
 
     private WebhookIdempotencyCache() {
     }
@@ -49,6 +56,9 @@ public final class WebhookIdempotencyCache {
         }
         WebhookIdempotencyStore previous = store;
         store = newStore;
+        backend = resolveBackend(newStore);
+        RulesMetrics.recordIdempotencyBackend(backendLabel());
+        logger.info("Webhook idempotency backend ready | backend={}", backendLabel());
         closeQuietly(previous);
     }
 
@@ -58,6 +68,13 @@ public final class WebhookIdempotencyCache {
 
     public static WebhookIdempotencyStore currentStore() {
         return store;
+    }
+    public static Backend backendMode() {
+        return backend;
+    }
+
+    public static String backendLabel() {
+        return backend.name().toLowerCase(Locale.ROOT);
     }
 
     public static void configureTtl(long newTtlMillis) {
@@ -149,5 +166,15 @@ public final class WebhookIdempotencyCache {
             oldStore.close();
         } catch (Exception ignored) {
         }
+    }
+
+    private static Backend resolveBackend(WebhookIdempotencyStore current) {
+        if (current instanceof DatabaseWebhookIdempotencyStore) {
+            return Backend.DATABASE;
+        }
+        if (current instanceof InMemoryWebhookIdempotencyStore) {
+            return Backend.IN_MEMORY;
+        }
+        return Backend.UNKNOWN;
     }
 }
