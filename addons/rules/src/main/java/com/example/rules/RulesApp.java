@@ -17,7 +17,10 @@ import com.clockify.addon.sdk.middleware.SensitiveHeaderFilter;
 import com.clockify.addon.sdk.middleware.WorkspaceContextFilter;
 import com.example.rules.config.RuntimeFlags;
 import com.example.rules.config.RulesConfiguration;
+import com.example.rules.cache.DatabaseWebhookIdempotencyStore;
+import com.example.rules.cache.InMemoryWebhookIdempotencyStore;
 import com.example.rules.cache.WebhookIdempotencyCache;
+import com.example.rules.cache.WebhookIdempotencyStore;
 import com.example.rules.api.ErrorResponse;
 import com.example.rules.api.explorer.WorkspaceExplorerController;
 import com.example.rules.api.explorer.WorkspaceExplorerService;
@@ -111,8 +114,14 @@ public class RulesApp {
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
 
+        RulesConfiguration.DatabaseSettings effectiveDb = config.rulesDatabase()
+                .or(() -> config.sharedDatabase())
+                .orElse(null);
+
         // Initialize stores
-        rulesStore = selectRulesStore(config);
+        rulesStore = selectRulesStore(config, effectiveDb);
+        WebhookIdempotencyStore dedupStore = configureDedupStore(effectiveDb);
+        WebhookIdempotencyCache.configureStore(dedupStore);
         RulesController rulesController = new RulesController(rulesStore, addon);
 
         // Initialize Clockify client for Projects/Clients/Tasks CRUD operations
@@ -529,12 +538,19 @@ public class RulesApp {
 
         // Add shutdown hook for graceful stop
         PooledDatabaseTokenStore managedTokenStore = tokenStore;
+        WebhookIdempotencyStore managedDedupStore = dedupStore;
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 logger.info("Shutting down Rules Add-on...");
                 com.example.rules.cache.RuleCache.shutdown();
                 if (managedTokenStore != null) {
                     managedTokenStore.close();
+                }
+                if (managedDedupStore != null) {
+                    try {
+                        managedDedupStore.close();
+                    } catch (Exception ignored) {
+                    }
                 }
                 server.stop();
                 logger.info("Rules Add-on shutdown complete");
@@ -556,11 +572,8 @@ public class RulesApp {
      * @return DatabaseRulesStore if configured and reachable, otherwise in-memory RulesStore
      * @throws IllegalStateException if database is configured but initialization fails
      */
-    private static RulesStoreSPI selectRulesStore(RulesConfiguration config) {
-        RulesConfiguration.DatabaseSettings effectiveDb = config.rulesDatabase()
-                .or(() -> config.sharedDatabase())
-                .orElse(null);
-
+    private static RulesStoreSPI selectRulesStore(RulesConfiguration config,
+                                                  RulesConfiguration.DatabaseSettings effectiveDb) {
         if (effectiveDb != null && effectiveDb.url() != null && !effectiveDb.url().isBlank()) {
             try {
                 DatabaseRulesStore store = new DatabaseRulesStore(
@@ -586,6 +599,19 @@ public class RulesApp {
 
         logger.info("✓ Rules storage initialized with in-memory persistence (ephemeral, recommended for dev only)");
         return new RulesStore();
+    }
+
+    private static WebhookIdempotencyStore configureDedupStore(RulesConfiguration.DatabaseSettings dbSettings) {
+        if (dbSettings != null && dbSettings.url() != null && !dbSettings.url().isBlank()) {
+            try {
+                logger.info("Webhook idempotency store initialized with database persistence");
+                return new DatabaseWebhookIdempotencyStore(dbSettings.url(), dbSettings.username(), dbSettings.password());
+            } catch (Exception e) {
+                logger.error("Failed to initialize database-backed webhook dedupe store: {}", e.getMessage(), e);
+            }
+        }
+        logger.info("Webhook idempotency store initialized in in-memory mode (node-local dedupe only)");
+        return new InMemoryWebhookIdempotencyStore();
     }
 
     static PooledDatabaseTokenStore initializeTokenStore(

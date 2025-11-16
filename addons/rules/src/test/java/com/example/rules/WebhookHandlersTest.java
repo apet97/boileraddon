@@ -55,7 +55,7 @@ class WebhookHandlersTest {
         store = new RulesStore();
         mapper = new ObjectMapper();
         request = Mockito.mock(HttpServletRequest.class);
-        WebhookIdempotencyCache.clear();
+        WebhookIdempotencyCache.reset();
         MetricsHandler.registry().clear();
 
         // Clear token store
@@ -85,7 +85,7 @@ class WebhookHandlersTest {
         System.clearProperty(EXECUTOR_QUEUE_PROP);
         WebhookHandlers.setClientFactory(null);
         WebhookHandlers.resetAsyncExecutorForTesting();
-        WebhookIdempotencyCache.clear();
+        WebhookIdempotencyCache.reset();
     }
 
     @Test
@@ -216,6 +216,13 @@ class WebhookHandlersTest {
         HttpResponse second = addon.getWebhookHandlers().get("NEW_TIME_ENTRY").handle(request);
         JsonNode secondBody = mapper.readTree(second.getBody());
         assertEquals("duplicate", secondBody.get("status").asText());
+
+        Counter dedupHits = MetricsHandler.registry()
+                .find("rules_webhook_dedup_hits_total")
+                .tag("event", "NEW_TIME_ENTRY")
+                .counter();
+        assertNotNull(dedupHits);
+        assertEquals(1.0, dedupHits.count(), "Duplicate metric should record exactly one hit");
     }
 
     @Test

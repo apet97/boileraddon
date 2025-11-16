@@ -122,7 +122,6 @@ public class WebhookHandlers {
                     logger.info("Webhook event received: {} for workspace {}", eventType, workspaceId);
 
                     if (WebhookIdempotencyCache.isDuplicate(workspaceId, eventType, payload)) {
-                        RulesMetrics.recordDeduplicatedEvent(eventType);
                         logger.info("Duplicate webhook suppressed | workspace={} event={}", workspaceId, eventType);
                         return respondWithMetrics(sample, eventType, "duplicate", createResponse(eventType, "duplicate", new ArrayList<>()));
                     }

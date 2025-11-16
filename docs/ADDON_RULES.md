@@ -270,7 +270,7 @@ that powers classic actions (add_tag, set_billable, etc.).
 ## Operational guardrails & metrics
 
 - **Workspace cache cap** — Refreshes load at most 5,000 tasks per workspace. When the cap fires, the service logs the workspace, observed totals, and increments `rules_workspace_cache_truncated_total{dataset="tasks"}` so dashboards can flag partial caches.
-- **Per-node dedupe** — `WebhookIdempotencyCache` is an in-memory per-JVM TTL. Treat webhook processing as “at most once per node”; `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` quantify retry ratios and help decide when to introduce a distributed cache.
+- **Webhook dedupe storage** — When `RULES_DB_*`/`DB_*` is configured the cache persists entries in the `webhook_dedup` table so every pod shares the same suppression window. Local/dev runs fall back to the in-memory store (at-most-once per JVM). Track `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` to monitor retries and sizing.
 - **Async backlog** — Oversized rule batches fall back to synchronous processing when the async executor is saturated. Each fallback increments `rules_async_backlog_total{outcome="fallback"}` so you can alert on sustained queue pressure.
 
 ### openapi_call safety

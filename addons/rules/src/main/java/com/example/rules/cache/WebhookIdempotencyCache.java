@@ -10,25 +10,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
- * Deduplication cache for webhook payloads. Stores a short-lived hash of each
- * workspace/event combination so retries or duplicate deliveries do not re-run business logic.
+ * Facade over the configurable webhook idempotency store.
  */
 public final class WebhookIdempotencyCache {
-
     private static final Logger logger = LoggerFactory.getLogger(WebhookIdempotencyCache.class);
-    private static final ConcurrentMap<String, Long> CACHE = new ConcurrentHashMap<>();
-    private static final ScheduledExecutorService CLEANER = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "webhook-idempotency-cleaner");
-        t.setDaemon(true);
-        return t;
-    });
+
     private static final String[] PREFERRED_FIELDS = new String[]{
             "payloadId",
             "eventId",
@@ -45,15 +33,31 @@ public final class WebhookIdempotencyCache {
             "invoiceId"
     };
 
-    static {
-        CLEANER.scheduleAtFixedRate(WebhookIdempotencyCache::purgeExpired, 1, 1, TimeUnit.MINUTES);
-    }
-
     private static final long MIN_TTL_MILLIS = Duration.ofMinutes(1).toMillis();
     private static final long MAX_TTL_MILLIS = Duration.ofHours(24).toMillis();
+
     private static volatile long ttlMillis = Duration.ofMinutes(10).toMillis();
+    private static volatile WebhookIdempotencyStore store = new InMemoryWebhookIdempotencyStore();
 
     private WebhookIdempotencyCache() {
+    }
+
+    public static void configureStore(WebhookIdempotencyStore newStore) {
+        if (newStore == null) {
+            newStore = new InMemoryWebhookIdempotencyStore();
+            logger.info("Webhook idempotency store reset to in-memory mode");
+        }
+        WebhookIdempotencyStore previous = store;
+        store = newStore;
+        closeQuietly(previous);
+    }
+
+    public static void reset() {
+        configureStore(new InMemoryWebhookIdempotencyStore());
+    }
+
+    public static WebhookIdempotencyStore currentStore() {
+        return store;
     }
 
     public static void configureTtl(long newTtlMillis) {
@@ -69,33 +73,29 @@ public final class WebhookIdempotencyCache {
         logger.info("Webhook idempotency TTL set to {} ms", ttlMillis);
     }
 
-    /**
-     * @return true when the payload has already been processed within the configured TTL.
-     */
     public static boolean isDuplicate(String workspaceId, String eventType, JsonNode payload) {
         String dedupKey = deriveDedupKey(payload);
         if (dedupKey == null) {
             RulesMetrics.recordDedupMiss(eventType);
             return false;
         }
-        String key = buildKey(workspaceId, eventType, dedupKey);
-        long expiresAt = System.currentTimeMillis() + ttlMillis;
-        Long previous = CACHE.putIfAbsent(key, expiresAt);
-        if (previous == null) {
+        try {
+            boolean duplicate = store.isDuplicate(workspaceId, eventType, dedupKey, ttlMillis);
+            if (duplicate) {
+                RulesMetrics.recordDeduplicatedEvent(eventType);
+            } else {
+                RulesMetrics.recordDedupMiss(eventType);
+            }
+            return duplicate;
+        } catch (Exception e) {
+            logger.warn("Webhook idempotency store failure (workspace={}, event={}): {}", workspaceId, eventType, e.getMessage());
             RulesMetrics.recordDedupMiss(eventType);
             return false;
         }
-        if (previous < System.currentTimeMillis()) {
-            CACHE.put(key, expiresAt);
-            RulesMetrics.recordDedupMiss(eventType);
-            return false;
-        }
-        RulesMetrics.recordDeduplicatedEvent(eventType);
-        return true;
     }
 
     public static void clear() {
-        CACHE.clear();
+        store.clear();
     }
 
     static String deriveDedupKey(JsonNode payload) {
@@ -131,17 +131,6 @@ public final class WebhookIdempotencyCache {
         return null;
     }
 
-    private static String buildKey(String workspaceId, String eventType, String dedupKey) {
-        String ws = workspaceId == null ? "unknown" : workspaceId;
-        String event = eventType == null ? "unknown" : eventType;
-        return ws + '|' + event + '|' + dedupKey;
-    }
-
-    private static void purgeExpired() {
-        long now = System.currentTimeMillis();
-        CACHE.entrySet().removeIf(entry -> entry.getValue() < now);
-    }
-
     private static String sha256(String body) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -149,6 +138,16 @@ public final class WebhookIdempotencyCache {
             return HexFormat.of().formatHex(hashed);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
+    private static void closeQuietly(WebhookIdempotencyStore oldStore) {
+        if (oldStore == null) {
+            return;
+        }
+        try {
+            oldStore.close();
+        } catch (Exception ignored) {
         }
     }
 }

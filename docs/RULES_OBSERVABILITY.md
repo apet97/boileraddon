@@ -28,7 +28,7 @@ Operators can monitor the Rules add-on via dedicated health endpoints, Prometheu
 | `rules_evaluated_total{event}` | Counter | Number of enabled rules evaluated for each event. High counts without matching rules may indicate misconfigured automations. |
 | `rules_matched_total{event}` | Counter | Number of rules whose conditions matched. Use alongside `rules_evaluated_total` to estimate match rate. |
 | `rules_actions_total{type, result}` | Counter | Action execution attempts (e.g., `add_tag`, `set_description`) and whether they succeeded. Alert on `result="failure"` spikes. |
-| `rules_webhook_dedup_hits_total{event}` | Counter | Duplicate webhooks ignored by `WebhookIdempotencyCache`. Spikes usually mean upstream retry storms; verify `RULES_WEBHOOK_DEDUP_SECONDS` and ingress health. |
+| `rules_webhook_dedup_hits_total{event}` | Counter | Duplicate webhooks ignored by `WebhookIdempotencyCache` (exactly one hit per suppressed payload). Spikes usually mean upstream retry storms; verify `RULES_WEBHOOK_DEDUP_SECONDS` and ingress health. |
 | `rules_webhook_dedup_misses_total{event}` | Counter | First-seen webhook payloads (accepted work). Compare against hits to understand retry ratios or scope for a distributed dedupe store. |
 | `rules_async_backlog_total{outcome}` | Counter | Async executor backlog events. `outcome="fallback"` means work ran synchronously because the queue was saturated; alert if this rises or if `outcome="dropped"` ever appears. |
 | `rules_workspace_cache_truncated_total{dataset}` | Counter | Workspace cache refreshes that hit a safety cap (currently `dataset="tasks"`). Investigate large tenants or raise limits if dashboards show sustained growth. |

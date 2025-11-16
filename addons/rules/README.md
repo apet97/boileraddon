@@ -40,6 +40,8 @@ See also: [Manifest Recipes](../../docs/MANIFEST_RECIPES.md) and [Permissions Ma
 | `GET /api/rules/explorer/invoices` | Invoice list | `page`, `pageSize`, `status` (CSV of `UNSENT\|SENT\|PAID\|PARTIALLY_PAID\|VOID\|OVERDUE`), `sort` (`ID\|CLIENT\|DUE_ON\|ISSUE_DATE\|AMOUNT\|BALANCE`), `sortOrder` (`ASCENDING\|DESCENDING`), `clientId` |
 | `GET /api/rules/explorer/snapshot` | On-demand aggregate snapshot | `include{Users|Projects|Clients|Tags|Tasks|TimeEntries|TimeOff|Webhooks|CustomFields|Invoices}`, `pageSizePerDataset` (5–100), `maxPagesPerDataset` (1–20) |
 
+> 🔁 **Archived tasks:** The `archived` query parameter on `/api/rules/explorer/tasks` now talks directly to Clockify’s per-project task endpoints, so selecting `true` or `false` returns only the requested state. Use `archived=all` to lift the filter entirely—even when walking the workspace-wide project scan.
+
 Snapshots clamp each dataset to the specified `pageSizePerDataset`/`maxPagesPerDataset` bounds (defaults 25 × 3) and stop early if pagination stops advancing. Time entries default to a 30‑day lookback but honor the `timeEntryLookbackDays` input (clamped 1–90) so you can zoom into smaller ranges before exporting. Time-off snapshots reuse the active `policies` view to avoid hammering PTO APIs, and the tasks fetcher walks project + task GET pages with a capped scan (5K items) so “fetch everything” stays safe even on large workspaces. Webhook `event`/`enabled`/`search` filters are applied after fetching the workspace inventory, and the pagination metadata now reflects the filtered subset so `hasMore`/`totalItems` stay accurate. The UI renders per-dataset progress, summary rows, expandable JSON previews, and only enables the download button after a run completes.
 
 All requests inherit workspace context from `PlatformAuthFilter`. When running in local dev mode you can still provide `workspaceId` as a query parameter, but production traffic **must** rely on the signed JWT headers.
@@ -307,14 +309,15 @@ See docs/MANIFEST_AND_LIFECYCLE.md for manifest/lifecycle patterns and docs/REQU
 ## Webhook idempotency & duplicate detection
 
 - `WebhookIdempotencyCache` hashes `(workspaceId, eventType, preferred payload ID)` per delivery. `RULES_WEBHOOK_DEDUP_SECONDS` must stay between **60 seconds and 24 hours**; invalid values now fail fast during startup and are clamped/logged defensively at runtime.
-- Preferred IDs include `payloadId`, `eventId`, `timeEntry.id`, etc. If no stable field exists, the cache falls back to hashing the entire payload body. The cache is **in-memory per JVM instance**, so duplicates are only caught on the same pod and within the TTL window. Treat dedupe as best-effort per node; multi-replica deployments still need an external cache if “once globally” semantics are required.
+- Preferred IDs include `payloadId`, `eventId`, `timeEntry.id`, etc. If no stable field exists, the cache falls back to hashing the entire payload body.
+- **Store modes:** When `RULES_DB_*` (or the shared `DB_*`) is configured, dedupe entries live in the new `webhook_dedup` table so every pod sees the same suppression window. Without a database configuration, the add-on automatically falls back to the in-memory store (node-local behavior identical to previous releases).
 - When a duplicate arrives within the TTL, handlers short-circuit, emit a `duplicate` log line, and increment the Prometheus counter `rules_webhook_dedup_hits_total`. First-seen payloads increment `rules_webhook_dedup_misses_total`. Alert on spikes in either counter to spot upstream retry storms or unexpectedly noisy tenants.
 
 ## Operational guardrails
 
 - **Workspace cache cap** &mdash; Refreshes load at most 5,000 tasks per workspace to keep memory bounded. When a workspace exceeds the cap, log lines include `workspaceId`, `tasksLoaded`, and the observed total, and the metric `rules_workspace_cache_truncated_total{dataset="tasks"}` increments so dashboards can flag truncated caches.
 - **Async webhook backlog** &mdash; Any time the async executor rejects work, the handler falls back to synchronous processing and increments `rules_async_backlog_total{outcome="fallback"}`. Alerting on this counter helps catch sustained overload before queue depth impacts webhook SLAs.
-- **Per-node dedupe** &mdash; Duplicate suppression happens inside each JVM only; keep an eye on `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` to understand retry ratios and whether a shared dedupe store is needed.
+- **Dedupe visibility** &mdash; With database settings in place, webhook dedupe entries are shared across all replicas. When running purely in-memory (local dev), duplicates are only caught on the current JVM; track `rules_webhook_dedup_hits_total` vs `rules_webhook_dedup_misses_total` to understand retry ratios and decide when to enable persistence.
 
 ### openapi_call safety
 

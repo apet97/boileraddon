@@ -8,7 +8,7 @@ Use this checklist before the first deployment **and** during every rollout. Upd
 
 ## A. Pre-flight (once per environment)
 
-- [ ] **Schema applied:** Run the migrations from `docs/RULES_DB_SCHEMA.md` for both `rules` and `addon_tokens` tables. Document the schema version deployed.
+- [ ] **Schema applied:** Run the migrations from `docs/RULES_DB_SCHEMA.md` for the `rules`, `addon_tokens`, and `webhook_dedup` tables. Document the schema version deployed.
 - [ ] **Dedicated workspace:** Create a Clockify workspace for this environment and record its ID.
 - [ ] **Addon registration:** Ensure the add-on is approved for the workspace and note the `addonKey` (should remain `rules`).
 - [ ] **JWT configuration chosen:** Decide between JWKS / PEM map / single PEM.

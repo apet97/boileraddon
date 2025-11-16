@@ -346,6 +346,15 @@ public class WorkspaceExplorerService {
         private static final int PROJECT_PAGE_SIZE = 50;
         private static final int TASK_PAGE_SIZE = 200;
         private static final int MAX_TASK_SCAN = 5000;
+        private final ClockifyClientFactory clientFactory;
+
+        public ClockifyExplorerGateway() {
+            this(ClockifyClient::new);
+        }
+
+        ClockifyExplorerGateway(ClockifyClientFactory clientFactory) {
+            this.clientFactory = clientFactory;
+        }
 
         @Override
         public ClockifyClient.PageResult fetch(String workspaceId, ExplorerDataset dataset, ExplorerQuery query) throws ExplorerException {
@@ -419,7 +428,7 @@ public class WorkspaceExplorerService {
                 throw ExplorerException.tokenMissing(workspaceId);
             }
             var token = tokenOpt.get();
-            return new ClockifyClient(token.apiBaseUrl(), token.token());
+            return clientFactory.create(token.apiBaseUrl(), token.token());
         }
 
         private ClockifyClient.PageResult fetchProjectTasks(ClockifyClient client,
@@ -429,7 +438,8 @@ public class WorkspaceExplorerService {
                                                             int page,
                                                             int pageSize) throws Exception {
             String search = normalize(filters.get("search"));
-            ClockifyClient.PageResult result = client.getTasksPage(workspaceId, projectId, Map.of(), page, pageSize);
+            Map<String, String> taskQuery = taskQuery(filters);
+            ClockifyClient.PageResult result = client.getTasksPage(workspaceId, projectId, taskQuery, page, pageSize);
             if (search == null) {
                 return result;
             }
@@ -460,6 +470,7 @@ public class WorkspaceExplorerService {
             int scanned = 0;
             ArrayNode items = MAPPER.createArrayNode();
             String search = normalize(filters.get("search"));
+            Map<String, String> taskQuery = taskQuery(filters);
 
             Map<String, String> projectFilters = new LinkedHashMap<>();
             String archived = normalize(filters.get("archived"));
@@ -501,7 +512,7 @@ public class WorkspaceExplorerService {
                         ClockifyClient.PageResult taskPageResult = client.getTasksPage(
                                 workspaceId,
                                 projectId,
-                                Map.of(),
+                                taskQuery,
                                 taskPage,
                                 TASK_PAGE_SIZE
                         );
@@ -571,6 +582,17 @@ public class WorkspaceExplorerService {
             return new ClockifyClient.PageResult(items, pagination);
         }
 
+        private Map<String, String> taskQuery(Map<String, String> filters) {
+            if (filters == null || filters.isEmpty()) {
+                return Map.of();
+            }
+            String archived = normalize(filters.get("archived"));
+            if ("true".equals(archived) || "false".equals(archived)) {
+                return Map.of("archived", archived);
+            }
+            return Map.of();
+        }
+
         private String normalize(String value) {
             if (value == null) {
                 return null;
@@ -597,6 +619,11 @@ public class WorkspaceExplorerService {
             String trimmed = value.trim();
             return trimmed.isEmpty() ? null : trimmed;
         }
+    }
+
+    @FunctionalInterface
+    interface ClockifyClientFactory {
+        ClockifyClient create(String baseUrl, String token);
     }
 
     public record ExplorerQuery(int page, int pageSize, Map<String, String> filters) {

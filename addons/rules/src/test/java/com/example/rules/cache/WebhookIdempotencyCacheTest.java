@@ -15,14 +15,14 @@ class WebhookIdempotencyCacheTest {
 
     @BeforeEach
     void setUp() {
-        WebhookIdempotencyCache.clear();
+        WebhookIdempotencyCache.reset();
         WebhookIdempotencyCache.configureTtl(60_000);
         MetricsHandler.registry().clear();
     }
 
     @AfterEach
     void tearDown() {
-        WebhookIdempotencyCache.clear();
+        WebhookIdempotencyCache.reset();
     }
 
     @Test

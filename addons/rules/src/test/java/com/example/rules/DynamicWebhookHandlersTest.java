@@ -19,7 +19,7 @@ class DynamicWebhookHandlersTest {
 
     @BeforeEach
     void resetCache() {
-        com.example.rules.cache.WebhookIdempotencyCache.clear();
+        com.example.rules.cache.WebhookIdempotencyCache.reset();
     }
 
     @Test

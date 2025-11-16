@@ -43,12 +43,28 @@ CREATE TABLE IF NOT EXISTS addon_tokens (
 - `api_base_url` lets the token store remember which Clockify environment issued the token (EU/US).
 - The SDK falls back to INSERT+UPDATE if `ON CONFLICT` is unavailable, but production deployments should keep the schema aligned with the statements above to avoid surprises.
 
+## `webhook_dedup` table (webhook idempotency persistence)
+
+`DatabaseWebhookIdempotencyStore` persists webhook dedupe markers here so multiple pods share the same suppression window:
+
+```sql
+CREATE TABLE IF NOT EXISTS webhook_dedup (
+    workspace_id VARCHAR(128) NOT NULL,
+    event_type   VARCHAR(128) NOT NULL,
+    dedup_key    VARCHAR(256) NOT NULL,
+    expires_at   BIGINT NOT NULL,
+    PRIMARY KEY (workspace_id, event_type, dedup_key)
+);
+
+CREATE INDEX IF NOT EXISTS webhook_dedup_expires_idx ON webhook_dedup (expires_at);
+```
+
+- `expires_at` stores epoch milliseconds for the dedupe TTL and is cleaned up periodically by the service.
+- The composite primary key ensures only one record exists per `(workspace, event, dedupKey)` tuple while allowing quick replacements when entries expire.
+
 ### Migration guidance
 
 1. **Track DDL in source control.** Create a migration for each schema change (Flyway/Liquibase/etc.) rather than relying on the auto-create helpers.
 2. **Apply migrations before new code rolls out.** Run migrations in a maintenance step (CI/CD job, Kubernetes init container, etc.) so application pods always see the final schema.
 3. **Back up tables before destructive changes.** The `rules` table contains customer automations; take a snapshot before altering or dropping columns.
 4. **Monitor migrations.** Include migrations in release checklists (see `RULES_PROD_LAUNCH_CHECKLIST.md`) and verify `/ready` after each deploy to confirm both stores are reachable.
-
-> ℹ️ **Multi-node deployments:** `WebhookIdempotencyCache` is still in-memory. For cross-node deduplication you can add a durable cache table (e.g., Redis, Postgres) following the same approach &mdash; add the schema here, then wire it into the cache implementation.
-
