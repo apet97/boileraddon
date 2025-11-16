@@ -617,7 +617,7 @@ class WebhookHandlersTest {
         }
     }
 
-    private static final class RecordingClockifyClient extends ClockifyClient {
+    private static class RecordingClockifyClient extends ClockifyClient {
         private final ObjectMapper om = new ObjectMapper();
         private final AtomicInteger updates = new AtomicInteger();
 
