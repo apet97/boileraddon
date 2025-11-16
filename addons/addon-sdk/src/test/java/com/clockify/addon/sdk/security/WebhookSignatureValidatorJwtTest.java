@@ -173,4 +173,16 @@ class WebhookSignatureValidatorJwtTest {
                 .withoutPadding()
                 .encodeToString(input.getBytes());
     }
+
+    @Test
+    void jwtBypassIgnoredOutsideDev() throws Exception {
+        System.setProperty("ENV", "prod");
+        String jwt = createJwt("{\"workspaceId\":\"" + WORKSPACE_ID + "\"}");
+        HttpServletRequest req = mockRequest(jwt, "{}");
+
+        var result = WebhookSignatureValidator.verify(req, WORKSPACE_ID);
+
+        assertFalse(result.isValid(), "JWT bypass must be disabled outside dev environments");
+        assertEquals(403, result.response().getStatusCode());
+    }
 }

@@ -116,13 +116,14 @@ public class RulesApp {
 
         ClockifyAddon addon = new ClockifyAddon(manifest);
 
+        String envLabel = config.environment();
         RulesConfiguration.DatabaseSettings effectiveDb = config.rulesDatabase()
                 .or(() -> config.sharedDatabase())
                 .orElse(null);
 
         // Initialize stores
         rulesStore = selectRulesStore(config, effectiveDb);
-        WebhookIdempotencyStore dedupStore = configureDedupStore(effectiveDb);
+        WebhookIdempotencyStore dedupStore = configureDedupStore(effectiveDb, envLabel);
         WebhookIdempotencyCache.configureStore(dedupStore);
         RulesController rulesController = new RulesController(rulesStore, addon);
 
@@ -421,7 +422,6 @@ public class RulesApp {
         preloadLocalSecrets(config);
 
         RulesConfiguration.DatabaseSettings sharedDb = config.sharedDatabase().orElse(null);
-        String envLabel = config.environment();
         PooledDatabaseTokenStore tokenStore = initializeTokenStore(
                 config.persistentTokenStoreEnabled(),
                 envLabel,
@@ -486,7 +486,7 @@ public class RulesApp {
         if (jwtVerifier != null) {
             server.addFilter(new ScopedPlatformAuthFilter(
                     new PlatformAuthFilter(jwtVerifier),
-                    Set.of("/status"),
+                    Set.of("/status", "/metrics"),
                     List.of("/api")
             ));
             logger.info("PlatformAuthFilter registered for /api/** and /status endpoints");
@@ -520,7 +520,7 @@ public class RulesApp {
 
         String storageMode = (rulesStore instanceof com.example.rules.store.DatabaseRulesStore) ? "Database" : "In-Memory";
         logger.info(
-                "Rules Add-on starting | baseUrl={} | port={} | contextPath={} | storage={} | env={} | applyChanges={} | skipSignature={} | workspaceFallback={}",
+                "Rules Add-on starting | baseUrl={} | port={} | contextPath={} | storage={} | env={} | applyChanges={} | skipSignature={} | workspaceFallback={} | idempotencyBackend={} | idempotencyTtlMs={}",
                 baseUrl,
                 port,
                 contextPath,
@@ -528,7 +528,9 @@ public class RulesApp {
                 envLabel,
                 RuntimeFlags.applyChangesEnabled(),
                 RuntimeFlags.skipSignatureVerification(),
-                RequestContext.workspaceFallbackAllowed());
+                RequestContext.workspaceFallbackAllowed(),
+                WebhookIdempotencyCache.backendLabel(),
+                config.webhookDeduplicationTtlMillis());
         logger.info("Endpoints: manifest={} settings={} simple={} ifttt={} lifecycleInstall={} lifecycleDelete={} webhook={} health={} rulesApi={}",
                 baseUrl + "/manifest.json",
                 baseUrl + "/settings",
@@ -605,13 +607,22 @@ public class RulesApp {
         return new RulesStore();
     }
 
-    static WebhookIdempotencyStore configureDedupStore(RulesConfiguration.DatabaseSettings dbSettings) {
-        if (dbSettings != null && dbSettings.url() != null && !dbSettings.url().isBlank()) {
+    static WebhookIdempotencyStore configureDedupStore(RulesConfiguration.DatabaseSettings dbSettings, String envLabel) {
+        boolean hasDbConfig = dbSettings != null && dbSettings.url() != null && !dbSettings.url().isBlank();
+        boolean devEnv = isDevEnvironment(envLabel);
+        if (hasDbConfig) {
             try {
                 logger.info("Initializing webhook idempotency store (backend=database)");
                 return new DatabaseWebhookIdempotencyStore(dbSettings.url(), dbSettings.username(), dbSettings.password());
             } catch (Exception e) {
-                logger.error("Failed to initialize database-backed webhook dedupe store: {}", e.getMessage(), e);
+                String message = "Failed to initialize database-backed webhook dedupe store";
+                if (devEnv) {
+                    logger.warn("{}; falling back to in-memory because ENV={}: {}", message, envLabel, e.getMessage());
+                } else {
+                    String fatal = "%s and ENV=%s require a working database connection".formatted(message, envLabel);
+                    logger.error(fatal, e);
+                    throw new IllegalStateException(fatal, e);
+                }
             }
         }
         logger.info("Initializing webhook idempotency store (backend=in_memory, node-local only)");

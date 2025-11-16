@@ -73,12 +73,14 @@ public class AutoTagAssistantApp {
         String dbUrl = System.getenv("DB_URL");
         String dbUser = System.getenv().getOrDefault("DB_USER", System.getenv("DB_USERNAME"));
         String dbPassword = System.getenv("DB_PASSWORD");
+        boolean persistentTokenStore = false;
         if (dbUrl != null && !dbUrl.isBlank() && dbUser != null && !dbUser.isBlank()) {
             try {
                 com.clockify.addon.sdk.security.DatabaseTokenStore dbStore =
                         new com.clockify.addon.sdk.security.DatabaseTokenStore(dbUrl, dbUser, dbPassword);
                 com.clockify.addon.sdk.security.TokenStore.configurePersistence(dbStore);
                 System.out.println("✓ TokenStore configured with database persistence (PostgreSQL)");
+                persistentTokenStore = true;
             } catch (Exception e) {
                 System.err.println("⚠ Failed to initialize database token store: " + e.getMessage());
                 System.err.println("  Falling back to in-memory token storage (tokens will be lost on restart)");
@@ -145,6 +147,7 @@ public class AutoTagAssistantApp {
         });
         // Prometheus metrics (optional; text/plain scrape)
         addon.registerCustomEndpoint("/metrics", new MetricsHandler());
+        registerDevConfigEndpoint(addon, config, persistentTokenStore);
 
         // Extract context path from base URL
         // Example: http://localhost:8080/auto-tag-assistant -> /auto-tag-assistant
@@ -165,7 +168,7 @@ public class AutoTagAssistantApp {
             }));
             server.addFilter(new ScopedPlatformAuthFilter(
                     new PlatformAuthFilter(jwtVerifier),
-                    Set.of("/status"),
+                    Set.of("/status", "/metrics"),
                     List.of("/api")
             ));
         } else if (!config.isDev()) {
@@ -225,6 +228,17 @@ public class AutoTagAssistantApp {
         }));
 
         server.start(port);
+    }
+
+    static void registerDevConfigEndpoint(ClockifyAddon addon,
+                                          AutoTagConfiguration config,
+                                          boolean persistentTokenStore) {
+        if (!config.isDev()) {
+            logger.info("Dev config endpoint disabled (ENV={})", config.environment());
+            return;
+        }
+        addon.registerCustomEndpoint("/debug/config", new DevConfigController(config, persistentTokenStore));
+        logger.info("Dev config endpoint registered at /debug/config");
     }
 
     private static void preloadLocalSecrets() {

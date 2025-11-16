@@ -17,6 +17,7 @@ import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -120,6 +121,42 @@ class AutoTagAssistantAppTest {
         } finally {
             stopServer(server, serverFuture, executor);
         }
+    }
+
+    @Test
+    void devConfigEndpointRegisteredOnlyInDev() {
+        ClockifyManifest manifest = ClockifyManifest
+                .v1_3Builder()
+                .key("auto-tag-assistant")
+                .name("Auto-Tag Assistant")
+                .description("Test manifest")
+                .baseUrl("http://localhost:8080/auto-tag-assistant")
+                .minimalSubscriptionPlan("FREE")
+                .scopes(new String[]{"TIME_ENTRY_READ"})
+                .build();
+
+        ClockifyAddon devAddon = new ClockifyAddon(manifest);
+        AutoTagConfiguration devConfig = new AutoTagConfiguration(
+                "auto-tag-assistant",
+                "http://localhost:8080/auto-tag-assistant",
+                8080,
+                "dev",
+                Optional.empty()
+        );
+        AutoTagAssistantApp.registerDevConfigEndpoint(devAddon, devConfig, true);
+        assertTrue(devAddon.getEndpoints().containsKey("/debug/config"));
+
+        ClockifyAddon prodAddon = new ClockifyAddon(manifest);
+        AutoTagConfiguration prodConfig = new AutoTagConfiguration(
+                "auto-tag-assistant",
+                "http://localhost:8080/auto-tag-assistant",
+                8080,
+                "prod",
+                Optional.empty()
+        );
+        AutoTagAssistantApp.registerDevConfigEndpoint(prodAddon, prodConfig, false);
+        assertTrue(prodAddon.getEndpoints().isEmpty()
+                || !prodAddon.getEndpoints().containsKey("/debug/config"));
     }
 
     void manifestEndpointUsesRequestHostWhenConfiguredBaseUrlIsOutdated() throws Exception {

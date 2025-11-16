@@ -64,6 +64,7 @@ class WebhookHandlersTest {
         System.setProperty("ADDON_AUTH_COMPAT", "HMAC");
         System.setProperty("ENV", "dev");
         System.clearProperty("RULES_APPLY_CHANGES");
+        System.clearProperty("ADDON_SKIP_SIGNATURE_VERIFY");
         System.clearProperty(EXECUTOR_CORE_PROP);
         System.clearProperty(EXECUTOR_MAX_PROP);
         System.clearProperty(EXECUTOR_QUEUE_PROP);
@@ -77,6 +78,7 @@ class WebhookHandlersTest {
         System.clearProperty("ADDON_ACCEPT_JWT_SIGNATURE");
         System.clearProperty("ADDON_AUTH_COMPAT");
         System.clearProperty("ENV");
+        System.clearProperty("ADDON_SKIP_SIGNATURE_VERIFY");
         System.clearProperty("CLOCKIFY_JWT_PUBLIC_KEY");
         System.clearProperty("CLOCKIFY_JWT_EXPECT_ISS");
         System.clearProperty("RULES_APPLY_CHANGES");

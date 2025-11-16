@@ -3,10 +3,10 @@ package com.example.overtime;
 import com.clockify.addon.sdk.AddonServlet;
 import com.clockify.addon.sdk.ClockifyAddon;
 import com.clockify.addon.sdk.ClockifyManifest;
-import com.clockify.addon.sdk.DefaultManifestController;
-import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.ConfigValidator;
+import com.clockify.addon.sdk.DefaultManifestController;
 import com.clockify.addon.sdk.EmbeddedServer;
+import com.clockify.addon.sdk.HttpResponse;
 import com.clockify.addon.sdk.health.HealthCheck;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 import com.clockify.addon.sdk.middleware.CorsFilter;
@@ -23,8 +23,11 @@ import com.clockify.addon.sdk.security.jwt.JwtVerifier;
 import com.clockify.addon.sdk.security.jwt.JwtVerifierFactory;
 import java.util.List;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OvertimeApp {
+    private static final Logger logger = LoggerFactory.getLogger(OvertimeApp.class);
     public static void main(String[] args) throws Exception {
         SecretsPolicy.enforce();
         OvertimeConfiguration config = OvertimeConfiguration.fromEnvironment();
@@ -79,6 +82,7 @@ public class OvertimeApp {
         addon.registerCustomEndpoint("/settings", settingsController::handleHtml);
         addon.registerCustomEndpoint("/api/settings", settingsController::handleApi);
         addon.registerCustomEndpoint("/metrics", new MetricsHandler());
+        registerDevConfigEndpoint(addon, config);
 
         // Lifecycle and webhook handlers
         LifecycleHandlers.register(addon);
@@ -99,7 +103,7 @@ public class OvertimeApp {
             }));
             server.addFilter(new ScopedPlatformAuthFilter(
                     new PlatformAuthFilter(jwtVerifier),
-                    Set.of("/status"),
+                    Set.of("/status", "/metrics"),
                     List.of("/api")
             ));
         } else if (!config.isDev()) {
@@ -126,6 +130,15 @@ public class OvertimeApp {
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> { try { server.stop(); } catch (Exception ignored) {} }));
         server.start(port);
+    }
+
+    static void registerDevConfigEndpoint(ClockifyAddon addon, OvertimeConfiguration config) {
+        if (!config.isDev()) {
+            logger.info("Dev config endpoint disabled (ENV={})", config.environment());
+            return;
+        }
+        addon.registerCustomEndpoint("/debug/config", new DevConfigController(config));
+        logger.info("Dev config endpoint registered at /debug/config");
     }
 
     static String sanitizeContextPath(String baseUrl) {

@@ -112,6 +112,7 @@ Notable configuration files:
 - Webhook and lifecycle requests must include valid signatures. `WebhookSignatureValidator` rejects unsigned requests unless `ADDON_SKIP_SIGNATURE_VERIFY=true` **and** `ENV=dev`.
 - `WebhookIdempotencyCache` now persists dedupe entries in the `webhook_dedup` table whenever `RULES_DB_*` (or shared `DB_*`) config is provided; otherwise it falls back to per-node memory.
 - `PlatformAuthFilter` protects `/api/**` + `/status`, so production callers must supply the Clockify-issued `auth_token` bearer JWT.
+- Auto-Tag Assistant, Overtime, and the Template add-on now expose dev-only `/debug/config` snapshots when `ENV=dev`, making it easy to confirm JWT sources, token store mode, and runtime wiring without leaking secrets.
 
 ---
 

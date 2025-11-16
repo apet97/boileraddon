@@ -152,6 +152,9 @@ curl http://localhost:8080/auto-tag-assistant/settings
 
 # Status (requires Authorization: Bearer <auth_token>)
 curl -H "Authorization: Bearer eyJ..." http://localhost:8080/auto-tag-assistant/status
+
+# Dev config snapshot (ENV=dev only)
+curl http://localhost:8080/auto-tag-assistant/debug/config
 ```
 
 ## Clockify API Usage

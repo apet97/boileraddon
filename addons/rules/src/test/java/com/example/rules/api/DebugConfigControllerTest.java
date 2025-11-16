@@ -2,6 +2,7 @@ package com.example.rules.api;
 
 import com.clockify.addon.sdk.HttpResponse;
 import com.example.rules.config.RulesConfiguration;
+import com.example.rules.config.RuntimeFlags;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -26,6 +27,10 @@ class DebugConfigControllerTest {
     void handleReturnsSnapshotWithoutSecrets() throws Exception {
         System.setProperty("ENV", "dev");
         System.setProperty("RULES_APPLY_CHANGES", "true");
+        System.setProperty("ADDON_SKIP_SIGNATURE_VERIFY", "false");
+        assertEquals("false", System.getProperty("ADDON_SKIP_SIGNATURE_VERIFY"));
+        boolean before = RuntimeFlags.skipSignatureVerification();
+        assertFalse(before, "Dev flag should be false when not requested");
 
         RulesConfiguration config = new RulesConfiguration(
                 "rules",
@@ -50,6 +55,8 @@ class DebugConfigControllerTest {
         );
 
         HttpResponse response = controller.handle(null);
+        boolean after = RuntimeFlags.skipSignatureVerification();
+        assertEquals(before, after, "Runtime flag mutated unexpectedly during controller invocation");
         assertEquals(200, response.getStatusCode());
         JsonNode root = OBJECT_MAPPER.readTree(response.getBody());
         assertEquals("dev", root.get("environment").asText());
@@ -58,7 +65,8 @@ class DebugConfigControllerTest {
         assertEquals("disabled", root.get("jwtMode").asText());
         JsonNode runtime = root.get("runtimeFlags");
         assertEquals(true, runtime.get("applyChanges").asBoolean());
-        assertEquals(false, runtime.get("skipSignatureVerify").asBoolean());
+        boolean skipFlag = runtime.get("skipSignatureVerify").asBoolean();
+        assertFalse(skipFlag, "Skip flag should be false. Payload: " + response.getBody());
         assertFalse(response.getBody().contains("jdbc"), "Response should not leak database URLs");
     }
 }

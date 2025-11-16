@@ -65,6 +65,7 @@ public class TemplateAddonApp {
             );
             return HttpResponse.ok(json, "application/json");
         });
+        registerDevConfigEndpoint(addon, config);
 
         // Lifecycle handlers (persist/remove token)
         LifecycleHandlers.register(addon);
@@ -91,7 +92,7 @@ public class TemplateAddonApp {
             }));
             server.addFilter(new ScopedPlatformAuthFilter(
                     new PlatformAuthFilter(jwtVerifier),
-                    Set.of("/status"),
+                    Set.of("/status", "/metrics"),
                     List.of("/api")
             ));
         } else if (!config.isDev()) {
@@ -101,6 +102,13 @@ public class TemplateAddonApp {
         server.addFilter(new SensitiveHeaderFilter());
         Runtime.getRuntime().addShutdownHook(new Thread(() -> { try { server.stop(); } catch (Exception ignored) {} }));
         server.start(port);
+    }
+
+    static void registerDevConfigEndpoint(ClockifyAddon addon, TemplateAddonConfiguration config) {
+        if (!config.isDev()) {
+            return;
+        }
+        addon.registerCustomEndpoint("/debug/config", new DevConfigController(config));
     }
 
     private static JwtVerifier initializeJwtVerifier(TemplateAddonConfiguration config) throws Exception {

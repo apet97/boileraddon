@@ -26,6 +26,7 @@ This module is a copy-ready starting point for building a new Clockify add-on wi
    - `curl $ADDON_BASE_URL/health`
    - `curl $ADDON_BASE_URL/manifest.json`
    - `curl -X POST $ADDON_BASE_URL/api/test -H 'Content-Type: application/json' -d '{"hello":"world"}'`
+   - `curl $ADDON_BASE_URL/debug/config` (available only when `ENV=dev`) to confirm runtime wiring
 
 The application reads from `.env` first and still honors variables exported in your shell, so you can temporarily override values without editing the file.
 
@@ -77,3 +78,4 @@ DELETE /api/items?id=<ID>
 - Always verify webhooks with `clockify-webhook-signature` using the SDK `WebhookSignatureValidator.verify(request, workspaceId)`.
 - Use the SDK `TokenStore` to store the installation token (persist for production).
 - Copy `.env.template-addon.example` and provide real `CLOCKIFY_JWT_*` values when `ENV` is set to `staging`/`prod`. The template now wires `WorkspaceContextFilter`, `PlatformAuthFilter`, `/status`, and `ScopedPlatformAuthFilter` so `/api/**` + `/status` require `Authorization: Bearer <auth_token>`.
+- The new dev-only `/debug/config` endpoint is registered automatically when `ENV=dev` to expose sanitized environment/token store metadata; it is never available in staging or production.

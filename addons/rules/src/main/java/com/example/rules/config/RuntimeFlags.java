@@ -1,10 +1,10 @@
 package com.example.rules.config;
 
+import com.clockify.addon.sdk.config.EnvironmentInspector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -16,13 +16,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class RuntimeFlags {
     private static final Logger logger = LoggerFactory.getLogger(RuntimeFlags.class);
     private static final AtomicBoolean signatureWarned = new AtomicBoolean(false);
-    private static final Set<String> DEV_ENVIRONMENTS = Set.of("dev", "development", "local");
 
     private RuntimeFlags() {
     }
 
     public static boolean isDevEnvironment() {
-        return DEV_ENVIRONMENTS.contains(environmentLabel());
+        return EnvironmentInspector.isDevEnvironment();
     }
 
     public static boolean applyChangesEnabled() {
@@ -34,24 +33,11 @@ public final class RuntimeFlags {
     }
 
     public static String environmentLabel() {
-        return resolveEnvironment().toLowerCase(Locale.ROOT);
+        return EnvironmentInspector.environmentLabel().toLowerCase(Locale.ROOT);
     }
 
     private static boolean boolEnvOrProp(String key) {
-        String sysValue = System.getProperty(key);
-        if (sysValue != null) {
-            return Boolean.parseBoolean(sysValue);
-        }
-        String envValue = System.getenv().getOrDefault(key, "false");
-        return Boolean.parseBoolean(envValue);
-    }
-
-    private static String resolveEnvironment() {
-        String prop = System.getProperty("ENV");
-        String raw = (prop != null && !prop.isBlank())
-                ? prop
-                : System.getenv().getOrDefault("ENV", "prod");
-        return raw.trim().isEmpty() ? "prod" : raw.trim();
+        return EnvironmentInspector.booleanFlag(key);
     }
 
     private static boolean devOnlyToggleEnabled(String key, AtomicBoolean warnFlag) {

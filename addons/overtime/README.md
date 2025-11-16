@@ -87,3 +87,4 @@ See docs/MANIFEST_AND_LIFECYCLE.md for full guidance and docs/REQUEST-RESPONSE-E
 - `.env.overtime.example` captures the base settings (base URL, port, addon key, ENV) plus the required `CLOCKIFY_JWT_*` inputs. Copy it, set `ENV=prod|staging`, and provide one of JWKS/PEM entries before deploying.
 - `/api/settings` and `/status` are protected by `PlatformAuthFilter`; pass `Authorization: Bearer <auth_token>` issued by Clockify.
 - The settings iframe now relies on an `auth_token` query parameter (or Authorization header). Requests without a valid token return `401`.
+- When `ENV=dev`, `GET /overtime/debug/config` returns a sanitized JSON snapshot (environment label, token store mode, JWT bootstrap status) to verify local wiring. The route is never registered outside development.

@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Counter;
+import com.clockify.addon.sdk.config.EnvironmentInspector;
 import com.clockify.addon.sdk.metrics.MetricsHandler;
 
 import javax.crypto.Mac;
@@ -252,11 +253,8 @@ public final class WebhookSignatureValidator {
      * Environment variable: ADDON_ACCEPT_JWT_SIGNATURE (set to "true" to enable)
      */
     private static boolean acceptJwtDevSignature() {
-        String v = Optional.ofNullable(System.getProperty("ADDON_ACCEPT_JWT_SIGNATURE"))
-                .orElse(System.getenv("ADDON_ACCEPT_JWT_SIGNATURE"));
-        String env = Optional.ofNullable(System.getProperty("ENV"))
-                .orElse(Optional.ofNullable(System.getenv("ENV")).orElse("prod"));
-        return "true".equalsIgnoreCase(v) && ("dev".equalsIgnoreCase(env) || "development".equalsIgnoreCase(env));
+        return EnvironmentInspector.booleanFlag("ADDON_ACCEPT_JWT_SIGNATURE")
+                && EnvironmentInspector.isDevEnvironment();
     }
 
     private static String decodeJwtPayload(String jwt) {
