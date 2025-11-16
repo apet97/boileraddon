@@ -75,6 +75,7 @@ For bare-metal or VM deployments, run the same fat JAR directly: `ADDON_BASE_URL
 
 ## Webhook idempotency & filters
 - `WebhookIdempotencyCache` stores `(workspaceId, eventType, payloadId)` tuples for `RULES_WEBHOOK_DEDUP_SECONDS` (60s–24h). When `RULES_DB_*`/`DB_*` is configured the cache persists entries in the `webhook_dedup` table so every pod shares the same suppression window; without a database the fallback remains per-JVM in-memory. Duplicates short-circuit webhook handlers and increment `rules_webhook_dedup_hits_total`, while first-seen payloads increment `rules_webhook_dedup_misses_total`.
+- Log lines announce `Webhook idempotency backend ready | backend=database|in_memory`, the Prometheus gauge `rules_webhook_idempotency_backend{backend="..."}` exports the same state, and the `/debug/config` endpoint (dev-only) echoes the backend label plus dedupe TTL/token store mode for quick troubleshooting.
 - `SecurityHeadersFilter` emits CSP + security headers and shares a per-request nonce with the settings/IFTTT controllers.
 - `SensitiveHeaderFilter` wraps the servlet request to redact `Authorization`, `X-Addon-Token`, `Clockify-Signature`, and cookies before any logging occurs.
 - Workspace iframe JWTs flow through the SDK `JwtBootstrapConfig` (loaded by `RulesConfiguration`) → `JwtVerifier` → `WorkspaceContextFilter` / `PlatformAuthFilter`, so no controller calls `System.getenv`.

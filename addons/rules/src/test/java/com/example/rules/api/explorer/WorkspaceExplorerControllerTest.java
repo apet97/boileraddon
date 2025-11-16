@@ -179,6 +179,22 @@ class WorkspaceExplorerControllerTest {
         assertEquals("DESCENDING", filters.get("sort-order"));
     }
 
+    @Test
+    void explorerControllerReturns412WhenTokenMissing() throws Exception {
+        WorkspaceExplorerService failingService = mock(WorkspaceExplorerService.class);
+        WorkspaceExplorerController failingController = new WorkspaceExplorerController(failingService);
+        HttpServletRequest request = requestWithParams(Map.of(
+                "workspaceId", new String[]{"ws-missing"}
+        ));
+        when(failingService.getClients(eq("ws-missing"), any()))
+                .thenThrow(WorkspaceExplorerService.ExplorerException.tokenMissing("ws-missing"));
+
+        HttpResponse response = failingController.clients().handle(request);
+
+        assertEquals(412, response.getStatusCode());
+        assertTrue(response.getBody().contains("EXPLORER.TOKEN_NOT_FOUND"));
+    }
+
     private ObjectNode emptyResponse() {
         ObjectNode node = OM.createObjectNode();
         node.set("items", OM.createArrayNode());
