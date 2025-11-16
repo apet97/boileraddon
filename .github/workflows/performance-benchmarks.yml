@@ -53,15 +53,15 @@ jobs:
 
           # Run middleware benchmarks
           echo "Running middleware benchmarks..."
-          mvn -B -q exec:java -Dexec.mainClass="com.clockify.addon.sdk.benchmarks.MiddlewarePerformanceBenchmark" -Dexec.classpathScope="test" > benchmark-results/middleware-benchmark.txt 2>&1 || echo "Middleware benchmark failed or not available"
+          mvn -B -q -pl addons/addon-sdk exec:java -Dexec.mainClass="com.clockify.addon.sdk.benchmarks.MiddlewarePerformanceBenchmark" -Dexec.classpathScope="test" > benchmark-results/middleware-benchmark.txt 2>&1 || echo "Middleware benchmark failed or not available"
 
           # Run security operations benchmarks
           echo "Running security operations benchmarks..."
-          mvn -B -q exec:java -Dexec.mainClass="com.clockify.addon.sdk.benchmarks.SecurityOperationsBenchmark" -Dexec.classpathScope="test" > benchmark-results/security-benchmark.txt 2>&1 || echo "Security benchmark failed or not available"
+          mvn -B -q -pl addons/addon-sdk exec:java -Dexec.mainClass="com.clockify.addon.sdk.benchmarks.SecurityOperationsBenchmark" -Dexec.classpathScope="test" > benchmark-results/security-benchmark.txt 2>&1 || echo "Security benchmark failed or not available"
 
           # Run database operations benchmarks
           echo "Running database operations benchmarks..."
-          mvn -B -q exec:java -Dexec.mainClass="com.clockify.addon.sdk.benchmarks.DatabaseOperationsBenchmark" -Dexec.classpathScope="test" > benchmark-results/database-benchmark.txt 2>&1 || echo "Database benchmark failed or not available"
+          mvn -B -q -pl addons/addon-sdk exec:java -Dexec.mainClass="com.clockify.addon.sdk.benchmarks.DatabaseOperationsBenchmark" -Dexec.classpathScope="test" > benchmark-results/database-benchmark.txt 2>&1 || echo "Database benchmark failed or not available"
 
           # Check if any benchmarks produced results
           if ls benchmark-results/*.txt 1> /dev/null 2>&1; then
