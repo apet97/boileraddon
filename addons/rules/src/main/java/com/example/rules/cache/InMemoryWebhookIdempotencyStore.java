@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Default in-memory implementation that keeps dedupe entries per-node.
  */
-final class InMemoryWebhookIdempotencyStore implements WebhookIdempotencyStore {
+public final class InMemoryWebhookIdempotencyStore implements WebhookIdempotencyStore {
     private final ConcurrentMap<String, Long> cache = new ConcurrentHashMap<>();
     private final ScheduledExecutorService cleaner;
 
