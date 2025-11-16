@@ -45,6 +45,7 @@ public class WebhookHandlers {
     private static final Logger logger = LoggerFactory.getLogger(WebhookHandlers.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final int ASYNC_ACTION_THRESHOLD = 5;
+    private static final int MAX_WEBHOOK_PAYLOAD_BYTES = 1 * 1024 * 1024; // 1 MB cap
 
     private static final String EXECUTOR_CORE_SIZE_PROP = "com.example.rules.webhook.executor.corePoolSize";
     private static final String EXECUTOR_MAX_SIZE_PROP = "com.example.rules.webhook.executor.maxPoolSize";
@@ -395,6 +396,11 @@ public class WebhookHandlers {
                                 createResponse(eventType, "no_changes", new ArrayList<>()));
                     }
 
+                } catch (PayloadTooLargeException tooLarge) {
+                    logger.warn("Webhook payload exceeds {} bytes (event={})", MAX_WEBHOOK_PAYLOAD_BYTES, eventType);
+                    return respondWithMetrics(sample, eventType, "payload_too_large",
+                            ErrorResponse.of(413, "RULES.PAYLOAD_TOO_LARGE",
+                                    "Webhook payload exceeds maximum size of 1 MB", request, false));
                 } catch (Exception e) {
                     recordActionMetrics(actionsToApply, false);
                     logger.error("Error processing webhook", e);
@@ -551,15 +557,24 @@ public class WebhookHandlers {
         }
 
         Object cachedBody = request.getAttribute("clockify.rawBody");
-        if (cachedBody instanceof String) {
-            return objectMapper.readTree((String) cachedBody);
+        if (cachedBody instanceof String body) {
+            if (body.length() > MAX_WEBHOOK_PAYLOAD_BYTES) {
+                throw new PayloadTooLargeException();
+            }
+            return objectMapper.readTree(body);
         }
 
         StringBuilder sb = new StringBuilder();
+        int totalChars = 0;
         try (BufferedReader reader = request.getReader()) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
+            char[] buffer = new char[4096];
+            int read;
+            while ((read = reader.read(buffer)) != -1) {
+                totalChars += read;
+                if (totalChars > MAX_WEBHOOK_PAYLOAD_BYTES) {
+                    throw new PayloadTooLargeException();
+                }
+                sb.append(buffer, 0, read);
             }
         }
         return objectMapper.readTree(sb.toString());
@@ -781,6 +796,12 @@ public class WebhookHandlers {
         } catch (Exception e) {
             recordActionMetrics(actions, false);
             logger.error("Async action processing failed for workspace {}", workspaceId, e);
+        }
+    }
+
+    private static final class PayloadTooLargeException extends RuntimeException {
+        private PayloadTooLargeException() {
+            super("Webhook payload exceeded %d bytes".formatted(MAX_WEBHOOK_PAYLOAD_BYTES));
         }
     }
 }

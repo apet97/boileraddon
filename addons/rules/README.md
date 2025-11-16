@@ -138,6 +138,10 @@ Platform authorization flows through `ScopedPlatformAuthFilter` + `PlatformAuthF
 | `ADDON_CORS_ORIGINS`, `ADDON_CORS_ALLOW_CREDENTIALS` | Enables `CorsFilter` with the provided comma-separated allowlist. | Disabled unless origins list is set. |
 | `ADDON_REQUEST_LOGGING` | Enables scrubbed request logging. | `false`. |
 
+### Webhook payload limits
+
+Webhook JSON payloads are capped at ~1 MB (1,048,576 bytes). Requests that exceed the cap are rejected with HTTP 413 before any rule evaluation occurs to prevent memory-exhaustion attacks.
+
 ### Dev-only helpers (never set in production)
 
 | Variable | Purpose | Notes |
