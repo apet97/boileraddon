@@ -13,7 +13,7 @@ public final class InMemoryWebhookIdempotencyStore implements WebhookIdempotency
     private final ConcurrentMap<String, Long> cache = new ConcurrentHashMap<>();
     private final ScheduledExecutorService cleaner;
 
-    InMemoryWebhookIdempotencyStore() {
+    public InMemoryWebhookIdempotencyStore() {
         cleaner = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "webhook-idempotency-cleaner");
             t.setDaemon(true);
