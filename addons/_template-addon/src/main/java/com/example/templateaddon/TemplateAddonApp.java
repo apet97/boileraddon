@@ -44,11 +44,17 @@ public class TemplateAddonApp {
         addon.registerCustomEndpoint("/manifest.json", new DefaultManifestController(manifest));
         addon.registerCustomEndpoint("/health", r -> HttpResponse.ok("OK"));
         addon.registerCustomEndpoint("/status", request -> {
-            String workspaceId = (String) request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR);
-            if (workspaceId == null) {
-                workspaceId = "";
+            String workspaceId = (String) request.getAttribute(PlatformAuthFilter.ATTR_WORKSPACE_ID);
+            if (workspaceId == null || workspaceId.isBlank()) {
+                Object attr = request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR);
+                if (attr instanceof String attrValue && !attrValue.isBlank()) {
+                    workspaceId = attrValue;
+                }
             }
-            boolean tokenPresent = !workspaceId.isBlank() && com.clockify.addon.sdk.security.TokenStore.get(workspaceId).isPresent();
+            if (workspaceId == null || workspaceId.isBlank()) {
+                return HttpResponse.error(403, "{\"error\":\"workspace context required\"}", "application/json");
+            }
+            boolean tokenPresent = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).isPresent();
             String json = String.format(
                     "{\"addonKey\":\"%s\",\"workspaceId\":\"%s\",\"tokenPresent\":%s,\"environment\":\"%s\",\"baseUrl\":\"%s\"}",
                     config.addonKey(),

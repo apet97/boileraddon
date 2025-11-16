@@ -121,19 +121,22 @@ public class AutoTagAssistantApp {
         }
         addon.registerCustomEndpoint("/health", health);
         addon.registerCustomEndpoint("/status", request -> {
-            String workspaceId = request.getParameter("workspaceId");
+            String workspaceId = (String) request.getAttribute(PlatformAuthFilter.ATTR_WORKSPACE_ID);
             if (workspaceId == null || workspaceId.isBlank()) {
                 Object attr = request.getAttribute(WorkspaceContextFilter.WORKSPACE_ID_ATTR);
                 if (attr instanceof String attrValue && !attrValue.isBlank()) {
                     workspaceId = attrValue;
                 }
             }
+            if (workspaceId == null || workspaceId.isBlank()) {
+                return HttpResponse.error(403, "{\"error\":\"workspace context required\"}", "application/json");
+            }
             boolean tokenPresent = workspaceId != null && !workspaceId.isBlank()
                     && com.clockify.addon.sdk.security.TokenStore.get(workspaceId).isPresent();
             String json = String.format(
                     "{\"addonKey\":\"%s\",\"workspaceId\":\"%s\",\"tokenPresent\":%s,\"environment\":\"%s\",\"baseUrl\":\"%s\"}",
                     addonKey,
-                    workspaceId == null ? "" : workspaceId,
+                    workspaceId,
                     Boolean.toString(tokenPresent),
                     config.environment(),
                     baseUrl

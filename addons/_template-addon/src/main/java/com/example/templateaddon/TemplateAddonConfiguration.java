@@ -4,6 +4,7 @@ import com.clockify.addon.sdk.ConfigValidator;
 import com.clockify.addon.sdk.security.jwt.JwtBootstrapConfig;
 import com.clockify.addon.sdk.security.jwt.JwtBootstrapLoader;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -18,7 +19,7 @@ public record TemplateAddonConfiguration(
     private static final int DEFAULT_PORT = 8080;
 
     public static TemplateAddonConfiguration fromEnvironment() {
-        Map<String, String> env = System.getenv();
+        Map<String, String> env = mergedEnvironment();
         String baseUrl = ConfigValidator.validateUrl(
                 env.get("ADDON_BASE_URL"),
                 DEFAULT_BASE_URL,
@@ -41,5 +42,15 @@ public record TemplateAddonConfiguration(
 
     public boolean isDev() {
         return "dev".equalsIgnoreCase(environment);
+    }
+
+    private static Map<String, String> mergedEnvironment() {
+        Map<String, String> merged = new HashMap<>(EnvConfig.asMap());
+        System.getenv().forEach((key, value) -> {
+            if (value != null && !value.isBlank()) {
+                merged.put(key, value);
+            }
+        });
+        return merged;
     }
 }

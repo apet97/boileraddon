@@ -372,17 +372,20 @@ public class RulesApp {
 
         // GET /rules/status — runtime status (token present, modes)
         addon.registerCustomEndpoint("/status", request -> {
+            String ws = (String) request.getAttribute(PlatformAuthFilter.ATTR_WORKSPACE_ID);
+            if (ws == null || ws.isBlank()) {
+                ws = RequestContext.resolveWorkspaceId(request);
+            }
+            if (ws == null || ws.isBlank()) {
+                return HttpResponse.error(403, "{\"error\":\"workspace context required\"}", MEDIA_JSON);
+            }
             try (LoggingContext ctx = RequestContext.logging(request)) {
-                String ws = RequestContext.resolveWorkspaceId(request);
-                if (ws != null && !ws.isBlank()) {
-                    RequestContext.attachWorkspace(request, ctx, ws);
-                }
-                boolean tokenPresent = ws != null && !ws.isBlank() &&
-                        com.clockify.addon.sdk.security.TokenStore.get(ws).isPresent();
+                RequestContext.attachWorkspace(request, ctx, ws);
+                boolean tokenPresent = com.clockify.addon.sdk.security.TokenStore.get(ws).isPresent();
                 boolean apply = RuntimeFlags.applyChangesEnabled();
                 boolean skipSig = RuntimeFlags.skipSignatureVerification();
                 String json = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
-                        .put("workspaceId", ws == null ? "" : ws)
+                        .put("workspaceId", ws)
                         .put("tokenPresent", tokenPresent)
                         .put("applyChanges", apply)
                         .put("skipSignatureVerify", skipSig)

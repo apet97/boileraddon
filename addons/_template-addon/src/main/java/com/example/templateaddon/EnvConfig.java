@@ -18,8 +18,7 @@ import java.util.Map;
  */
 public final class EnvConfig {
     private static final Logger logger = LoggerFactory.getLogger(EnvConfig.class);
-    private static final String ENV_FILE_NAME = ".env";
-    private static final Map<String, String> FILE_VALUES = loadEnvFile();
+    private static final Map<String, String> FILE_VALUES = loadEnvFiles();
 
     private EnvConfig() {
     }
@@ -30,15 +29,29 @@ public final class EnvConfig {
     }
 
     public static String get(String key) {
-        String fromFile = FILE_VALUES.get(key);
-        if (fromFile != null) {
-            return fromFile;
+        String fromEnv = System.getenv(key);
+        if (fromEnv != null && !fromEnv.isBlank()) {
+            return fromEnv;
         }
-        return System.getenv(key);
+        return FILE_VALUES.get(key);
     }
 
-    private static Map<String, String> loadEnvFile() {
-        Path path = Paths.get(ENV_FILE_NAME);
+    public static Map<String, String> asMap() {
+        return FILE_VALUES;
+    }
+
+    private static Map<String, String> loadEnvFiles() {
+        Map<String, String> values = new HashMap<>();
+        merge(values, loadEnvFile(".env"));
+        merge(values, loadEnvFile(".env.template-addon"));
+        return Collections.unmodifiableMap(values);
+    }
+
+    private static Map<String, String> loadEnvFile(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return Collections.emptyMap();
+        }
+        Path path = Paths.get(fileName);
         if (!Files.exists(path)) {
             return Collections.emptyMap();
         }
@@ -68,6 +81,13 @@ public final class EnvConfig {
         } catch (IOException e) {
             logger.warn("Failed to read .env file: {}", e.getMessage());
         }
-        return Collections.unmodifiableMap(values);
+        return values;
+    }
+
+    private static void merge(Map<String, String> target, Map<String, String> additions) {
+        if (additions == null || additions.isEmpty()) {
+            return;
+        }
+        target.putAll(additions);
     }
 }
