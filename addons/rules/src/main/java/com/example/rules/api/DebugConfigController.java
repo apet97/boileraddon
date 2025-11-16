@@ -41,9 +41,10 @@ public final class DebugConfigController implements RequestHandler {
         database.put("shared", config.sharedDatabase().isPresent() ? "configured" : "disabled");
 
         root.put("tokenStore", tokenStoreMode);
-        root.put("jwtMode", config.jwtBootstrap()
-                .map(jwt -> jwt.keySource().name().toLowerCase(Locale.ROOT))
-                .orElse("disabled"));
+        String jwtMode = config.jwtBootstrap()
+                .map(jwt -> jwt.source().name().toLowerCase(Locale.ROOT))
+                .orElse("disabled");
+        root.put("jwtMode", jwtMode);
 
         ObjectNode runtime = root.putObject("runtimeFlags");
         runtime.put("applyChanges", RuntimeFlags.applyChangesEnabled());
