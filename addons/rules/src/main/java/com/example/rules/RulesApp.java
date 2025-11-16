@@ -128,15 +128,13 @@ public class RulesApp {
         RulesController rulesController = new RulesController(rulesStore, addon);
 
         // Initialize Clockify client for Projects/Clients/Tasks CRUD operations
-        ClockifyClient clockifyClient = new ClockifyClient(
-                config.clockifyApiBaseUrl(),
-                null // Token will be provided per-workspace from TokenStore
-        );
-        ProjectsController projectsController = new ProjectsController(clockifyClient);
-        ClientsController clientsController = new ClientsController(clockifyClient);
-        TasksController tasksController = new TasksController(clockifyClient);
-        TagsController tagsController = new TagsController(clockifyClient);
-        WorkspaceExplorerService explorerService = new WorkspaceExplorerService(new WorkspaceExplorerService.ClockifyExplorerGateway());
+        ClockifyClientFactory clockifyClientFactory = ClockifyClient::new;
+        ProjectsController projectsController = new ProjectsController(clockifyClientFactory);
+        ClientsController clientsController = new ClientsController(clockifyClientFactory);
+        TasksController tasksController = new TasksController(clockifyClientFactory);
+        TagsController tagsController = new TagsController(clockifyClientFactory);
+        WorkspaceExplorerService explorerService = new WorkspaceExplorerService(
+                new WorkspaceExplorerService.ClockifyExplorerGateway(clockifyClientFactory));
         WorkspaceExplorerController explorerController = new WorkspaceExplorerController(explorerService);
 
         // Register endpoints

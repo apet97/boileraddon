@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.util.Optional;
 
 /**
  * CRUD controller for Clients management.
@@ -26,20 +27,23 @@ public class ClientsController {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final String MEDIA_JSON = "application/json";
 
-    private final ClockifyClient clockifyClient;
+    private final ClockifyClientFactory clientFactory;
 
-    public ClientsController(ClockifyClient clockifyClient) {
-        this.clockifyClient = clockifyClient;
+    public ClientsController(ClockifyClientFactory clientFactory) {
+        this.clientFactory = clientFactory == null ? ClockifyClient::new : clientFactory;
     }
 
-    private ClockifyClient getWorkspaceClockifyClient(String workspaceId) {
-        // Get the workspace token from TokenStore
+    public ClientsController() {
+        this(ClockifyClient::new);
+    }
+
+    private Optional<ClockifyClient> getWorkspaceClockifyClient(String workspaceId) {
         var tokenOpt = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
         if (tokenOpt.isEmpty()) {
-            throw new RuntimeException("No installation token found for workspace: " + workspaceId);
+            return Optional.empty();
         }
         var token = tokenOpt.get();
-        return new ClockifyClient(token.apiBaseUrl(), token.token());
+        return Optional.of(clientFactory.create(token.apiBaseUrl(), token.token()));
     }
 
     /**
@@ -55,8 +59,11 @@ public class ClientsController {
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
                 boolean archived = Boolean.parseBoolean(request.getParameter("archived"));
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                JsonNode clients = workspaceClient.getClients(workspaceId, archived);
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+                JsonNode clients = workspaceClient.get().getClients(workspaceId, archived);
                 return HttpResponse.ok(clients.toString(), MEDIA_JSON);
 
             } catch (Exception e) {
@@ -76,6 +83,16 @@ public class ClientsController {
                     return workspaceRequired(request);
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
+
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
 
                 JsonNode body = parseRequestBody(request);
 
@@ -100,16 +117,15 @@ public class ClientsController {
                 }
 
                 // Use openapiCall for POST to /workspaces/{workspaceId}/clients
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                var response = workspaceClient.openapiCall(
+                var response = workspaceClient.get().openapiCall(
                     OpenApiCallConfig.HttpMethod.POST,
                     "/workspaces/" + workspaceId + "/clients",
                     clientPayload.toString()
                 );
 
                 // Refresh workspace cache to reflect new client
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 return HttpResponse.ok(response.body(), MEDIA_JSON);
 
@@ -159,16 +175,15 @@ public class ClientsController {
                 }
 
                 // Use openapiCall for PUT to /workspaces/{workspaceId}/clients/{clientId}
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                var response = workspaceClient.openapiCall(
+                var response = workspaceClient.get().openapiCall(
                     OpenApiCallConfig.HttpMethod.PUT,
                     "/workspaces/" + workspaceId + "/clients/" + clientId,
                     clientPayload.toString()
                 );
 
                 // Refresh workspace cache to reflect updated client
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 return HttpResponse.ok(response.body(), MEDIA_JSON);
 
@@ -195,17 +210,21 @@ public class ClientsController {
                     return ErrorResponse.of(400, "CLIENTS.CLIENT_ID_REQUIRED", "clientId is required", request, false);
                 }
 
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
                 // Use openapiCall for DELETE to /workspaces/{workspaceId}/clients/{clientId}
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                var response = workspaceClient.openapiCall(
+                var response = workspaceClient.get().openapiCall(
                     OpenApiCallConfig.HttpMethod.DELETE,
                     "/workspaces/" + workspaceId + "/clients/" + clientId,
                     null
                 );
 
                 // Refresh workspace cache to reflect deleted client
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 ObjectNode result = objectMapper.createObjectNode();
                 result.put("deleted", true);
@@ -267,6 +286,16 @@ public class ClientsController {
                 ? "workspaceId is required"
                 : "workspaceId is required (Authorization bearer token missing or expired)";
         return ErrorResponse.of(400, "CLIENTS.WORKSPACE_REQUIRED", hint, request, false);
+    }
+
+    private HttpResponse tokenMissing(HttpServletRequest request) {
+        return ErrorResponse.of(
+                412,
+                "RULES.MISSING_TOKEN",
+                "Workspace installation token not found",
+                request,
+                false
+        );
     }
 
     private HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {

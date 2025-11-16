@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Cache for enabled rules to improve performance.
@@ -33,6 +34,7 @@ public final class RuleCache {
     });
 
     private static volatile RulesStoreSPI rulesStore;
+    private static final AtomicBoolean schedulerStarted = new AtomicBoolean(false);
 
     /**
      * Initialize the rule cache with the rules store.
@@ -40,15 +42,16 @@ public final class RuleCache {
     public static void initialize(RulesStoreSPI store) {
         rulesStore = store;
 
-        // Schedule periodic cache refresh
-        REFRESH_SCHEDULER.scheduleAtFixedRate(() -> {
-            try {
-                refreshAll();
-            } catch (Exception e) {
-                // Log but don't crash the scheduler
-                logger.error("Error refreshing rule cache", e);
-            }
-        }, 1, 1, TimeUnit.MINUTES); // Check every minute
+        if (schedulerStarted.compareAndSet(false, true)) {
+            REFRESH_SCHEDULER.scheduleAtFixedRate(() -> {
+                try {
+                    refreshAll();
+                } catch (Exception e) {
+                    // Log but don't crash the scheduler
+                    logger.error("Error refreshing rule cache", e);
+                }
+            }, 1, 1, TimeUnit.MINUTES); // Check every minute
+        }
     }
 
     /**

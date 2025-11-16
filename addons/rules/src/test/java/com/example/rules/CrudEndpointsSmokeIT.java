@@ -101,10 +101,11 @@ class CrudEndpointsSmokeIT {
 
         // Mock ClockifyClient for CRUD operations
         ClockifyClient clockifyClient = new ClockifyClient("https://api.clockify.me/api", "test-token");
-        TagsController tagsController = new TagsController(clockifyClient);
-        ProjectsController projectsController = new ProjectsController(clockifyClient);
-        ClientsController clientsController = new ClientsController(clockifyClient);
-        TasksController tasksController = new TasksController(clockifyClient);
+        ClockifyClientFactory clientFactory = (baseUrl, token) -> clockifyClient;
+        TagsController tagsController = new TagsController(clientFactory);
+        ProjectsController projectsController = new ProjectsController(clientFactory);
+        ClientsController clientsController = new ClientsController(clientFactory);
+        TasksController tasksController = new TasksController(clientFactory);
 
         // Register all CRUD endpoints with proper HTTP method routing
         addon.registerCustomEndpoint("/api/rules", request -> {

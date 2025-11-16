@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.util.Optional;
 
 /**
  * CRUD controller for Tasks management.
@@ -26,20 +27,23 @@ public class TasksController {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final String MEDIA_JSON = "application/json";
 
-    private final ClockifyClient clockifyClient;
+    private final ClockifyClientFactory clientFactory;
 
-    public TasksController(ClockifyClient clockifyClient) {
-        this.clockifyClient = clockifyClient;
+    public TasksController(ClockifyClientFactory clientFactory) {
+        this.clientFactory = clientFactory == null ? ClockifyClient::new : clientFactory;
     }
 
-    private ClockifyClient getWorkspaceClockifyClient(String workspaceId) {
-        // Get the workspace token from TokenStore
+    public TasksController() {
+        this(ClockifyClient::new);
+    }
+
+    private Optional<ClockifyClient> getWorkspaceClockifyClient(String workspaceId) {
         var tokenOpt = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
         if (tokenOpt.isEmpty()) {
-            throw new RuntimeException("No installation token found for workspace: " + workspaceId);
+            return Optional.empty();
         }
         var token = tokenOpt.get();
-        return new ClockifyClient(token.apiBaseUrl(), token.token());
+        return Optional.of(clientFactory.create(token.apiBaseUrl(), token.token()));
     }
 
     /**
@@ -59,8 +63,11 @@ public class TasksController {
                     return ErrorResponse.of(400, "TASKS.PROJECT_ID_REQUIRED", "projectId is required", request, false);
                 }
 
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                JsonNode tasks = workspaceClient.getTasks(workspaceId, projectId);
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+                JsonNode tasks = workspaceClient.get().getTasks(workspaceId, projectId);
                 return HttpResponse.ok(tasks.toString(), MEDIA_JSON);
 
             } catch (Exception e) {
@@ -86,6 +93,21 @@ public class TasksController {
                     return ErrorResponse.of(400, "TASKS.PROJECT_ID_REQUIRED", "projectId is required", request, false);
                 }
 
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
                 JsonNode body = parseRequestBody(request);
 
                 // Validate required fields
@@ -109,16 +131,15 @@ public class TasksController {
                 }
 
                 // Use openapiCall for POST to /workspaces/{workspaceId}/projects/{projectId}/tasks
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                var response = workspaceClient.openapiCall(
+                var response = workspaceClient.get().openapiCall(
                     OpenApiCallConfig.HttpMethod.POST,
                     "/workspaces/" + workspaceId + "/projects/" + projectId + "/tasks",
                     taskPayload.toString()
                 );
 
                 // Refresh workspace cache to reflect new task
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 return HttpResponse.ok(response.body(), MEDIA_JSON);
 
@@ -168,16 +189,15 @@ public class TasksController {
                 }
 
                 // Use openapiCall for PUT to /workspaces/{workspaceId}/tasks/{taskId}
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                var response = workspaceClient.openapiCall(
+                var response = workspaceClient.get().openapiCall(
                     OpenApiCallConfig.HttpMethod.PUT,
                     "/workspaces/" + workspaceId + "/tasks/" + taskId,
                     taskPayload.toString()
                 );
 
                 // Refresh workspace cache to reflect updated task
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 return HttpResponse.ok(response.body(), MEDIA_JSON);
 
@@ -204,17 +224,21 @@ public class TasksController {
                     return ErrorResponse.of(400, "TASKS.TASK_ID_REQUIRED", "taskId is required", request, false);
                 }
 
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
                 // Use openapiCall for DELETE to /workspaces/{workspaceId}/tasks/{taskId}
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                var response = workspaceClient.openapiCall(
+                var response = workspaceClient.get().openapiCall(
                     OpenApiCallConfig.HttpMethod.DELETE,
                     "/workspaces/" + workspaceId + "/tasks/" + taskId,
                     null
                 );
 
                 // Refresh workspace cache to reflect deleted task
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 ObjectNode result = objectMapper.createObjectNode();
                 result.put("deleted", true);
@@ -249,8 +273,6 @@ public class TasksController {
 
                 ObjectNode result = objectMapper.createObjectNode();
                 var operationsArray = objectMapper.createArrayNode();
-
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
 
                 // Process each operation
                 for (JsonNode operation : body.get("operations")) {
@@ -290,7 +312,7 @@ public class TasksController {
                                             taskPayload.set("status", data.get("status"));
                                         }
 
-                                        var response = workspaceClient.openapiCall(
+                                        var response = workspaceClient.get().openapiCall(
                                             OpenApiCallConfig.HttpMethod.POST,
                                             "/workspaces/" + workspaceId + "/projects/" + projectId + "/tasks",
                                             taskPayload.toString()
@@ -328,7 +350,7 @@ public class TasksController {
                                         taskPayload.set("archived", data.get("archived"));
                                     }
 
-                                    var response = workspaceClient.openapiCall(
+                                        var response = workspaceClient.get().openapiCall(
                                         OpenApiCallConfig.HttpMethod.PUT,
                                         "/workspaces/" + workspaceId + "/tasks/" + taskId,
                                         taskPayload.toString()
@@ -347,7 +369,7 @@ public class TasksController {
                                     operationResult.put("error", "Task id is required for deletion");
                                 } else {
                                     String taskId = data.get("id").asText();
-                                    workspaceClient.openapiCall(
+                                    workspaceClient.get().openapiCall(
                                         OpenApiCallConfig.HttpMethod.DELETE,
                                         "/workspaces/" + workspaceId + "/tasks/" + taskId,
                                         null
@@ -372,8 +394,8 @@ public class TasksController {
                 }
 
                 // Refresh workspace cache after bulk operations
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 result.set("operations", operationsArray);
                 return HttpResponse.ok(result.toString(), MEDIA_JSON);
@@ -450,6 +472,16 @@ public class TasksController {
                 ? "workspaceId is required"
                 : "workspaceId is required (Authorization bearer token missing or expired)";
         return ErrorResponse.of(400, "TASKS.WORKSPACE_REQUIRED", hint, request, false);
+    }
+
+    private HttpResponse tokenMissing(HttpServletRequest request) {
+        return ErrorResponse.of(
+                412,
+                "RULES.MISSING_TOKEN",
+                "Workspace installation token not found",
+                request,
+                false
+        );
     }
 
     private HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {

@@ -48,10 +48,14 @@ jobs:
       - name: Build auto-tag-assistant
         run: mvn -pl addons/auto-tag-assistant package
 
+      - name: Build rules addon
+        run: mvn -pl addons/rules package
+
       - name: Verify JAR files
         run: |
           ls -lh addons/addon-sdk/target/*.jar
           ls -lh addons/auto-tag-assistant/target/*.jar
+          ls -lh addons/rules/target/*.jar
 
       - name: Upload test results
         if: always()

@@ -11,6 +11,8 @@ import com.example.rules.engine.Action;
 import com.example.rules.engine.Evaluator;
 import com.example.rules.engine.Rule;
 import com.example.rules.engine.TimeEntryContext;
+import com.example.rules.ClockifyClientFactory;
+import com.example.rules.cache.RuleCache;
 import com.example.rules.cache.WebhookIdempotencyCache;
 import com.example.rules.store.RulesStore;
 import com.example.rules.metrics.RulesMetrics;
@@ -56,7 +58,6 @@ public class WebhookHandlers {
     // Executor for async webhook processing (prevents timeout on complex rules)
     private static volatile ThreadPoolExecutor executorService = createExecutor();
 
-    private static com.example.rules.store.RulesStoreSPI rulesStore;
     private static Evaluator evaluator;
 
     static ThreadPoolExecutor getAsyncExecutor() {
@@ -71,16 +72,13 @@ public class WebhookHandlers {
         }
     }
 
-    @FunctionalInterface
-    public interface ClientFactory { ClockifyClient create(String baseUrl, String token); }
-
-    private static ClientFactory clientFactory = ClockifyClient::new;
-    public static void setClientFactory(ClientFactory factory) {
+    private static ClockifyClientFactory clientFactory = ClockifyClient::new;
+    public static void setClientFactory(ClockifyClientFactory factory) {
         clientFactory = (factory != null) ? factory : ClockifyClient::new;
     }
 
     public static void register(ClockifyAddon addon, com.example.rules.store.RulesStoreSPI store) {
-        rulesStore = store;
+        RuleCache.initialize(store);
         evaluator = new Evaluator();
 
         // Register handlers for time entry events
@@ -139,7 +137,7 @@ public class WebhookHandlers {
                         loggingContext.user(userId);
                     }
 
-                    List<Rule> rules = rulesStore.getEnabled(workspaceId);
+                    List<Rule> rules = RuleCache.getEnabledRules(workspaceId);
                     if (rules.isEmpty()) {
                         logger.debug("No enabled rules found for workspace {}", workspaceId);
                         RulesMetrics.recordRuleEvaluation(eventType, 0, 0);

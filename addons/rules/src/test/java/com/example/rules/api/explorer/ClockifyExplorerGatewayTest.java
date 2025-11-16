@@ -31,6 +31,20 @@ class ClockifyExplorerGatewayTest {
     }
 
     @Test
+    void missingTokenReturnsPreconditionFailed() {
+        WorkspaceExplorerService.ClockifyExplorerGateway gateway =
+                new WorkspaceExplorerService.ClockifyExplorerGateway((baseUrl, token) -> null);
+        WorkspaceExplorerService.ExplorerQuery query =
+                new WorkspaceExplorerService.ExplorerQuery(1, 25, Map.of());
+        WorkspaceExplorerService.ExplorerException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                WorkspaceExplorerService.ExplorerException.class,
+                () -> gateway.fetch("ws-missing", WorkspaceExplorerService.ExplorerDataset.USERS, query)
+        );
+        assertEquals(412, ex.status());
+        assertEquals("EXPLORER.TOKEN_NOT_FOUND", ex.code());
+    }
+
+    @Test
     void projectTaskFetchPropagatesArchivedFlag() throws Exception {
         TokenStore.save("ws-project", "token", "https://api.clockify.me/api");
         RecordingClockifyClient client = new RecordingClockifyClient();

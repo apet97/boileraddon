@@ -2,6 +2,7 @@ package com.example.rules.api.explorer;
 
 import com.clockify.addon.sdk.security.TokenStore;
 import com.example.rules.ClockifyClient;
+import com.example.rules.ClockifyClientFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -25,7 +26,7 @@ public class WorkspaceExplorerService {
     private final Supplier<OffsetDateTime> clock;
 
     public WorkspaceExplorerService() {
-        this(new ClockifyExplorerGateway());
+        this(new ClockifyExplorerGateway(ClockifyClient::new));
     }
 
     public WorkspaceExplorerService(ExplorerGateway gateway) {
@@ -334,7 +335,7 @@ public class WorkspaceExplorerService {
 
         public static ExplorerException tokenMissing(String workspaceId) {
             return new ExplorerException(
-                    404,
+                    412,
                     "EXPLORER.TOKEN_NOT_FOUND",
                     "Workspace installation token not found for " + workspaceId,
                     false
@@ -619,11 +620,6 @@ public class WorkspaceExplorerService {
             String trimmed = value.trim();
             return trimmed.isEmpty() ? null : trimmed;
         }
-    }
-
-    @FunctionalInterface
-    interface ClockifyClientFactory {
-        ClockifyClient create(String baseUrl, String token);
     }
 
     public record ExplorerQuery(int page, int pageSize, Map<String, String> filters) {

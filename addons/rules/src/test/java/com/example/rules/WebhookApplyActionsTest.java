@@ -46,6 +46,7 @@ class WebhookApplyActionsTest {
         request = Mockito.mock(HttpServletRequest.class);
         System.setProperty("RULES_APPLY_CHANGES", "true");
         com.clockify.addon.sdk.security.TokenStore.clear();
+        com.example.rules.cache.RuleCache.clear();
     }
 
     @AfterEach
@@ -55,6 +56,7 @@ class WebhookApplyActionsTest {
         WebhookHandlers.setClientFactory(null); // reset
         System.clearProperty("CLOCKIFY_JWT_PUBLIC_KEY");
         System.clearProperty("CLOCKIFY_JWT_EXPECTED_ISS");
+        com.example.rules.cache.RuleCache.clear();
     }
 
     @Test

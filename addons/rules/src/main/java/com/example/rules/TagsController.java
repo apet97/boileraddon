@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.util.Optional;
 
 /**
  * CRUD controller for Tags management.
@@ -26,20 +27,23 @@ public class TagsController {
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final String MEDIA_JSON = "application/json";
 
-    private final ClockifyClient clockifyClient;
+    private final ClockifyClientFactory clientFactory;
 
-    public TagsController(ClockifyClient clockifyClient) {
-        this.clockifyClient = clockifyClient;
+    public TagsController(ClockifyClientFactory clientFactory) {
+        this.clientFactory = clientFactory == null ? ClockifyClient::new : clientFactory;
     }
 
-    private ClockifyClient getWorkspaceClockifyClient(String workspaceId) {
-        // Get the workspace token from TokenStore
+    public TagsController() {
+        this(ClockifyClient::new);
+    }
+
+    private Optional<ClockifyClient> getWorkspaceClockifyClient(String workspaceId) {
         var tokenOpt = com.clockify.addon.sdk.security.TokenStore.get(workspaceId);
         if (tokenOpt.isEmpty()) {
-            throw new RuntimeException("No installation token found for workspace: " + workspaceId);
+            return Optional.empty();
         }
         var token = tokenOpt.get();
-        return new ClockifyClient(token.apiBaseUrl(), token.token());
+        return Optional.of(clientFactory.create(token.apiBaseUrl(), token.token()));
     }
 
     /**
@@ -54,8 +58,11 @@ public class TagsController {
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                JsonNode tags = workspaceClient.getTags(workspaceId);
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+                JsonNode tags = workspaceClient.get().getTags(workspaceId);
                 return HttpResponse.ok(tags.toString(), MEDIA_JSON);
 
             } catch (Exception e) {
@@ -76,6 +83,16 @@ public class TagsController {
                 }
                 RequestContext.attachWorkspace(request, ctx, workspaceId);
 
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
                 JsonNode body = parseRequestBody(request);
 
                 // Validate required fields
@@ -86,12 +103,11 @@ public class TagsController {
                 String tagName = body.get("name").asText();
 
                 // Use createTag method for POST to /workspaces/{workspaceId}/tags
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                JsonNode tag = workspaceClient.createTag(workspaceId, tagName);
+                JsonNode tag = workspaceClient.get().createTag(workspaceId, tagName);
 
                 // Refresh workspace cache to reflect new tag
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 return HttpResponse.ok(tag.toString(), MEDIA_JSON);
 
@@ -132,16 +148,15 @@ public class TagsController {
                 }
 
                 // Use openapiCall for PUT to /workspaces/{workspaceId}/tags/{tagId}
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                var response = workspaceClient.openapiCall(
+                var response = workspaceClient.get().openapiCall(
                     OpenApiCallConfig.HttpMethod.PUT,
                     "/workspaces/" + workspaceId + "/tags/" + tagId,
                     tagPayload.toString()
                 );
 
                 // Refresh workspace cache to reflect updated tag
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 return HttpResponse.ok(response.body(), MEDIA_JSON);
 
@@ -168,17 +183,21 @@ public class TagsController {
                     return ErrorResponse.of(400, "TAGS.TAG_ID_REQUIRED", "tagId is required", request, false);
                 }
 
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
                 // Use openapiCall for DELETE to /workspaces/{workspaceId}/tags/{tagId}
-                ClockifyClient workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                var response = workspaceClient.openapiCall(
+                var response = workspaceClient.get().openapiCall(
                     OpenApiCallConfig.HttpMethod.DELETE,
                     "/workspaces/" + workspaceId + "/tags/" + tagId,
                     null
                 );
 
                 // Refresh workspace cache to reflect deleted tag
-                var token = com.clockify.addon.sdk.security.TokenStore.get(workspaceId).get();
-                WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token());
+                com.clockify.addon.sdk.security.TokenStore.get(workspaceId)
+                        .ifPresent(token -> WorkspaceCache.refreshAsync(workspaceId, token.apiBaseUrl(), token.token()));
 
                 ObjectNode result = objectMapper.createObjectNode();
                 result.put("deleted", true);
@@ -240,6 +259,16 @@ public class TagsController {
                 ? "workspaceId is required"
                 : "workspaceId is required (Authorization bearer token missing or expired)";
         return ErrorResponse.of(400, "TAGS.WORKSPACE_REQUIRED", hint, request, false);
+    }
+
+    private HttpResponse tokenMissing(HttpServletRequest request) {
+        return ErrorResponse.of(
+                412,
+                "RULES.MISSING_TOKEN",
+                "Workspace installation token not found",
+                request,
+                false
+        );
     }
 
     private HttpResponse internalError(HttpServletRequest request, String code, String message, Exception e, boolean retryable) {

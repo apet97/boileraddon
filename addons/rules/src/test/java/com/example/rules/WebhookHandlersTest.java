@@ -60,6 +60,7 @@ class WebhookHandlersTest {
 
         // Clear token store
         com.clockify.addon.sdk.security.TokenStore.clear();
+        com.example.rules.cache.RuleCache.clear();
         System.setProperty("ADDON_ACCEPT_JWT_SIGNATURE", "true");
         System.setProperty("ADDON_AUTH_COMPAT", "HMAC");
         System.setProperty("ENV", "dev");
@@ -88,6 +89,7 @@ class WebhookHandlersTest {
         WebhookHandlers.setClientFactory(null);
         WebhookHandlers.resetAsyncExecutorForTesting();
         WebhookIdempotencyCache.reset();
+        com.example.rules.cache.RuleCache.clear();
     }
 
     @Test
