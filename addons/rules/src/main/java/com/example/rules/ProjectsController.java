@@ -153,6 +153,11 @@ public class ProjectsController {
                     return ErrorResponse.of(400, "PROJECTS.PROJECT_ID_REQUIRED", "projectId is required", request, false);
                 }
 
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
                 JsonNode body = parseRequestBody(request);
 
                 // Build project update payload

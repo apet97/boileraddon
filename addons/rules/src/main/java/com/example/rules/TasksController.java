@@ -156,6 +156,11 @@ public class TasksController {
                     return ErrorResponse.of(400, "TASKS.TASK_ID_REQUIRED", "taskId is required", request, false);
                 }
 
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
                 JsonNode body = parseRequestBody(request);
 
                 // Build task update payload
@@ -259,6 +264,11 @@ public class TasksController {
                 // Validate required fields
                 if (!body.has("operations") || !body.get("operations").isArray()) {
                     return ErrorResponse.of(400, "TASKS.BULK_OPERATIONS_REQUIRED", "operations array is required", request, false);
+                }
+
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
                 }
 
                 ObjectNode result = objectMapper.createObjectNode();

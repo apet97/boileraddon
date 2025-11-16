@@ -147,6 +147,11 @@ public class ClientsController {
                     return ErrorResponse.of(400, "CLIENTS.CLIENT_ID_REQUIRED", "clientId is required", request, false);
                 }
 
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
                 JsonNode body = parseRequestBody(request);
 
                 // Build client update payload

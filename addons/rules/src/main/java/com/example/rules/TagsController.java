@@ -129,6 +129,11 @@ public class TagsController {
                     return ErrorResponse.of(400, "TAGS.TAG_ID_REQUIRED", "tagId is required", request, false);
                 }
 
+                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
+                if (workspaceClient.isEmpty()) {
+                    return tokenMissing(request);
+                }
+
                 JsonNode body = parseRequestBody(request);
 
                 // Build tag update payload
