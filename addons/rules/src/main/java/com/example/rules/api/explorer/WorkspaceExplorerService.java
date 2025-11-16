@@ -353,7 +353,7 @@ public class WorkspaceExplorerService {
             this(ClockifyClient::new);
         }
 
-        ClockifyExplorerGateway(ClockifyClientFactory clientFactory) {
+        public ClockifyExplorerGateway(ClockifyClientFactory clientFactory) {
             this.clientFactory = clientFactory;
         }
 

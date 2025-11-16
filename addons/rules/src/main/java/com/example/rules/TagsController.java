@@ -88,11 +88,6 @@ public class TagsController {
                     return tokenMissing(request);
                 }
 
-                Optional<ClockifyClient> workspaceClient = getWorkspaceClockifyClient(workspaceId);
-                if (workspaceClient.isEmpty()) {
-                    return tokenMissing(request);
-                }
-
                 JsonNode body = parseRequestBody(request);
 
                 // Validate required fields
